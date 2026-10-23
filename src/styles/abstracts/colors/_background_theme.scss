@@ -1,0 +1,13 @@
+@use 'colors' as *;
+$bg-colors-light: (
+  default: oklch(0.98 0.01 95),
+  card: oklch(1 0 0),
+  popover: oklch(0.98 0.01 95),
+);
+
+$bg-colors-dark: (
+  default: oklch(0.16 0.01 270),
+  card: oklch(0.2 0.01 270),
+  popover: oklch(0.2 0.01 270),
+  neutral: #2f2f2f,
+);

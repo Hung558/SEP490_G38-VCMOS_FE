@@ -1,0 +1,26 @@
+@use '@/styles/abstracts/variables/common_variables' as common_variables;
+@use '@/styles/abstracts/functions/helpers' as helper;
+/// 2. Định nghĩa cơ bản
+$max-scale-fs: 100; // sẽ sinh .fs-0 … .fs-10
+
+/// 3. Sinh lớp .fs-0 → .fs-{max}
+@for $i from 0 through $max-scale-fs {
+  .fs-#{$i} {
+    font-size: #{$i * 1rem * 0.1}; // 0.1rem
+  }
+}
+
+/// 4. Map cho những size “có tên”
+$font-sizes: (
+  normal: helper.px-to-rem(13),
+  // 0.875rem
+  small: helper.px-to-rem(10),
+  // 0.75rem
+  large: helper.px-to-rem(16), // 1.125rem
+);
+
+@each $name, $size in $font-sizes {
+  .fs-#{$name} {
+    font-size: $size;
+  }
+}

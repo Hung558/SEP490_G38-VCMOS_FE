@@ -1,0 +1,31 @@
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+@for $i from 0 through 6 {
+  h#{$i} {
+    font-size: #{$i + 0.1rem}; // 0.1, 0.2,...
+  }
+}
+
+p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+a {
+  color: #1c9cf8;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+.no-wrap {
+  text-wrap: nowrap;
+}

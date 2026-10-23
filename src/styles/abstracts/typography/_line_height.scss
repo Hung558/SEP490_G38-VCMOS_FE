@@ -1,0 +1,6 @@
+$max-scale-lh: 40;
+@for $i from 0 through $max-scale-lh {
+  .lh-#{$i} {
+    line-height: #{$i * 0.1}; // 0.1, 0.2,...
+  }
+}

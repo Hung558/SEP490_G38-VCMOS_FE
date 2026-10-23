@@ -1,0 +1,18 @@
+@use 'sass:meta';
+@mixin generate-theme-vars($theme-map) {
+  @each $group, $map in $theme-map {
+    @if meta.type-of($map) == 'map' {
+      @each $key, $val in $map {
+        @if meta.type-of($val) == 'map' {
+          @each $subkey, $subval in $val {
+            --#{$group}-#{$key}-#{$subkey}: #{$subval};
+          }
+        } @else {
+          --#{$group}-#{$key}: #{$val};
+        }
+      }
+    } @else {
+      --#{$group}: #{$map};
+    }
+  }
+}

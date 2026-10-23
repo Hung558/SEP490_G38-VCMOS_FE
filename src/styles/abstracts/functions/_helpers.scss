@@ -1,0 +1,20 @@
+@use '@/styles/abstracts/variables/base_variables' as base_variables;
+// _helpers.scss
+@use 'sass:math';
+/// Trả về phần tử cuối cùng của list
+@function last($list) {
+  @return nth($list, length($list));
+}
+
+/// Hàm chuyển px → rem
+@function px-to-rem($px, $base: base_variables.$base-font-size) {
+  @return math.div($px, $base) * 1rem;
+}
+//for variable
+@function font-family($key) {
+  @return map.get($font-families, $key);
+}
+
+@function bg($key) {
+  @return map.get($backgrounds, $key);
+}

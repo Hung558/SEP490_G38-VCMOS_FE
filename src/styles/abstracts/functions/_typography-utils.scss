@@ -1,0 +1,20 @@
+// Các hàm liên quan đến text:
+/// Trả về font-size từ map $font-sizes
+@function fs($key) {
+  @return map-get($font-sizes, $key);
+}
+
+/// Tính line-height theo ratio (vd. 1.5)
+@function lh($multiplier, $font-size-key: null) {
+  @if $font-size-key {
+    $font-size: fs($font-size-key);
+    @return $multiplier * $font-size;
+  }
+
+  @return $multiplier;
+}
+
+/// Chuyển px → em dựa trên font-size hiện tại
+@function px-to-em($px, $context: fs(base)) {
+  @return ($px / $context) * 1em;
+}
