@@ -4,7 +4,7 @@
   justify-content: center;
   align-items: flex-start;
   gap: 10px;
-  color: #000;
+  color: #0f172a;
   line-height: 1.2;
   padding: 12px;
   text-decoration: none;
@@ -12,37 +12,39 @@
     text-decoration: none;
   }
   div {
-    color: #000;
+    color: #0f172a;
   }
 }
 
 .bottomPanel {
   margin-top: auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 16px;
+  border-top: 1px solid #f1f5f9;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: #ffffff;
 
   .userInfoRow {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    color: #fff;
-    margin-bottom: 8px;
+    color: #0f172a;
+    margin-bottom: 6px;
 
     .userProfile {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
 
       .userName {
         font-weight: 600;
-        font-size: 14px;
+        font-size: 13.5px;
+        color: #0f172a;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        max-width: 130px;
+        max-width: 140px;
       }
     }
 
@@ -51,14 +53,14 @@
       border: none;
       cursor: pointer;
       padding: 4px;
-      color: rgba(255, 255, 255, 0.8);
+      color: #64748b;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.2s ease-in-out;
+      transition: color 0.15s ease-in-out;
 
       &:hover {
-        color: #ff4d4f;
+        color: #ef4444;
       }
     }
   }
@@ -66,21 +68,24 @@
   .homeBtn {
     display: flex;
     align-items: center;
-    gap: 12px;
-    color: rgba(255, 255, 255, 0.8);
+    gap: 10px;
+    color: #475569;
     cursor: pointer;
-    padding: 8px;
+    padding: 8px 10px;
     border-radius: 6px;
-    transition: all 0.2s ease-in-out;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    transition: all 0.15s ease-in-out;
 
     .homeText {
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     &:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background-color: #f0fdfa;
+      border-color: #ccfbf1;
+      color: #0d9488;
     }
   }
 }

@@ -3,265 +3,312 @@ import styled from 'styled-components';
 import { Button } from 'antd';
 import {
   CalendarOutlined,
-  ThunderboltOutlined,
-  CheckCircleFilled,
-  SafetyCertificateFilled,
+  HomeFilled,
+  MedicineBoxOutlined,
+  SafetyCertificateOutlined,
+  ClockCircleOutlined,
+  PhoneOutlined,
+  FileTextOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
+import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 
-const SectionWrapper = styled.section`
-  max-width: 1240px;
+const HeroOuterWrapper = styled.section`
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 60px 24px 80px 24px;
+  padding: 24px 20px 48px 20px;
+`;
+
+const HospitalBannerCard = styled.div`
+  position: relative;
+  width: 100%;
+  min-height: 520px;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow:
+    0 12px 36px -8px rgba(15, 23, 42, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* Background Hospital Photography */
+  background-image: url('/images/vcmos_hospital_hero.jpg');
+  background-size: cover;
+  background-position: center right;
+  background-repeat: no-repeat;
+
+  /* Left-heavy gradient overlay for WCAG AAA text legibility */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.94) 0%,
+      rgba(15, 23, 42, 0.88) 38%,
+      rgba(15, 23, 42, 0.55) 65%,
+      rgba(15, 23, 42, 0.15) 100%
+    );
+    z-index: 1;
+
+    @media (max-width: 900px) {
+      background: linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0.96) 0%,
+        rgba(15, 23, 42, 0.88) 100%
+      );
+    }
+  }
+
+  .banner-content {
+    position: relative;
+    z-index: 2;
+    padding: 44px 48px 32px 48px;
+    max-width: 720px;
+
+    @media (max-width: 768px) {
+      padding: 32px 24px;
+    }
+
+    .breadcrumb-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 24px;
+      letter-spacing: 0.2px;
+
+      .home-icon {
+        color: #fbbf24;
+        font-size: 15px;
+      }
+
+      .separator {
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .clinic-tag {
+        color: #5eead4;
+        background: rgba(13, 148, 136, 0.25);
+        padding: 3px 10px;
+        border-radius: 9999px;
+        border: 1px solid rgba(45, 212, 191, 0.3);
+      }
+    }
+
+    h1.hospital-title {
+      font-size: 44px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #ffffff;
+      letter-spacing: -0.025em;
+      margin: 0 0 18px 0;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+      @media (max-width: 768px) {
+        font-size: 30px;
+      }
+    }
+
+    p.hospital-subtitle {
+      font-size: 17.5px;
+      color: rgba(241, 245, 249, 0.94);
+      line-height: 1.6;
+      margin: 0 0 32px 0;
+      max-width: 600px;
+      font-weight: 400;
+
+      @media (max-width: 768px) {
+        font-size: 15px;
+        margin-bottom: 24px;
+      }
+    }
+
+    .cta-button-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+
+      .btn-primary-booking {
+        background-color: #0d9488;
+        border-color: #0d9488;
+        color: #ffffff;
+        height: 46px;
+        padding: 0 26px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 15px;
+        box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+        transition: all 0.2s ease;
+
+        &:hover {
+          background-color: #0f766e !important;
+          border-color: #0f766e !important;
+          transform: translateY(-1px);
+        }
+      }
+
+      .btn-outline-white {
+        background: rgba(255, 255, 255, 0.12);
+        border: 1.5px solid rgba(255, 255, 255, 0.6);
+        color: #ffffff;
+        height: 46px;
+        padding: 0 22px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14.5px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.24) !important;
+          border-color: #ffffff !important;
+          color: #ffffff !important;
+          transform: translateY(-1px);
+        }
+      }
+    }
+  }
+
+  /* Sub-Navigation Bar - matches dark theme of hero banner */
+  .hospital-subnav {
+    position: relative;
+    z-index: 2;
+    background: #0f172a;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 54px;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    @media (max-width: 900px) {
+      padding: 12px 20px;
+    }
+
+    .subnav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+
+      @media (max-width: 640px) {
+        gap: 14px;
+      }
+
+      a.subnav-item {
+        color: #e2e8f0;
+        font-size: 13.5px;
+        font-weight: 500;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: color 0.15s ease;
+
+        &:hover {
+          color: #2dd4bf;
+        }
+
+        &.highlight {
+          color: #5eead4;
+          font-weight: 600;
+        }
+      }
+    }
+
+    .subnav-hours {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #cbd5e1;
+      font-weight: 500;
+
+      .icon {
+        color: #2dd4bf;
+      }
+    }
+  }
+`;
+
+const QuickInfoGrid = styled.div`
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  align-items: center;
-  gap: 48px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 24px;
 
   @media (max-width: 960px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 560px) {
     grid-template-columns: 1fr;
-    padding: 40px 16px 60px 16px;
-    gap: 36px;
-  }
-`;
-
-const ContentCol = styled.div`
-  .category-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 16px;
-    background: #e0f2f1;
-    color: #00796b;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    margin-bottom: 20px;
   }
 
-  .main-heading {
-    font-size: 46px;
-    font-weight: 900;
-    line-height: 1.2;
-    color: #0f172a;
-    margin: 0 0 20px 0;
-    letter-spacing: -1px;
-
-    .highlight {
-      color: #00796b;
-      position: relative;
-    }
-
-    @media (max-width: 640px) {
-      font-size: 32px;
-    }
-  }
-
-  .description {
-    font-size: 17px;
-    color: #475569;
-    line-height: 1.6;
-    margin: 0 0 32px 0;
-  }
-
-  .btn-row {
+  .info-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
     display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 36px;
+    gap: 14px;
+    align-items: flex-start;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease;
 
-    .btn-booking {
-      background: #00695c;
-      border-color: #00695c;
-      color: #ffffff;
-      height: 52px;
-      padding: 0 32px;
-      border-radius: 14px;
-      font-weight: 700;
-      font-size: 16px;
-      box-shadow: 0 4px 16px rgba(0, 105, 92, 0.25);
-      &:hover {
-        background: #004d40 !important;
-        border-color: #004d40 !important;
-        transform: translateY(-2px);
-      }
+    &:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+      transform: translateY(-2px);
     }
 
-    .btn-ai {
-      background: #ffffff;
-      border: 1.5px solid #00796b;
-      color: #00796b;
-      height: 52px;
-      padding: 0 28px;
-      border-radius: 14px;
-      font-weight: 700;
-      font-size: 16px;
-      &:hover {
-        background: #e0f2f1 !important;
-        border-color: #004d40 !important;
-        color: #004d40 !important;
-      }
-    }
-  }
-
-  .features-strip {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-    font-size: 13.5px;
-    color: #334155;
-    font-weight: 600;
-
-    .item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      svg {
-        color: #10b981;
-      }
-    }
-  }
-`;
-
-const VisualCol = styled.div`
-  position: relative;
-
-  .image-card {
-    background: linear-gradient(135deg, #ccfbf1 0%, #e0f2fe 100%);
-    border-radius: 36px;
-    padding: 16px;
-    box-shadow: 0 20px 50px rgba(0, 77, 64, 0.1);
-    position: relative;
-    overflow: hidden;
-
-    img {
-      width: 100%;
-      height: 480px;
-      object-fit: cover;
-      border-radius: 24px;
-      display: block;
-    }
-  }
-
-  /* Floating Badges */
-  .badge-top {
-    position: absolute;
-    top: 24px;
-    right: 24px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 14px;
-    padding: 10px 16px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      background: #ef4444;
-      border-radius: 50%;
-      animation: pulse 1.5s infinite;
-    }
-
-    strong {
-      color: #0f172a;
-    }
-    span {
-      color: #64748b;
-      font-size: 11px;
-      display: block;
-    }
-
-    @keyframes pulse {
-      0%,
-      100% {
-        opacity: 1;
-        transform: scale(1);
-      }
-      50% {
-        opacity: 0.4;
-        transform: scale(1.2);
-      }
-    }
-  }
-
-  .badge-bottom-left {
-    position: absolute;
-    bottom: 24px;
-    left: 24px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 14px;
-    padding: 12px 18px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    .icon-star {
-      width: 36px;
-      height: 36px;
-      background: #fef3c7;
-      color: #f59e0b;
+    .icon-box {
+      width: 42px;
+      height: 42px;
       border-radius: 10px;
+      background: #f0fdfa;
+      color: #0d9488;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 20px;
+      flex-shrink: 0;
+
+      &.blue {
+        background: #f0f9ff;
+        color: #0284c7;
+      }
+      &.amber {
+        background: #fffbeb;
+        color: #d97706;
+      }
+      &.purple {
+        background: #faf5ff;
+        color: #7c3aed;
+      }
     }
 
-    .rating {
-      font-size: 16px;
-      font-weight: 800;
-      color: #0f172a;
-    }
-
-    .sub {
-      font-size: 11.5px;
-      color: #64748b;
-    }
-  }
-
-  .badge-bottom-right {
-    position: absolute;
-    bottom: 24px;
-    right: 24px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 14px;
-    padding: 12px 18px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    .icon-pet {
-      width: 36px;
-      height: 36px;
-      background: #ccfbf1;
-      color: #00796b;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    }
-
-    .count {
-      font-size: 15px;
-      font-weight: 800;
-      color: #0f172a;
-    }
-
-    .sub {
-      font-size: 11px;
-      color: #64748b;
+    .info-body {
+      h4 {
+        margin: 0 0 4px 0;
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      p {
+        margin: 0;
+        font-size: 13px;
+        color: #64748b;
+        line-height: 1.5;
+      }
     }
   }
 `;
@@ -275,89 +322,173 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   onScrollToBooking,
   onScrollToAi,
 }) => {
+  const { isLogin } = useIsLogin();
+
+  const handleBookingClick = () => {
+    if (!isLogin) {
+      window.dispatchEvent(new CustomEvent('open-vcmos-login'));
+    } else {
+      onScrollToBooking();
+    }
+  };
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
-    <SectionWrapper>
-      <ContentCol>
-        <div className="category-tag">
-          <SafetyCertificateFilled /> CÔNG NGHỆ THÚ Y THÔNG MINH TIÊN PHONG TẠI
-          VIỆT NAM
-        </div>
-
-        <h1 className="main-heading">
-          Chăm sóc toàn diện cho thú cưng với{' '}
-          <span className="highlight">công nghệ chuẩn quốc tế</span>
-        </h1>
-
-        <p className="description">
-          Hệ thống tích hợp 3 trong 1: Khám chữa bệnh & Hồ sơ điện tử, Dịch vụ
-          Spa & Grooming cao cấp, Cửa hàng dinh dưỡng chính hãng.
-        </p>
-
-        <div className="btn-row">
-          <Button
-            type="primary"
-            className="btn-booking"
-            icon={<CalendarOutlined />}
-            onClick={onScrollToBooking}
-          >
-            Đặt lịch khám ngay
-          </Button>
-
-          <Button
-            className="btn-ai"
-            icon={<ThunderboltOutlined />}
-            onClick={onScrollToAi}
-          >
-            Hỏi nhanh trợ lý AI 24/7
-          </Button>
-        </div>
-
-        <div className="features-strip">
-          <div className="item">
-            <CheckCircleFilled /> Bác sĩ &gt;10 năm kinh nghiệm
+    <HeroOuterWrapper>
+      {/* UCLA Health-Style Hospital Hero Banner */}
+      <HospitalBannerCard>
+        <div className="banner-content">
+          <div className="breadcrumb-row">
+            <HomeFilled className="home-icon" />
+            <span className="separator">&rsaquo;</span>
+            <span>Hệ Thống Y Tế Thú Cưng</span>
+            <span className="separator">&rsaquo;</span>
+            <span className="clinic-tag">Cơ sở Hòa Lạc, Hà Nội</span>
           </div>
-          <div className="item">
-            <CheckCircleFilled /> Xét nghiệm số hóa 15 phút
-          </div>
-          <div className="item">
-            <CheckCircleFilled /> Cấp cứu xuyên đêm 24/7
+
+          <h1 className="hospital-title">Bệnh Viện & Phòng Khám Thú Y VCMOS</h1>
+
+          <p className="hospital-subtitle">
+            Tiêu chuẩn y khoa hàng đầu trong chăm sóc, chẩn đoán cận lâm sàng,
+            phẫu thuật ngoại khoa và quản lý hồ sơ bệnh án trọn đời cùng thú
+            cưng.
+          </p>
+
+          <div className="cta-button-group">
+            <Button
+              className="btn-primary-booking"
+              icon={<CalendarOutlined />}
+              onClick={handleBookingClick}
+            >
+              Đặt lịch hẹn khám
+            </Button>
+            <Button
+              className="btn-outline-white"
+              onClick={() => scrollToSection('services')}
+            >
+              Dịch vụ & Bảng giá &rsaquo;
+            </Button>
+            <Button className="btn-outline-white" onClick={onScrollToAi}>
+              Sàng lọc phân loại (Triage)
+            </Button>
           </div>
         </div>
-      </ContentCol>
 
-      <VisualCol>
-        <div className="image-card">
-          <img
-            src="https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&w=800&q=80"
-            alt="Bác sĩ thú y VCMOS khám cún cưng"
-          />
-
-          <div className="badge-top">
-            <div className="dot" />
-            <div>
-              <strong>Hỗ trợ y tế 24/7</strong>
-              <span>Luôn sẵn sàng túc trực</span>
-            </div>
+        {/* Bottom Subnav Bar (UCLA Health Sub-Bar pattern) */}
+        <div className="hospital-subnav">
+          <div className="subnav-links">
+            <a
+              href="#services"
+              className="subnav-item"
+              onClick={e => {
+                e.preventDefault();
+                scrollToSection('services');
+              }}
+            >
+              <MedicineBoxOutlined /> Dịch vụ chuyên khoa
+            </a>
+            <a
+              href="#doctors"
+              className="subnav-item"
+              onClick={e => {
+                e.preventDefault();
+                scrollToSection('doctors');
+              }}
+            >
+              <TeamOutlined /> Đội ngũ Bác sĩ
+            </a>
+            <a
+              href="#triage"
+              className="subnav-item"
+              onClick={e => {
+                e.preventDefault();
+                scrollToSection('triage');
+              }}
+            >
+              <SafetyCertificateOutlined /> Sàng lọc lâm sàng (Triage)
+            </a>
+            <a
+              href="#community"
+              className="subnav-item"
+              onClick={e => {
+                e.preventDefault();
+                scrollToSection('community');
+              }}
+            >
+              <FileTextOutlined /> Đánh giá & Cộng đồng
+            </a>
           </div>
 
-          <div className="badge-bottom-left">
-            <div className="icon-star">★</div>
-            <div>
-              <div className="rating">4.9/5 Xuất sắc</div>
-              <div className="sub">&gt;3.200 đánh giá 5 sao từ phụ huynh</div>
-            </div>
-          </div>
-
-          <div className="badge-bottom-right">
-            <div className="icon-pet">🐾</div>
-            <div>
-              <div className="count">10.000+ bé thú cưng</div>
-              <div className="sub">Theo dõi sức khỏe định kỳ</div>
-            </div>
+          <div className="subnav-hours">
+            <ClockCircleOutlined className="icon" />
+            <span>
+              Giờ tiếp nhận: <strong>08:00 - 20:00</strong> (Tất cả các ngày)
+            </span>
           </div>
         </div>
-      </VisualCol>
-    </SectionWrapper>
+      </HospitalBannerCard>
+
+      {/* Clinical Feature Highlights Strip */}
+      <QuickInfoGrid>
+        <div className="info-card">
+          <div className="icon-box">
+            <CalendarOutlined />
+          </div>
+          <div className="info-body">
+            <h4>Khám & Spa liên tiếp</h4>
+            <p>
+              Quy trình hẹn khám một chạm, chọn bác sĩ và loại hình dịch vụ
+              không phải chờ đợi.
+            </p>
+          </div>
+        </div>
+
+        <div className="info-card">
+          <div className="icon-box blue">
+            <FileTextOutlined />
+          </div>
+          <div className="info-body">
+            <h4>Bệnh án điện tử EMR</h4>
+            <p>
+              Lưu trữ tiền sử bệnh, kết quả xét nghiệm, lịch tiêm phòng và đơn
+              thuốc trọn đời.
+            </p>
+          </div>
+        </div>
+
+        <div className="info-card">
+          <div className="icon-box amber">
+            <SafetyCertificateOutlined />
+          </div>
+          <div className="info-body">
+            <h4>Bảng giá minh bạch</h4>
+            <p>
+              Niêm yết công khai từng dịch vụ, vật tư y tế và cam kết không phát
+              sinh phụ phí.
+            </p>
+          </div>
+        </div>
+
+        <div className="info-card">
+          <div className="icon-box purple">
+            <PhoneOutlined />
+          </div>
+          <div className="info-body">
+            <h4>Hỗ trợ & Tiếp đón</h4>
+            <p>
+              Hotline: <strong>(024) 7300 8888</strong>. Tư vấn đặt chỗ & hướng
+              dẫn đưa thú cưng tới khám.
+            </p>
+          </div>
+        </div>
+      </QuickInfoGrid>
+    </HeroOuterWrapper>
   );
 };
 

@@ -1,66 +1,100 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Button, Input, Tag } from 'antd';
+import { Button, Input, Select, Tag } from 'antd';
 import {
-  ThunderboltFilled,
-  UploadOutlined,
-  SendOutlined,
-  UserSwitchOutlined,
+  FileTextOutlined,
+  AlertOutlined,
   CalendarOutlined,
-  ExclamationCircleFilled,
+  ExclamationCircleOutlined,
+  SafetyCertificateOutlined,
+  CheckCircleOutlined,
+  SendOutlined,
+  UploadOutlined,
+  HistoryOutlined,
+  InfoCircleOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import { toast } from 'sonner';
+import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 
 const SectionWrapper = styled.section`
   max-width: 1240px;
   margin: 0 auto;
-  padding: 40px 24px 80px 24px;
+  padding: 64px 24px 80px 24px;
 `;
 
 const SectionHeader = styled.div`
   text-align: center;
-  max-width: 840px;
-  margin: 0 auto 40px auto;
+  max-width: 800px;
+  margin: 0 auto 36px auto;
 
-  .ai-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 16px;
-    background: #e0f2f1;
-    color: #00796b;
+  .section-tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0d9488;
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    padding: 5px 14px;
     border-radius: 9999px;
-    font-size: 11.5px;
-    font-weight: 800;
-    letter-spacing: 0.8px;
     text-transform: uppercase;
-    margin-bottom: 12px;
+    letter-spacing: 0.8px;
+    margin-bottom: 14px;
   }
 
   h2 {
-    font-size: 34px;
-    font-weight: 900;
+    font-size: 36px;
+    font-weight: 850;
     color: #0f172a;
-    margin: 0 0 12px 0;
-    letter-spacing: -0.6px;
+    letter-spacing: -0.02em;
+    margin: 0 0 14px 0;
+
+    @media (max-width: 640px) {
+      font-size: 28px;
+    }
   }
 
   p {
     font-size: 16px;
     color: #64748b;
-    margin: 0;
     line-height: 1.6;
+    margin: 0;
   }
 `;
 
-const AiCardContainer = styled.div`
+// Mandatory Medical Disclaimer Banner MSG33 from SRS
+const DisclaimerBanner = styled.div`
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #0d9488;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  color: #334155;
+
+  .banner-icon {
+    font-size: 18px;
+    color: #0d9488;
+    flex-shrink: 0;
+  }
+
+  strong {
+    color: #0f172a;
+  }
+`;
+
+const AssessmentContainer = styled.div`
   background: #ffffff;
-  border-radius: 32px;
-  border: 1px solid #ccfbf1;
-  box-shadow: 0 20px 60px rgba(0, 121, 107, 0.08);
-  padding: 36px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  padding: 32px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.15fr 0.85fr;
   gap: 36px;
 
   @media (max-width: 960px) {
@@ -69,452 +103,591 @@ const AiCardContainer = styled.div`
   }
 `;
 
-const LeftPane = styled.div`
+const FormPane = styled.div`
   display: flex;
   flex-direction: column;
 
-  .pane-header {
+  .field-label {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
+    gap: 6px;
 
-    h3 {
-      font-size: 18px;
-      font-weight: 800;
-      color: #0f172a;
-      margin: 0;
-    }
-
-    .step-pill {
-      font-size: 11.5px;
-      font-weight: 700;
-      color: #00796b;
-      background: #e0f2f1;
-      padding: 3px 10px;
-      border-radius: 9999px;
-    }
-  }
-
-  .upload-box {
-    background: #f8fafc;
-    border: 2px dashed #cbd5e1;
-    border-radius: 20px;
-    padding: 32px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-bottom: 20px;
-
-    &:hover {
-      border-color: #00796b;
-      background: #f0fdfa;
-    }
-
-    .icon-upload {
-      font-size: 32px;
-      color: #00796b;
-      margin-bottom: 10px;
-    }
-
-    .upload-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: #1e293b;
-      margin-bottom: 4px;
-    }
-
-    .upload-desc {
+    .sub {
       font-size: 12px;
+      font-weight: 400;
       color: #64748b;
     }
   }
 
-  .chips-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 10px;
+  .pet-selector-row {
+    margin-bottom: 20px;
+    .ant-select {
+      width: 100%;
+    }
   }
 
-  .chips-row {
+  .symptom-grid {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 24px;
+    margin-bottom: 22px;
   }
 
-  .chat-input-box {
-    display: flex;
-    gap: 10px;
-    margin-top: auto;
+  .photo-upload-box {
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    background: #f8fafc;
+    margin-bottom: 20px;
+    transition: all 0.15s;
 
-    .ant-input {
-      border-radius: 14px;
-      background: #f8fafc;
-      border: 1.5px solid #e2e8f0;
-      padding: 10px 16px;
+    &:hover {
+      border-color: #0d9488;
+      background: #f0fdfa;
     }
 
-    .btn-send {
-      background: #00695c;
-      border-color: #00695c;
-      height: auto;
-      border-radius: 14px;
-      padding: 0 20px;
-      &:hover {
-        background: #004d40 !important;
+    .upload-hint {
+      font-size: 13px;
+      color: #475569;
+      margin-top: 6px;
+    }
+    .upload-spec {
+      font-size: 11.5px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+  }
+
+  .notes-box {
+    margin-bottom: 24px;
+    .ant-input {
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 13.5px;
+      &:focus {
+        border-color: #0d9488;
       }
     }
+    .char-count {
+      text-align: right;
+      font-size: 11.5px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+  }
+
+  .btn-submit-assessment {
+    background: #0d9488;
+    border-color: #0d9488;
+    color: #ffffff;
+    height: 44px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    &:hover {
+      background: #0f766e !important;
+      border-color: #0f766e !important;
+    }
   }
 `;
 
-const Chip = styled.button<{ $active: boolean }>`
-  border: 1px solid ${props => (props.$active ? '#00796b' : '#e2e8f0')};
-  background: ${props => (props.$active ? '#00695c' : '#ffffff')};
-  color: ${props => (props.$active ? '#ffffff' : '#334155')};
-  font-size: 12.5px;
-  font-weight: 600;
+const SymptomButton = styled.button<{ $active: boolean }>`
+  border: 1px solid ${props => (props.$active ? '#0d9488' : '#e2e8f0')};
+  background: ${props => (props.$active ? '#f0fdfa' : '#ffffff')};
+  color: ${props => (props.$active ? '#0d9488' : '#334155')};
+  font-size: 13px;
+  font-weight: ${props => (props.$active ? '600' : '500')};
   padding: 6px 14px;
-  border-radius: 9999px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 
   &:hover {
-    border-color: #00796b;
+    border-color: #0d9488;
   }
 `;
 
-const RightPane = styled.div`
+const ResultPane = styled.div`
   background: #f8fafc;
-  border-radius: 24px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
-  padding: 28px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
 
-  .model-tag {
+  .result-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 18px;
 
-    .label {
-      font-size: 12px;
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .timestamp {
+      font-size: 11.5px;
+      color: #64748b;
+    }
+  }
+
+  .urgency-badge-box {
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 18px;
+
+    &.urgent {
+      background: #fef2f2;
+      border: 1px solid #fee2e2;
+      color: #991b1b;
+    }
+    &.monitor {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      color: #92400e;
+    }
+    &.routine {
+      background: #f0fdfa;
+      border: 1px solid #ccfbf1;
+      color: #0f766e;
+    }
+
+    .level-title {
+      font-size: 14px;
       font-weight: 800;
-      color: #00796b;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.3px;
+      margin-bottom: 4px;
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .model-code {
-      font-size: 12px;
-      color: #64748b;
-      font-weight: 600;
-    }
-  }
-
-  .diagnosis-card {
-    background: #ffffff;
-    border-radius: 18px;
-    border: 1px solid #e2e8f0;
-    padding: 20px;
-    margin-bottom: 20px;
-
-    .top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-
-      h4 {
-        font-size: 18px;
-        font-weight: 800;
-        color: #0f172a;
-        margin: 0;
-      }
-
-      .match-tag {
-        background: #e0f2f1;
-        color: #00796b;
-        font-weight: 700;
-        border-radius: 9999px;
-        border: none;
-        padding: 3px 10px;
-      }
-    }
-
-    .desc {
-      font-size: 13.5px;
-      color: #475569;
+    .level-desc {
+      font-size: 13px;
       line-height: 1.5;
-      margin: 0;
+      opacity: 0.95;
     }
   }
 
-  .advice-box {
-    background: #ffffff;
-    border-radius: 18px;
-    border: 1px solid #e2e8f0;
-    padding: 20px;
-    margin-bottom: 24px;
+  .clinical-insights {
+    margin-bottom: 20px;
+    flex: 1;
 
-    h5 {
-      font-size: 14px;
+    h4 {
+      font-size: 13px;
       font-weight: 700;
-      color: #0f172a;
-      margin: 0 0 10px 0;
+      color: #1e293b;
+      margin-bottom: 8px;
     }
 
-    ul {
+    .causes-list,
+    .advice-list {
       list-style: none;
       padding: 0;
-      margin: 0;
+      margin: 0 0 14px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
 
       li {
-        font-size: 13px;
-        color: #334155;
-        margin-bottom: 8px;
+        font-size: 12.5px;
+        color: #475569;
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
         line-height: 1.5;
 
-        &:last-child {
-          margin-bottom: 0;
-          color: #dc2626;
-          font-weight: 600;
+        .bullet {
+          color: #0d9488;
+          font-weight: 700;
         }
       }
     }
   }
 
-  .btn-row {
-    display: flex;
-    gap: 12px;
-    margin-top: auto;
+  .btn-book-from-assessment {
+    background: #0d9488;
+    color: #ffffff;
+    border: none;
+    height: 42px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: all 0.15s;
+    margin-bottom: 16px;
 
-    .btn-transfer {
-      flex: 1;
-      height: 44px;
-      border-radius: 12px;
-      border: 1.5px solid #00796b;
-      color: #00796b;
+    &:hover {
+      background: #0f766e;
+    }
+  }
+
+  .history-box {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 14px;
+
+    .history-title {
+      font-size: 12px;
       font-weight: 700;
-      background: #ffffff;
-      &:hover {
-        background: #f0fdfa !important;
-        border-color: #004d40 !important;
-        color: #004d40 !important;
-      }
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .btn-book {
-      flex: 1;
-      height: 44px;
-      border-radius: 12px;
-      background: #00695c;
-      border-color: #00695c;
-      color: #ffffff;
-      font-weight: 700;
-      &:hover {
-        background: #004d40 !important;
-      }
-    }
-
-    @media (max-width: 600px) {
-      flex-direction: column;
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #334155;
+      padding: 5px 0;
     }
   }
 `;
 
-const DisclaimerAlert = styled.div`
-  margin-top: 24px;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  border-radius: 18px;
-  padding: 16px 20px;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  font-size: 13px;
-  color: #92400e;
-  line-height: 1.5;
-
-  svg {
-    font-size: 18px;
-    color: #f59e0b;
-    margin-top: 2px;
-    flex-shrink: 0;
-  }
-`;
+// Official Symptom Checklist from VCMOS SRS
+const officialSymptomList = [
+  { id: 'lethargy', label: 'Ủ rũ / Mệt mỏi (Lethargy)' },
+  { id: 'vomiting', label: 'Nôn mửa (Vomiting)' },
+  { id: 'diarrhoea', label: 'Tiêu chảy (Diarrhoea)' },
+  { id: 'loss_of_appetite', label: 'Chán ăn / Bỏ ăn (Loss of appetite)' },
+  { id: 'scratching', label: 'Gãi nhiều / Ngứa da (Scratching)' },
+  { id: 'coughing', label: 'Ho / Khò khè (Coughing)' },
+  { id: 'limping', label: 'Đi khập khiễng (Limping)' },
+];
 
 interface AiAssessmentSectionProps {
-  onBookAppointment?: () => void;
+  onBookAppointment: (notes?: string) => void;
 }
 
 const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
   onBookAppointment,
 }) => {
-  const [selectedChips, setSelectedChips] = useState<string[]>([
-    'Ngứa gãi rụng lông',
+  const { isLogin } = useIsLogin();
+  const [selectedPet, setSelectedPet] = useState<string>('milo');
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([
+    'vomiting',
+    'loss_of_appetite',
   ]);
-  const [inputText, setInputText] = useState(
-    'Bé gãi tai liên tục 2 hôm nay, xuất hiện mảng đỏ sau gáy...'
+  const [description, setDescription] = useState<string>(
+    'Bé Milo (Poodle, 5.2kg) nôn dịch bọt trắng 2 lần sáng nay, bỏ bữa và có dấu hiệu mệt mỏi.'
   );
+  const [analyzing, setAnalyzing] = useState<boolean>(false);
+  const [urgencyLevel, setUrgencyLevel] = useState<
+    'Routine' | 'Monitor' | 'Urgent'
+  >('Monitor');
 
-  const chips = [
-    'Bé bỏ ăn, mệt mỏi',
-    'Ngứa gãi rụng lông',
-    'Nôn mửa tiêu chảy',
-    'Sốt, ho, thở khò khè',
-  ];
-
-  const toggleChip = (chip: string) => {
-    if (selectedChips.includes(chip)) {
-      setSelectedChips(selectedChips.filter(c => c !== chip));
-    } else {
-      setSelectedChips([...selectedChips, chip]);
-    }
+  const toggleSymptom = (id: string) => {
+    setSelectedSymptoms(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
   };
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
-    toast.success('Đã gửi thông tin cho trợ lý AI phân tích!');
+  const handleAnalyze = () => {
+    if (description.trim().length < 10) {
+      toast.error('Vui lòng nhập mô tả triệu chứng ít nhất 10 ký tự');
+      return;
+    }
+
+    setAnalyzing(true);
+    setTimeout(() => {
+      setAnalyzing(false);
+      // Determine urgency level according to clinical rules
+      if (
+        selectedSymptoms.includes('vomiting') &&
+        selectedSymptoms.includes('diarrhoea')
+      ) {
+        setUrgencyLevel('Urgent');
+      } else if (selectedSymptoms.length >= 2) {
+        setUrgencyLevel('Monitor');
+      } else {
+        setUrgencyLevel('Routine');
+      }
+      toast.success('Đã hoàn tất phân tích tham khảo sơ bộ');
+    }, 700);
+  };
+
+  const handleBookFromAssessment = () => {
+    if (!isLogin) {
+      toast.info(
+        'Vui lòng đăng nhập để lưu thông tin sàng lọc vào lịch khám của thú cưng!'
+      );
+      window.dispatchEvent(new CustomEvent('open-vcmos-login'));
+      return;
+    }
+    const summaryNotes = `[Sàng lọc tham khảo - Mức độ: ${urgencyLevel}] Triệu chứng: ${selectedSymptoms.join(', ')}. Ghi chú: ${description}`;
+    toast.success('Đã chuyển thông tin vào ghi chú đặt lịch hẹn!');
+    onBookAppointment(summaryNotes);
   };
 
   return (
-    <SectionWrapper id="ai-assistant">
+    <SectionWrapper id="triage">
       <SectionHeader>
-        <div className="ai-tag">
-          <ThunderboltFilled /> VCMOS SMART AI CLINIC ASSISTANT
-        </div>
-        <h2>Trợ Lý Ảo AI Sàng Lọc & Tư Vấn Sức Khỏe Thú Cưng Sơ Bộ</h2>
+        <span className="section-tag">Tham Khảo Sơ Bộ Triệu Chứng</span>
+        <h2>Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu</h2>
         <p>
-          Ứng dụng trí tuệ nhân tạo nhận diện biểu hiện qua hình ảnh và đối
-          thoại triệu chứng tức thì, hỗ trợ ba mẹ xử lý kịp thời trước khi đến
-          phòng khám.
+          Hệ thống tiếp nhận thông tin lâm sàng và đối chiếu dữ liệu hỗ trợ chủ
+          nuôi nhận biết mức độ khẩn cấp, đưa ra hướng dẫn sơ cứu đúng phác đồ
+          trước khi đưa bé đến khám.
         </p>
       </SectionHeader>
 
-      <AiCardContainer>
-        {/* Left: Input */}
-        <LeftPane>
-          <div className="pane-header">
-            <h3>Mô tả triệu chứng của bé</h3>
-            <span className="step-pill">Bước 1/2</span>
-          </div>
+      {/* Medical Disclaimer Banner */}
+      <DisclaimerBanner>
+        <InfoCircleOutlined className="banner-icon" />
+        <div>
+          <strong>Khuyến cáo pháp lý & y khoa:</strong> Kết quả đánh giá tham
+          khảo sơ bộ không thay thế chẩn đoán lâm sàng của bác sĩ thú y. Khi
+          nhận thấy thú cưng có dấu hiệu suy kiệt cấp tính, vui lòng đưa bé đến
+          cơ sở y tế thú y gần nhất hoặc gọi hotline phòng khám{' '}
+          <strong>(024) 7300 8888</strong>.
+        </div>
+      </DisclaimerBanner>
 
-          <div
-            className="upload-box"
-            onClick={() =>
-              toast.info('Tính năng tải ảnh cận cảnh vết thương sẵn sàng.')
-            }
-          >
-            <UploadOutlined className="icon-upload" />
-            <div className="upload-title">Tải lên ảnh chụp vùng tổn thương</div>
-            <div className="upload-desc">
-              Da kích ứng, mắt, tai, nốt đỏ hoặc phân bất thường (PNG, JPG)
-            </div>
+      <AssessmentContainer>
+        {/* Form Pane */}
+        <FormPane>
+          <div className="field-label">
+            <SafetyCertificateOutlined style={{ color: '#0d9488' }} />
+            1. Chọn thú cưng <span className="sub">(từ hồ sơ của bạn)</span>
           </div>
-
-          <div className="chips-title">
-            Bấm chọn nhanh các biểu hiện phổ biến:
-          </div>
-          <div className="chips-row">
-            {chips.map(chip => (
-              <Chip
-                key={chip}
-                $active={selectedChips.includes(chip)}
-                onClick={() => toggleChip(chip)}
-              >
-                {chip}
-              </Chip>
-            ))}
-          </div>
-
-          <div className="chat-input-box">
-            <Input
+          <div className="pet-selector-row">
+            <Select
+              value={selectedPet}
+              onChange={val => setSelectedPet(val)}
+              options={[
+                {
+                  value: 'milo',
+                  label: 'Bé Milo · Chó Poodle (5.2 kg · 3 tuổi · Đực)',
+                },
+                {
+                  value: 'miu',
+                  label: 'Bé Miu · Mèo Anh lông ngắn (4.0 kg · 2 tuổi · Cái)',
+                },
+                { value: 'new', label: '+ Thêm thú cưng mới vào hồ sơ' },
+              ]}
               size="large"
-              placeholder="Nhập chi tiết biểu hiện của bé..."
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onPressEnter={handleSend}
-            />
-            <Button
-              type="primary"
-              className="btn-send"
-              icon={<SendOutlined />}
-              onClick={handleSend}
             />
           </div>
-        </LeftPane>
 
-        {/* Right: Output Result */}
-        <RightPane>
-          <div className="model-tag">
-            <div className="label">
-              <span style={{ fontSize: 16 }}>•</span> KẾT QUẢ PHÂN TÍCH THỜI
-              GIAN THỰC
-            </div>
-            <div className="model-code">Model: VetAI-v4.2 (Gemini)</div>
+          <div className="field-label">
+            <AlertOutlined style={{ color: '#0d9488' }} />
+            2. Danh mục dấu hiệu nhận biết{' '}
+            <span className="sub">(Dấu hiệu phổ biến)</span>
+          </div>
+          <div className="symptom-grid">
+            {officialSymptomList.map(sym => {
+              const active = selectedSymptoms.includes(sym.id);
+              return (
+                <SymptomButton
+                  key={sym.id}
+                  type="button"
+                  $active={active}
+                  onClick={() => toggleSymptom(sym.id)}
+                >
+                  {active && <CheckOutlined style={{ fontSize: 11 }} />}
+                  {sym.label}
+                </SymptomButton>
+              );
+            })}
           </div>
 
-          <div className="diagnosis-card">
-            <div className="top">
-              <h4>Viêm da dị ứng thời tiết</h4>
-              <Tag className="match-tag">Độ tương đồng 88%</Tag>
+          <div className="field-label">
+            <UploadOutlined style={{ color: '#0d9488' }} />
+            3. Ảnh chụp vùng bệnh / Biểu hiện{' '}
+            <span className="sub">(Tối đa 3 ảnh, dung lượng dưới 5MB)</span>
+          </div>
+          <div className="photo-upload-box">
+            <Button icon={<UploadOutlined />} size="middle">
+              Tải ảnh lên (Tối đa 3 ảnh JPG / PNG)
+            </Button>
+            <div className="upload-hint">
+              Chụp rõ vùng da, niêm mạc mắt hoặc chất bài tiết nghi ngờ bất
+              thường
             </div>
-            <p className="desc">
-              Biểu hiện ngứa cục bộ, rụng lông viền tai và đỏ rát phù hợp với
-              phản ứng viêm da tiếp xúc hoặc nấm men giai đoạn đầu.
-            </p>
+            <div className="upload-spec">
+              Dung lượng tối đa 5MB mỗi ảnh theo quy chuẩn y tế
+            </div>
           </div>
 
-          <div className="advice-box">
-            <h5>Khuyến nghị sơ cứu ban đầu:</h5>
-            <ul>
-              <li>• Giữ bé ở nơi khô ráo, thoáng mát (nhiệt độ 24-26°C).</li>
+          <div className="field-label">
+            <FileTextOutlined style={{ color: '#0d9488' }} />
+            4. Mô tả chi tiết triệu chứng{' '}
+            <span className="sub">(Từ 10 - 1000 ký tự)</span>
+          </div>
+          <div className="notes-box">
+            <Input.TextArea
+              rows={3}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Nhập thời gian xuất hiện triệu chứng, biểu hiện ăn uống, đi lại của bé..."
+            />
+            <div className="char-count">{description.length}/1000 ký tự</div>
+          </div>
+
+          <Button
+            type="primary"
+            className="btn-submit-assessment"
+            icon={<SendOutlined />}
+            loading={analyzing}
+            onClick={handleAnalyze}
+          >
+            {analyzing
+              ? 'Đang đối chiếu dữ liệu y khoa...'
+              : 'Phân tích tham khảo sơ bộ'}
+          </Button>
+        </FormPane>
+
+        {/* Result Pane */}
+        <ResultPane>
+          <div className="result-header">
+            <div className="title">
+              <FileTextOutlined /> Kết Quả Phân Tầng Lâm Sàng
+            </div>
+            <div className="timestamp">Thời điểm: Hôm nay, 14:15</div>
+          </div>
+
+          {/* Urgency Level Box: Routine, Monitor, Urgent */}
+          {urgencyLevel === 'Urgent' && (
+            <div className="urgency-badge-box urgent">
+              <div className="level-title">
+                <ExclamationCircleOutlined /> MỨC ĐỘ: URGENT (KHẨN CẤP)
+              </div>
+              <div className="level-desc">
+                Phát hiện dấu hiệu cảnh báo tiêu hoá hoặc bài tiết cấp. Cần đưa
+                bé đến cơ sở thú y trong thời gian sớm nhất để kiểm tra sinh
+                hiệu.
+              </div>
+            </div>
+          )}
+
+          {urgencyLevel === 'Monitor' && (
+            <div className="urgency-badge-box monitor">
+              <div className="level-title">
+                <AlertOutlined /> MỨC ĐỘ: MONITOR (CẦN THEO DÕI)
+              </div>
+              <div className="level-desc">
+                Triệu chứng có thể là phản ứng tiêu hoá thức ăn hoặc khởi phát
+                nhiễm khuẩn. Khuyến cáo đặt hẹn khám chuyên khoa trong vòng 24 -
+                48 giờ.
+              </div>
+            </div>
+          )}
+
+          {urgencyLevel === 'Routine' && (
+            <div className="urgency-badge-box routine">
+              <div className="level-title">
+                <CheckCircleOutlined /> MỨC ĐỘ: ROUTINE (THÔNG THƯỜNG)
+              </div>
+              <div className="level-desc">
+                Chưa ghi nhận dấu hiệu nguy hiểm tức thời. Giữ ấm, theo dõi
+                lượng nước uống và đặt hẹn kiểm tra sức khoẻ định kỳ.
+              </div>
+            </div>
+          )}
+
+          {/* Clinical Insights & Home Care Guidance */}
+          <div className="clinical-insights">
+            <h4>Nguyên nhân khả dĩ cần lưu ý:</h4>
+            <ul className="causes-list">
               <li>
-                • Đeo vòng cổ chống liếm (loa Elizabeth) để tránh bé cào xước
-                gây nhiễm trùng thứ cấp.
+                <span className="bullet">•</span>
+                <span>
+                  Rối loạn tiêu hoá do thức ăn lạ, viêm dạ dày ruột cấp tính
+                  nhẹ.
+                </span>
               </li>
-              <li>• KHÔNG tự ý bôi thuốc corticoid của người lên da bé.</li>
+              <li>
+                <span className="bullet">•</span>
+                <span>
+                  Nghi nhiễm ký sinh trùng đường ruột hoặc thay đổi môi trường
+                  gây stress.
+                </span>
+              </li>
+            </ul>
+
+            <h4>Hướng dẫn chăm sóc tại nhà & sơ cứu an toàn:</h4>
+            <ul className="advice-list">
+              <li>
+                <span className="bullet">•</span>
+                <span>
+                  Tạm ngưng cho ăn thức ăn hạt trong 4 - 6 giờ, chỉ cung cấp
+                  nước sạch từng lượng nhỏ.
+                </span>
+              </li>
+              <li>
+                <span className="bullet">•</span>
+                <span>
+                  Tuyệt đối không tự ý cho uống thuốc giảm đau hạ sốt của người
+                  (như Paracetamol).
+                </span>
+              </li>
+              <li>
+                <span className="bullet">•</span>
+                <span>
+                  Cách ly bé ở khu vực yên tĩnh, thoáng khí và chụp ảnh theo dõi
+                  chất nôn nếu có.
+                </span>
+              </li>
             </ul>
           </div>
 
-          <div className="btn-row">
-            <Button
-              className="btn-transfer"
-              icon={<UserSwitchOutlined />}
-              onClick={() =>
-                toast.success('Đã lưu kết quả vào hồ sơ và chuyển bác sĩ trực!')
-              }
-            >
-              Chuyển hồ sơ sang bác sĩ trực
-            </Button>
+          <button
+            type="button"
+            className="btn-book-from-assessment"
+            onClick={handleBookFromAssessment}
+          >
+            <CalendarOutlined /> Đặt lịch khám với thông tin này
+          </button>
 
-            <Button
-              type="primary"
-              className="btn-book"
-              icon={<CalendarOutlined />}
-              onClick={onBookAppointment}
-            >
-              Đặt hẹn khám ưu tiên
-            </Button>
+          <div className="history-box">
+            <div className="history-title">
+              <HistoryOutlined /> Lịch sử đánh giá của bé Milo
+            </div>
+            <div className="history-item">
+              <span>24/10/2026 · Nôn nhẹ sau ăn</span>
+              <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>
+                Monitor
+              </Tag>
+            </div>
+            <div className="history-item">
+              <span>10/09/2026 · Kiểm tra thể trạng</span>
+              <Tag color="cyan" style={{ margin: 0, fontSize: 11 }}>
+                Routine
+              </Tag>
+            </div>
           </div>
-        </RightPane>
-      </AiCardContainer>
-
-      <DisclaimerAlert>
-        <ExclamationCircleFilled />
-        <div>
-          <strong>LƯU Ý Y TẾ QUAN TRỌNG:</strong> Kết quả phân tích từ AI chỉ
-          mang tính chất tham khảo sơ bộ và hỗ trợ phân loại mức độ khẩn cấp,
-          hoàn toàn không thay thế cho chẩn đoán lâm sàng của Bác sĩ thú y. Vui
-          lòng mang thú cưng đến cơ sở VCMOS gần nhất ngay lập tức nếu phát hiện
-          các triệu chứng cấp tính như co giật, khó thở, hoặc hôn mê!
-        </div>
-      </DisclaimerAlert>
+        </ResultPane>
+      </AssessmentContainer>
     </SectionWrapper>
   );
 };

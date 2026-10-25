@@ -70,7 +70,7 @@ const HeaderTop = ({ ...rest }) => {
               display: 'flex',
               alignItems: 'center',
               textDecoration: 'none',
-              color: '#00195c',
+              color: '#0d9488',
               fontWeight: 800,
               fontSize: '16px',
               letterSpacing: '-0.01em',

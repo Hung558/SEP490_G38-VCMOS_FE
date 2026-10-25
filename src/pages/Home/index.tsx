@@ -23,7 +23,9 @@ const HomePage: React.FC = () => {
   };
 
   const scrollToAi = () => {
-    const el = document.getElementById('ai-assistant');
+    const el =
+      document.getElementById('triage') ||
+      document.getElementById('ai-assistant');
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }

@@ -478,7 +478,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
             <div className="step-circle">
               {step > 1 ? <CheckOutlined /> : '1'}
             </div>
-            <div className="step-label">Email</div>
+            <div className="step-label">Nhập Email</div>
           </StepItem>
           <StepItem $active={step === 2} $completed={step > 2}>
             <div className="step-circle">
@@ -801,7 +801,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
           <div className="left">
             <SafetyCertificateOutlined /> Chuẩn mã hóa y tế SSL 256-bit
           </div>
-          <div>Hỗ trợ: 0902.099.905</div>
+          <div>Hỗ trợ: (024) 7300 8888</div>
         </SecurityFooter>
       </FormCard>
     </SpinCustom>

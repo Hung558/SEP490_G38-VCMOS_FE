@@ -41,7 +41,7 @@ export const StyleMenuAccount = styled.div`
       padding: 4px 0;
 
       &:hover {
-        color: #00195c;
+        color: #0d9488;
       }
     }
 
@@ -100,7 +100,7 @@ const MenuUser = () => {
             src={user?.avatar}
             size={36}
             icon={<UserOutlined />}
-            style={{ backgroundColor: '#00195c' }}
+            style={{ backgroundColor: '#0d9488' }}
           />
           <div className="account-infor-sumary">
             <div className="account-infor-sumary-fullname">
