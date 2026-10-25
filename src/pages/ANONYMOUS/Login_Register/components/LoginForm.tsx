@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import { STORAGE, storage } from '@/lib/storage';
 import type { Login } from '@/types';
-import { LockOutlined, MailOutlined } from '@ant-design/icons';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Form, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import UserService from '@/services/UserService';
@@ -320,11 +320,14 @@ const LoginForm: React.FC<LoginFormProps> = ({
     navigate(ROUTER.DASHBOARD);
   };
 
-  const onSubmit = async (formData: { email: string; password: string }) => {
+  const onSubmit = async (formData: {
+    identifier: string;
+    password: string;
+  }) => {
     try {
       setLoading(true);
       const res: any = await UserService.login({
-        identifier: formData.email,
+        identifier: formData.identifier.trim(),
         password: formData.password,
       } as any);
 
@@ -351,17 +354,20 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
         <Form layout="vertical" onFinish={onSubmit}>
           <CustomFormItem
-            name="email"
+            name="identifier"
             rules={[
-              { required: true, message: 'Vui lòng nhập email!' },
-              { max: 100, message: 'Email tối đa 100 ký tự!' },
               {
-                pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                message: 'Định dạng email không đúng!',
+                required: true,
+                message: 'Vui lòng nhập số điện thoại hoặc email!',
               },
+              { max: 100, message: 'Tối đa 100 ký tự!' },
             ]}
           >
-            <Input size="large" prefix={<MailOutlined />} placeholder="Email" />
+            <Input
+              size="large"
+              prefix={<UserOutlined />}
+              placeholder="Số điện thoại hoặc Email"
+            />
           </CustomFormItem>
 
           <CustomFormItem

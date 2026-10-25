@@ -1,4 +1,5 @@
 import api from '../01_axios';
+import { apiLogin, apiRegister, apiLogout } from './urls';
 
 export interface LoginPayload {
   identifier: string;
@@ -12,9 +13,9 @@ export interface RegisterPayload {
   password: string;
 }
 
-const login = (data: LoginPayload) => api.post('/auth/login', data);
-const register = (data: RegisterPayload) => api.post('/auth/register', data);
-const logout = () => api.post('/auth/logout');
+const login = (data: LoginPayload) => api.post(apiLogin, data);
+const register = (data: RegisterPayload) => api.post(apiRegister, data);
+const logout = () => api.post(apiLogout);
 
 const AuthService = {
   login,

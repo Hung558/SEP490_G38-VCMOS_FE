@@ -411,7 +411,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
             name="password"
             rules={[
               { required: true, message: 'Vui lòng nhập mật khẩu!' },
-              { min: 6, message: 'Mật khẩu tối thiểu 6 ký tự!' },
+              { min: 8, message: 'Mật khẩu tối thiểu 8 ký tự!' },
               { max: 50, message: 'Mật khẩu tối đa 50 ký tự!' },
             ]}
           >
