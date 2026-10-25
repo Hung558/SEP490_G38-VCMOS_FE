@@ -1,0 +1,12 @@
+// _color-utils.scss
+
+/// Lấy màu từ map $colors (định nghĩa ở _variables.scss)
+@function color($key, $opacity: 1) {
+  $hex: map-get($colors, $key);
+
+  @if ($opacity < 1) {
+    @return rgba(red($hex), green($hex), blue($hex), $opacity);
+  }
+
+  @return $hex;
+}

@@ -1,0 +1,3 @@
+@function theme($group, $key) {
+  @return var(--#{$group}-#{$key});
+}

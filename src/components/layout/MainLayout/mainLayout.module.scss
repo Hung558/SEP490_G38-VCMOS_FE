@@ -1,0 +1,86 @@
+.textTopMenuAdmin {
+  display: flex;
+  overflow: hidden;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 10px;
+  color: #000;
+  line-height: 1.2;
+  padding: 12px;
+  text-decoration: none;
+  &:hover {
+    text-decoration: none;
+  }
+  div {
+    color: #000;
+  }
+}
+
+.bottomPanel {
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .userInfoRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+    margin-bottom: 8px;
+
+    .userProfile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .userName {
+        font-weight: 600;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 130px;
+      }
+    }
+
+    .logoutBtn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease-in-out;
+
+      &:hover {
+        color: #ff4d4f;
+      }
+    }
+  }
+
+  .homeBtn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease-in-out;
+
+    .homeText {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+  }
+}

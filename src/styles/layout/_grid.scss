@@ -1,0 +1,144 @@
+.d-none {
+  display: none;
+}
+
+.d-block {
+  display: block;
+}
+
+.flex-d-cl {
+  flex-direction: column;
+}
+
+.d-flex {
+  display: flex !important;
+}
+
+.d-flex-left {
+  display: flex;
+  justify-content: left;
+  align-items: flex-end;
+}
+
+.d-flex-a {
+  display: flex !important;
+  align-items: center;
+}
+
+.d-flex-j-center-f-wrap {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.d-flex-center {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+}
+
+.d-flex-start {
+  display: flex !important;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.d-flex-ss {
+  display: flex !important;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.d-flex-end {
+  display: flex !important;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.d-flex-sb {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.d-flex-column {
+  display: flex !important;
+  flex-direction: column;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.f-wrap {
+  flex-wrap: wrap;
+}
+
+.f-no-wrap {
+  flex-wrap: nowrap;
+}
+
+.justify-content-space-evenly {
+  justify-content: space-evenly;
+}
+
+.justify-content-space-between {
+  justify-content: space-between;
+}
+
+.justify-content-space-around {
+  justify-content: space-around;
+}
+
+.justify-content-flex-start {
+  justify-content: flex-start;
+}
+
+.justify-content-flex-end {
+  justify-content: flex-end;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.align-items-flex-start {
+  align-items: flex-start;
+}
+
+.justify-item-center {
+  justify-items: center;
+}
+
+.align-items-flex-end {
+  align-items: flex-end;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+$max-scale-gap: 80;
+@for $i from 0 through $max-scale-gap {
+  $irem: $i * 1px;
+  .g-#{$i} {
+    gap: $irem; // 0.1, 0.2,...
+  }
+  .g-x-#{$i} {
+    column-gap: $irem; // 0.1, 0.2,...
+  }
+  .g-y-#{$i} {
+    row-gap: $irem; // 0.1, 0.2,...
+  }
+}
+
+$max-scale-gap: 80;
+@for $i from 0 through $max-scale-gap {
+  $irem: $i * 1px;
+  .br-#{$i} {
+    border-radius: $irem; // 0.1, 0.2,...
+  }
+}

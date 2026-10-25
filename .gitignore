@@ -1,31 +1,38 @@
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production
-/build
-
-# env (chứa secret) — chỉ commit file mẫu
-.env
-.env.*
-!.env.example
-
-# logs
+# Logs
+logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# OS / IDE
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+
+# Yarn artifacts are not used in this repo anymore
+.yarn/
+.pnp.*
+yarn.lock
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
-.idea/
-.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# AI agent
-CLAUDE.md
-AGENTS.md
+# Ignore UI mockups / assets
+ui/
+
+# Ignore prompt function description updates
+prompt_function-description/update/

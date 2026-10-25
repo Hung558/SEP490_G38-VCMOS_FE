@@ -1,0 +1,44 @@
+@use 'sass:map';
+@use '@/styles/abstracts/functions/helpers' as helper;
+@use '@/styles/abstracts/variables/common_variables' as common_variables;
+
+/// 2. Sinh CSS custom properties từ map (để dùng var(--…))
+:root {
+  // Colors
+  @each $name, $val in common_variables.$colors {
+    --#{$name}: #{$val};
+  }
+
+  // Fonts
+  @each $name, $val in common_variables.$font-families {
+    --font-#{$name}: #{$val};
+  }
+
+  // Backgrounds
+  @each $name, $val in common_variables.$backgrounds {
+    --bg-#{$name}: #{$val};
+  }
+}
+
+// Nếu muốn dùng SCSS var trực tiếp:
+// $primary-color: color(primary);
+// $font-size-base: fs(14);
+
+//Cách dùng
+// Trong SCSS:
+
+// scss
+// Sao chép
+// Chỉnh sửa
+// .btn {
+//   background-color: color(primary);
+//   font-family: font-family(base);
+//   font-size: fs(14);
+//   &:hover {
+//     background-color: bg(hover);
+//   }
+// }
+// Trong CSS-in-JS hoặc inline:
+// <div style={{ color: 'var(--text)', background: 'var(--bg-hover)' }}>
+//   …
+// </div>

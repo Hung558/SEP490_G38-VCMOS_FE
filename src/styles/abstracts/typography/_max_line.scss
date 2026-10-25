@@ -1,0 +1,11 @@
+$max-scale-mxl: 10;
+@for $i from 0 through $max-scale-mxl {
+  .max-line#{$i} {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: #{$i} !important; /* number of lines to show */
+    line-clamp: #{$i} !important;
+    -webkit-box-orient: vertical;
+  }
+}

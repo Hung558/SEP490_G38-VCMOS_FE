@@ -1,70 +1,66 @@
-# Getting Started with Create React App
+# Hướng Dẫn Dành Cho Người Mới (Onboarding Guide)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Chào mừng bạn đến với dự án Frontend! Dự án này được thiết kế theo hướng **đơn giản hóa tối đa** để bất kỳ ai (kể cả Intern hay AI) cũng có thể đọc hiểu và code tính năng mới ngay lập tức.
 
-## Available Scripts
+## 🛠 Tech Stack Chính
 
-In the project directory, you can run:
+- **Framework:** React + Vite
+- **UI Library:** Ant Design (Sử dụng trực tiếp)
+- **Styling:** `styled-components` + CSS/SCSS căn bản
+- **State:** Redux Toolkit + React Context
+- **Routing:** React Router v6
 
-### `npm start`
+---
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## 📂 Cấu Trúc Thư Mục (Chỉ tập trung vào `src/`)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```text
+src/
+├── assets/        # Hình ảnh, icon tĩnh
+├── components/    # Component dùng chung
+│   ├── common/    # Component tiện ích (vd: ErrorBoundary, Spin, Layout chung)
+│   └── layout/    # Header, Footer, Sidebar
+├── constants/     # Chứa các biến config cố định (Systemkey, URL,...)
+├── hooks/         # Custom React Hooks
+├── lib/           # Tiện ích mở rộng (utils, dateUtils, storage...)
+├── locales/       # Đa ngôn ngữ i18n
+├── pages/         # GIAO DIỆN CHÍNH - Code trang nào vào thư mục đó
+├── redux/         # Nơi cấu hình Store và các slice (state)
+├── router/        # Khởi tạo React Router
+├── routerMap/     # Map danh sách các Route (Thêm đường dẫn mới ở đây)
+├── services/      # Nơi gọi API (axios) - Tuyệt đối không call API trong UI Component
+└── styles/        # CSS global
+```
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 📜 Quy Tắc Code (BẮT BUỘC ĐỌC)
 
-### `npm run build`
+1. **Dùng UI Component:**
+   Sử dụng **TRỰC TIẾP** component của Ant Design (`import { Button, Input, Select } from 'antd'`).
+   _Không tự viết lại thẻ HTML cơ bản (button, input) trừ khi bắt buộc._
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+2. **Custom Style (CSS):**
+   Nếu component của AntD chưa đúng thiết kế, hãy dùng `styled-components` để bọc nó lại ngay trong file bạn đang làm việc.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+   ```tsx
+   import { Button } from 'antd';
+   import styled from 'styled-components';
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+   const MyRedButton = styled(Button)`
+     background-color: red !important;
+     border-radius: 8px;
+   `;
+   ```
 
-### `npm run eject`
+3. **Gọi API:**
+   Tuyệt đối không dùng `axios.get` hay `fetch` ở file UI. Mọi hàm gọi API phải được tạo trong thư mục `src/services/` và import vào để dùng.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+4. **Thêm Trang Mới:**
+   - Tạo Component trang ở `src/pages/`.
+   - Thêm đường dẫn vào `src/routerMap/ROUTER.ts`.
+   - Đăng ký Component vào mảng routes trong `src/routerMap/AppRouter.tsx`.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+---
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+🔥 **Chỉ cần nắm 4 quy tắc trên, bạn đã có thể bắt đầu code ngay bây giờ! Chúc may mắn!**

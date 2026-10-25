@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+export PATH="$PATH:/c/Program Files/nodejs"
+
+# Lint toan bo workspace
+npm run typecheck
+# Lint/fix file dang staged
+npx lint-staged
+echo "✅ Husky pre-commit is working!"

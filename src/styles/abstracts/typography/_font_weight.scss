@@ -1,0 +1,19 @@
+$max-scale-fw: 6; // sẽ sinh .fw-100 … .fw-600
+
+@for $i from 0 through $max-scale-fw {
+  .fw-#{$i*100} {
+    font-weight: #{$i * 100};
+  }
+}
+
+/// Map cho những weight “có tên”
+$font-weights: (
+  normal: 400,
+  bold: 600,
+);
+
+@each $name, $weight in $font-weights {
+  .fw-#{$name} {
+    font-weight: $weight;
+  }
+}
