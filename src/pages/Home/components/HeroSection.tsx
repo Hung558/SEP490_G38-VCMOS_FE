@@ -175,17 +175,18 @@ const HospitalBannerCard = styled.div`
     }
   }
 
-  /* Sub-Navigation Bar - matches dark theme of hero banner */
+  /* Sub-Navigation Bar - matches system primary clinical teal */
   .hospital-subnav {
     position: relative;
     z-index: 2;
-    background: #0f172a;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: #0f766e;
+    background: linear-gradient(90deg, #115e59 0%, #0d9488 50%, #0f766e 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
     padding: 0 32px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 54px;
+    min-height: 56px;
     flex-wrap: wrap;
     gap: 12px;
 
@@ -204,22 +205,23 @@ const HospitalBannerCard = styled.div`
       }
 
       a.subnav-item {
-        color: #e2e8f0;
+        color: #ffffff;
         font-size: 13.5px;
-        font-weight: 500;
+        font-weight: 600;
         text-decoration: none;
         display: flex;
         align-items: center;
         gap: 6px;
-        transition: color 0.15s ease;
+        transition: all 0.15s ease;
 
         &:hover {
-          color: #2dd4bf;
+          color: #ccfbf1;
+          transform: translateY(-1px);
         }
 
         &.highlight {
-          color: #5eead4;
-          font-weight: 600;
+          color: #fef08a;
+          font-weight: 700;
         }
       }
     }
@@ -229,11 +231,17 @@ const HospitalBannerCard = styled.div`
       align-items: center;
       gap: 8px;
       font-size: 13px;
-      color: #cbd5e1;
+      color: #ffffff;
       font-weight: 500;
 
       .icon {
-        color: #2dd4bf;
+        color: #fef08a;
+        font-size: 15px;
+      }
+
+      strong {
+        color: #ffffff;
+        font-weight: 700;
       }
     }
   }
@@ -265,35 +273,30 @@ const QuickInfoGrid = styled.div`
     transition: all 0.2s ease;
 
     &:hover {
-      border-color: #cbd5e1;
-      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+      border-color: #99f6e4;
+      box-shadow: 0 6px 16px rgba(13, 148, 136, 0.08);
       transform: translateY(-2px);
+
+      .icon-box {
+        background: #0d9488;
+        color: #ffffff;
+        border-color: #0d9488;
+      }
     }
 
     .icon-box {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       border-radius: 10px;
       background: #f0fdfa;
       color: #0d9488;
+      border: 1px solid #ccfbf1;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 20px;
       flex-shrink: 0;
-
-      &.blue {
-        background: #f0f9ff;
-        color: #0284c7;
-      }
-      &.amber {
-        background: #fffbeb;
-        color: #d97706;
-      }
-      &.purple {
-        background: #faf5ff;
-        color: #7c3aed;
-      }
+      transition: all 0.2s ease;
     }
 
     .info-body {
@@ -450,7 +453,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         </div>
 
         <div className="info-card">
-          <div className="icon-box blue">
+          <div className="icon-box">
             <FileTextOutlined />
           </div>
           <div className="info-body">
@@ -463,7 +466,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         </div>
 
         <div className="info-card">
-          <div className="icon-box amber">
+          <div className="icon-box">
             <SafetyCertificateOutlined />
           </div>
           <div className="info-body">
@@ -476,7 +479,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         </div>
 
         <div className="info-card">
-          <div className="icon-box purple">
+          <div className="icon-box">
             <PhoneOutlined />
           </div>
           <div className="info-body">
