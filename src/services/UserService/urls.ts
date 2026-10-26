@@ -6,3 +6,7 @@ export const apiForgotPassword = '/users/forgot-password';
 export const apiResetPassword = '/users/reset-password';
 export const apiVerifyAccount = '/users/verify';
 export const apiResendVerification = '/users/resend-verification';
+export const apiSendMyEmailOtp = '/users/me/email/send-otp';
+export const apiVerifyMyEmail = '/users/me/email/verify';
+export const apiSendChangePasswordOtp = '/users/me/password/send-otp';
+export const apiChangeMyPassword = '/users/me/password';

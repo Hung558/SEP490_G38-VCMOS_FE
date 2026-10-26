@@ -34,13 +34,16 @@ export interface RoleType {
 
 export interface Login {
   _id?: string;
+  code?: string;
   token?: string;
   expiredAt?: number;
   username?: string;
   fullName?: string;
   phone?: string;
   email?: string;
+  isEmailVerified?: boolean;
   avatar?: string;
   systemRole?: string;
   role?: string;
+  status?: string;
 }

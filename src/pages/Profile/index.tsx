@@ -13,6 +13,7 @@ import {
   Input,
   Timeline,
   Table,
+  Alert,
 } from 'antd';
 import {
   UserOutlined,
@@ -25,6 +26,12 @@ import {
   FileTextOutlined,
   ShareAltOutlined,
   DollarOutlined,
+  KeyOutlined,
+  LockOutlined,
+  WarningOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import UserService from '@/services/UserService';
 import { useAuth } from '@/contexts/routerProvider/authContext';
@@ -123,6 +130,22 @@ const EditProfileBtn = styled(Button)`
   &:hover {
     background-color: #0f766e !important;
     border-color: #0f766e !important;
+    transform: translateY(-1px);
+  }
+`;
+
+const SecondaryActionBtn = styled(Button)`
+  border-radius: 8px;
+  font-weight: 600;
+  border-color: #0d9488 !important;
+  color: #0d9488 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  &:hover {
+    background-color: #f0fdfa !important;
+    border-color: #0f766e !important;
+    color: #0f766e !important;
     transform: translateY(-1px);
   }
 `;
@@ -316,6 +339,47 @@ const ProfilePage: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [form] = Form.useForm();
 
+  // Email verification state
+  const [isVerifyEmailModalOpen, setIsVerifyEmailModalOpen] =
+    useState<boolean>(false);
+  const [verifyLoading, setVerifyLoading] = useState<boolean>(false);
+  const [verifyCountdown, setVerifyCountdown] = useState<number>(0);
+  const [verifyDevToken, setVerifyDevToken] = useState<string | null>(null);
+  const [verifyForm] = Form.useForm();
+
+  // Change password state
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] =
+    useState<boolean>(false);
+  const [changePasswordLoading, setChangePasswordLoading] =
+    useState<boolean>(false);
+  const [changePasswordCountdown, setChangePasswordCountdown] =
+    useState<number>(0);
+  const [changePasswordDevToken, setChangePasswordDevToken] = useState<
+    string | null
+  >(null);
+  const [newPasswordVal, setNewPasswordVal] = useState<string>('');
+  const [changePasswordForm] = Form.useForm();
+
+  // Timers
+  useEffect(() => {
+    let timer: any;
+    if (verifyCountdown > 0) {
+      timer = setInterval(() => setVerifyCountdown(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [verifyCountdown]);
+
+  useEffect(() => {
+    let timer: any;
+    if (changePasswordCountdown > 0) {
+      timer = setInterval(
+        () => setChangePasswordCountdown(prev => prev - 1),
+        1000
+      );
+    }
+    return () => clearInterval(timer);
+  }, [changePasswordCountdown]);
+
   const fetchProfile = () => {
     setLoading(true);
     UserService.getMyProfile()
@@ -385,6 +449,152 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const openVerifyEmailModal = async () => {
+    if (!profile?.email) {
+      toast.error('Vui lòng cập nhật email trước khi xác thực!');
+      openEditModal();
+      return;
+    }
+    verifyForm.resetFields();
+    setVerifyDevToken(null);
+    setIsVerifyEmailModalOpen(true);
+    await handleSendEmailOtp();
+  };
+
+  const handleSendEmailOtp = async () => {
+    try {
+      setVerifyLoading(true);
+      const res: any = await UserService.sendMyEmailOtp();
+      if (res?.devToken) {
+        setVerifyDevToken(res.devToken);
+        toast.success(`Mã OTP test: ${res.devToken}`);
+      } else {
+        toast.success('Mã xác thực OTP đã được gửi tới email của bạn!');
+      }
+      setVerifyCountdown(60);
+    } catch (error: any) {
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Không thể gửi mã xác thực. Vui lòng thử lại!';
+      toast.error(errorMsg);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleConfirmVerifyEmail = async (values: { otp: string }) => {
+    try {
+      setVerifyLoading(true);
+      const res: any = await UserService.verifyMyEmail({
+        otp: values.otp.trim(),
+      });
+      toast.success('Xác thực địa chỉ email thành công!');
+      setIsVerifyEmailModalOpen(false);
+
+      if (res?.user) {
+        setProfile(res.user);
+        const currentInfo = storage.getLocalStorage<any>(STORAGE.USER_INFO);
+        if (currentInfo) {
+          const updated = {
+            ...currentInfo,
+            ...res.user,
+            isEmailVerified: true,
+          };
+          storage.setLocalStorage(STORAGE.USER_INFO, updated);
+          setUser(updated);
+        }
+      } else {
+        setProfile((prev: any) => ({ ...prev, isEmailVerified: true }));
+      }
+    } catch (error: any) {
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Mã xác thực không hợp lệ hoặc đã hết hạn!';
+      toast.error(errorMsg);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const openChangePasswordModal = () => {
+    changePasswordForm.resetFields();
+    setNewPasswordVal('');
+    setChangePasswordDevToken(null);
+    setIsChangePasswordModalOpen(true);
+  };
+
+  const handleSendChangePasswordOtp = async () => {
+    if (changePasswordCountdown > 0) return;
+    try {
+      setChangePasswordLoading(true);
+      const res: any = await UserService.sendChangePasswordOtp();
+      if (res?.devToken) {
+        setChangePasswordDevToken(res.devToken);
+        toast.success(`Mã OTP đổi mật khẩu test: ${res.devToken}`);
+      } else {
+        toast.success('Mã OTP đổi mật khẩu đã được gửi về email của bạn!');
+      }
+      setChangePasswordCountdown(60);
+    } catch (error: any) {
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Không thể gửi mã OTP. Vui lòng thử lại sau!';
+      toast.error(errorMsg);
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
+
+  const handleSubmitChangePassword = async (values: any) => {
+    try {
+      setChangePasswordLoading(true);
+      await UserService.changeMyPassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        otp: values.otp.trim(),
+      });
+
+      toast.success('Đổi mật khẩu tài khoản thành công!');
+      setIsChangePasswordModalOpen(false);
+      changePasswordForm.resetFields();
+      setNewPasswordVal('');
+    } catch (error: any) {
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Đổi mật khẩu thất bại. Vui lòng kiểm tra lại thông tin!';
+      toast.error(errorMsg);
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
+
+  // Password strength calculation
+  const hasMinLen = newPasswordVal.length >= 8;
+  const hasNum = /\d/.test(newPasswordVal);
+  const hasUpper = /[A-Z]/.test(newPasswordVal);
+  const hasSpecial = /[@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPasswordVal);
+
+  const getStrengthScore = () => {
+    let score = 0;
+    if (hasMinLen) score++;
+    if (hasNum) score++;
+    if (hasUpper) score++;
+    if (hasSpecial) score++;
+    return score;
+  };
+
+  const strengthScore = getStrengthScore();
+  const getStrengthLabel = () => {
+    if (!newPasswordVal) return 'Chưa nhập';
+    if (strengthScore <= 1) return 'Yếu';
+    if (strengthScore <= 3) return 'Trung bình';
+    return 'Mạnh';
+  };
+
   const handleShareToCommunity = () => {
     toast.success(
       'Bài chia sẻ hành trình điều trị đã được gửi tới ban kiểm duyệt (MSG32)!'
@@ -448,14 +658,23 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              <EditProfileBtn
-                type="primary"
-                icon={<EditOutlined />}
-                size="large"
-                onClick={openEditModal}
-              >
-                Chỉnh sửa thông tin
-              </EditProfileBtn>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <SecondaryActionBtn
+                  icon={<KeyOutlined />}
+                  size="large"
+                  onClick={openChangePasswordModal}
+                >
+                  Đổi mật khẩu
+                </SecondaryActionBtn>
+                <EditProfileBtn
+                  type="primary"
+                  icon={<EditOutlined />}
+                  size="large"
+                  onClick={openEditModal}
+                >
+                  Chỉnh sửa thông tin
+                </EditProfileBtn>
+              </div>
             </ProfileHeader>
 
             <Descriptions
@@ -524,17 +743,72 @@ const ProfilePage: React.FC = () => {
               <Descriptions.Item label="Email xác thực">
                 <div
                   style={{
-                    display: 'inline-flex',
+                    display: 'flex',
                     alignItems: 'center',
                     gap: 8,
+                    flexWrap: 'wrap',
                   }}
                 >
                   <MailOutlined
                     style={{ color: '#0d9488', fontSize: '15px' }}
                   />
-                  <span style={{ color: '#334155' }}>
-                    {profile?.email || 'owner@vcmos.com'}
+                  <span style={{ color: '#334155', fontWeight: 500 }}>
+                    {profile?.email || 'Chưa cập nhật'}
                   </span>
+                  {profile?.email ? (
+                    profile?.isEmailVerified ? (
+                      <Tag
+                        color="success"
+                        icon={<CheckCircleOutlined />}
+                        style={{ borderRadius: 6, fontWeight: 600, margin: 0 }}
+                      >
+                        Đã xác thực
+                      </Tag>
+                    ) : (
+                      <>
+                        <Tag
+                          color="warning"
+                          icon={<WarningOutlined />}
+                          style={{
+                            borderRadius: 6,
+                            fontWeight: 600,
+                            margin: 0,
+                          }}
+                        >
+                          Chưa xác thực
+                        </Tag>
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={openVerifyEmailModal}
+                          style={{
+                            color: '#0d9488',
+                            fontWeight: 700,
+                            padding: 0,
+                            height: 'auto',
+                            fontSize: '13px',
+                          }}
+                        >
+                          Xác thực ngay &rarr;
+                        </Button>
+                      </>
+                    )
+                  ) : (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={openEditModal}
+                      style={{
+                        color: '#0d9488',
+                        fontWeight: 700,
+                        padding: 0,
+                        height: 'auto',
+                        fontSize: '13px',
+                      }}
+                    >
+                      Thêm email &rarr;
+                    </Button>
+                  )}
                 </div>
               </Descriptions.Item>
             </Descriptions>
@@ -742,8 +1016,12 @@ const ProfilePage: React.FC = () => {
           >
             <Input size="large" />
           </Form.Item>
-          <Form.Item name="email" label="Địa chỉ Email">
-            <Input size="large" />
+          <Form.Item
+            name="email"
+            label="Địa chỉ Email"
+            extra="Lưu ý: Nếu thay đổi địa chỉ email, hệ thống sẽ yêu cầu xác thực lại email mới để bảo vệ tài khoản."
+          >
+            <Input size="large" placeholder="tenban@gmail.com" />
           </Form.Item>
           <Button
             type="primary"
@@ -756,6 +1034,503 @@ const ProfilePage: React.FC = () => {
             Lưu thay đổi
           </Button>
         </Form>
+      </Modal>
+
+      {/* Verify Email Modal */}
+      <Modal
+        title={
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              color: '#0f172a',
+            }}
+          >
+            <SafetyCertificateOutlined
+              style={{ color: '#0d9488', fontSize: 20 }}
+            />
+            <span>Xác Thực Địa Chỉ Email Tài Khoản</span>
+          </div>
+        }
+        open={isVerifyEmailModalOpen}
+        onCancel={() => setIsVerifyEmailModalOpen(false)}
+        footer={null}
+        width={480}
+        destroyOnClose
+      >
+        <div style={{ padding: '8px 0' }}>
+          <p style={{ color: '#64748b', fontSize: 13.5, marginBottom: 16 }}>
+            Mã xác thực gồm 6 chữ số đã được gửi tới email:{' '}
+            <strong style={{ color: '#0f172a' }}>{profile?.email}</strong>. Vui
+            lòng nhập mã để hoàn tất xác thực tài khoản.
+          </p>
+
+          {verifyDevToken && (
+            <div
+              style={{
+                background: '#f0fdfa',
+                border: '1px solid #ccfbf1',
+                borderRadius: 8,
+                padding: '10px 14px',
+                marginBottom: 16,
+                fontSize: 13,
+                color: '#0f766e',
+              }}
+            >
+              💡 <strong>Môi trường phát triển:</strong> Mã OTP test:{' '}
+              <strong style={{ fontSize: 15, letterSpacing: '2px' }}>
+                {verifyDevToken}
+              </strong>
+            </div>
+          )}
+
+          <Form
+            form={verifyForm}
+            layout="vertical"
+            onFinish={handleConfirmVerifyEmail}
+          >
+            <Form.Item
+              name="otp"
+              label={
+                <span style={{ fontWeight: 600 }}>Mã xác thực OTP (6 số)</span>
+              }
+              rules={[
+                { required: true, message: 'Vui lòng nhập mã xác thực OTP!' },
+                { len: 6, message: 'Mã OTP phải gồm 6 chữ số!' },
+              ]}
+            >
+              <Input
+                size="large"
+                maxLength={6}
+                placeholder="------"
+                style={{
+                  letterSpacing: '8px',
+                  textAlign: 'center',
+                  fontSize: '22px',
+                  fontWeight: 700,
+                  height: 48,
+                }}
+              />
+            </Form.Item>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 18,
+                fontSize: 13,
+                color: '#64748b',
+              }}
+            >
+              <span>Hiệu lực trong vòng 5 phút</span>
+              {verifyCountdown > 0 ? (
+                <span style={{ color: '#0d9488', fontWeight: 600 }}>
+                  Gửi lại sau {verifyCountdown}s
+                </span>
+              ) : (
+                <Button
+                  type="link"
+                  onClick={handleSendEmailOtp}
+                  loading={verifyLoading}
+                  style={{
+                    color: '#0d9488',
+                    padding: 0,
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  <ReloadOutlined /> Gửi lại mã OTP
+                </Button>
+              )}
+            </div>
+
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={verifyLoading}
+              block
+              size="large"
+              style={{
+                backgroundColor: '#0d9488',
+                borderColor: '#0d9488',
+                fontWeight: 700,
+                height: 46,
+                borderRadius: 10,
+              }}
+            >
+              Xác nhận kích hoạt Email
+            </Button>
+          </Form>
+        </div>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal
+        title={
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              color: '#0f172a',
+            }}
+          >
+            <LockOutlined style={{ color: '#0d9488', fontSize: 20 }} />
+            <span>Đổi Mật Khẩu Tài Khoản</span>
+          </div>
+        }
+        open={isChangePasswordModalOpen}
+        onCancel={() => setIsChangePasswordModalOpen(false)}
+        footer={null}
+        width={520}
+        destroyOnClose
+      >
+        <div style={{ padding: '8px 0' }}>
+          {!profile?.email ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="Chưa có email liên kết"
+              description={
+                <div>
+                  Để đổi mật khẩu, bạn cần cập nhật địa chỉ email để nhận mã OTP
+                  xác thực bảo mật.
+                  <div style={{ marginTop: 10 }}>
+                    <Button
+                      type="primary"
+                      size="small"
+                      style={{ background: '#0d9488' }}
+                      onClick={() => {
+                        setIsChangePasswordModalOpen(false);
+                        openEditModal();
+                      }}
+                    >
+                      Cập nhật email ngay
+                    </Button>
+                  </div>
+                </div>
+              }
+            />
+          ) : !profile?.isEmailVerified ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="Yêu cầu xác thực Email trước khi đổi mật khẩu"
+              description={
+                <div>
+                  Địa chỉ email <strong>{profile?.email}</strong> chưa được xác
+                  thực. Hệ thống yêu cầu xác thực email để gửi mã OTP bảo vệ tài
+                  khoản.
+                  <div style={{ marginTop: 12 }}>
+                    <Button
+                      type="primary"
+                      size="small"
+                      style={{ background: '#0d9488' }}
+                      onClick={() => {
+                        setIsChangePasswordModalOpen(false);
+                        openVerifyEmailModal();
+                      }}
+                    >
+                      Xác thực email ngay &rarr;
+                    </Button>
+                  </div>
+                </div>
+              }
+            />
+          ) : (
+            <Form
+              form={changePasswordForm}
+              layout="vertical"
+              onFinish={handleSubmitChangePassword}
+            >
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  padding: '12px 14px',
+                  marginBottom: 16,
+                  fontSize: 13,
+                  color: '#475569',
+                }}
+              >
+                Mã OTP xác thực sẽ được gửi tới email đã xác minh:{' '}
+                <strong style={{ color: '#0f172a' }}>{profile?.email}</strong>
+              </div>
+
+              <Form.Item
+                name="currentPassword"
+                label={
+                  <span style={{ fontWeight: 600 }}>Mật khẩu hiện tại *</span>
+                }
+                rules={[
+                  {
+                    required: true,
+                    message: 'Vui lòng nhập mật khẩu hiện tại',
+                  },
+                ]}
+              >
+                <Input.Password
+                  size="large"
+                  placeholder="Nhập mật khẩu hiện tại"
+                  prefix={<LockOutlined style={{ color: '#64748b' }} />}
+                  iconRender={visible =>
+                    visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
+                  }
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="newPassword"
+                label={<span style={{ fontWeight: 600 }}>Mật khẩu mới *</span>}
+                dependencies={['currentPassword']}
+                rules={[
+                  { required: true, message: 'Vui lòng nhập mật khẩu mới' },
+                  { min: 8, message: 'Mật khẩu phải có tối thiểu 8 ký tự' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (
+                        !value ||
+                        getFieldValue('currentPassword') !== value
+                      ) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(
+                        new Error('Mật khẩu mới phải khác mật khẩu hiện tại!')
+                      );
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password
+                  size="large"
+                  placeholder="Nhập mật khẩu mới (tối thiểu 8 ký tự)"
+                  prefix={<LockOutlined style={{ color: '#64748b' }} />}
+                  iconRender={visible =>
+                    visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
+                  }
+                  onChange={e => setNewPasswordVal(e.target.value)}
+                />
+              </Form.Item>
+
+              {/* Password Strength Indicator */}
+              <div style={{ marginBottom: 16 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 12,
+                    color: '#64748b',
+                    marginBottom: 4,
+                  }}
+                >
+                  <span>Độ mạnh mật khẩu:</span>
+                  <strong
+                    style={{
+                      color:
+                        strengthScore >= 3
+                          ? '#059669'
+                          : strengthScore >= 2
+                            ? '#d97706'
+                            : '#dc2626',
+                    }}
+                  >
+                    {getStrengthLabel()}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', gap: 4, height: 4 }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      borderRadius: 2,
+                      background:
+                        strengthScore >= 1
+                          ? strengthScore >= 3
+                            ? '#10b981'
+                            : '#f59e0b'
+                          : '#e2e8f0',
+                      transition: 'background 0.3s',
+                    }}
+                  />
+                  <div
+                    style={{
+                      flex: 1,
+                      borderRadius: 2,
+                      background:
+                        strengthScore >= 2
+                          ? strengthScore >= 3
+                            ? '#10b981'
+                            : '#f59e0b'
+                          : '#e2e8f0',
+                      transition: 'background 0.3s',
+                    }}
+                  />
+                  <div
+                    style={{
+                      flex: 1,
+                      borderRadius: 2,
+                      background: strengthScore >= 3 ? '#10b981' : '#e2e8f0',
+                      transition: 'background 0.3s',
+                    }}
+                  />
+                  <div
+                    style={{
+                      flex: 1,
+                      borderRadius: 2,
+                      background: strengthScore >= 4 ? '#10b981' : '#e2e8f0',
+                      transition: 'background 0.3s',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <Form.Item
+                name="confirmPassword"
+                label={
+                  <span style={{ fontWeight: 600 }}>
+                    Xác nhận mật khẩu mới *
+                  </span>
+                }
+                dependencies={['newPassword']}
+                rules={[
+                  {
+                    required: true,
+                    message: 'Vui lòng xác nhận mật khẩu mới',
+                  },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('newPassword') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(
+                        new Error('Mật khẩu xác nhận không trùng khớp!')
+                      );
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password
+                  size="large"
+                  placeholder="Nhập lại mật khẩu mới"
+                  prefix={<LockOutlined style={{ color: '#64748b' }} />}
+                  iconRender={visible =>
+                    visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
+                  }
+                />
+              </Form.Item>
+
+              {/* OTP Section */}
+              <div
+                style={{
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: 10,
+                  padding: 14,
+                  background: '#f8fafc',
+                  marginBottom: 18,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      fontSize: 13.5,
+                      color: '#0f172a',
+                    }}
+                  >
+                    Mã xác thực OTP từ Email
+                  </span>
+                  {changePasswordCountdown > 0 ? (
+                    <span
+                      style={{
+                        fontSize: 12.5,
+                        color: '#0d9488',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Gửi lại sau {changePasswordCountdown}s
+                    </span>
+                  ) : (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={handleSendChangePasswordOtp}
+                      loading={changePasswordLoading}
+                      style={{ color: '#0d9488', padding: 0, fontWeight: 700 }}
+                    >
+                      <SafetyCertificateOutlined /> Lấy mã OTP
+                    </Button>
+                  )}
+                </div>
+
+                {changePasswordDevToken && (
+                  <div
+                    style={{
+                      background: '#f0fdfa',
+                      border: '1px solid #ccfbf1',
+                      borderRadius: 6,
+                      padding: '6px 10px',
+                      marginBottom: 10,
+                      fontSize: 12,
+                      color: '#0f766e',
+                    }}
+                  >
+                    💡 OTP test: <strong>{changePasswordDevToken}</strong>
+                  </div>
+                )}
+
+                <Form.Item
+                  name="otp"
+                  rules={[
+                    {
+                      required: true,
+                      message: 'Vui lòng nhập mã OTP đã nhận!',
+                    },
+                    { len: 6, message: 'Mã OTP phải gồm 6 chữ số!' },
+                  ]}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input
+                    size="large"
+                    maxLength={6}
+                    placeholder="Nhập 6 số OTP"
+                    style={{
+                      letterSpacing: '4px',
+                      textAlign: 'center',
+                      fontSize: '18px',
+                      fontWeight: 700,
+                    }}
+                  />
+                </Form.Item>
+              </div>
+
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={changePasswordLoading}
+                block
+                size="large"
+                style={{
+                  backgroundColor: '#0d9488',
+                  borderColor: '#0d9488',
+                  fontWeight: 700,
+                  height: 46,
+                  borderRadius: 10,
+                }}
+              >
+                Xác nhận đổi mật khẩu
+              </Button>
+            </Form>
+          )}
+        </div>
       </Modal>
 
       {/* View SOAP Medical Record Modal */}
