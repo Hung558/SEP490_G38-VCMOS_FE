@@ -245,15 +245,6 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
           Dịch vụ y khoa
         </a>
         <a
-          href="#triage"
-          onClick={e => {
-            e.preventDefault();
-            scrollToSection('triage');
-          }}
-        >
-          Sàng lọc lâm sàng
-        </a>
-        <a
           href="#doctors"
           onClick={e => {
             e.preventDefault();

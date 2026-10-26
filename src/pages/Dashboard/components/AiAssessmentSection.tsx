@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Button, Input, Select, Tag } from 'antd';
+import { Button, Input, Select, Tag, Card } from 'antd';
 import {
   FileTextOutlined,
   AlertOutlined,
@@ -13,71 +13,93 @@ import {
   HistoryOutlined,
   InfoCircleOutlined,
   CheckOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { toast } from 'sonner';
-import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 
-const SectionWrapper = styled.section`
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 64px 24px 80px 24px;
-`;
+const TriageCard = styled(Card)`
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+  margin-bottom: 24px;
+  overflow: hidden;
 
-const SectionHeader = styled.div`
-  text-align: center;
-  max-width: 800px;
-  margin: 0 auto 36px auto;
-
-  .section-tag {
-    display: inline-block;
-    font-size: 12px;
-    font-weight: 700;
-    color: #0d9488;
-    background: #f0fdfa;
-    border: 1px solid #ccfbf1;
-    padding: 5px 14px;
-    border-radius: 9999px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    margin-bottom: 14px;
+  .ant-card-head {
+    border-bottom: 1px solid #f1f5f9;
+    padding: 16px 24px;
+    background: #ffffff;
   }
 
-  h2 {
-    font-size: 36px;
-    font-weight: 850;
-    color: #0f172a;
-    letter-spacing: -0.02em;
-    margin: 0 0 14px 0;
+  .ant-card-body {
+    padding: 24px;
+  }
+`;
 
-    @media (max-width: 640px) {
-      font-size: 28px;
+const HeaderRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  .header-left {
+    .main-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 4px 0;
+    }
+
+    .main-desc {
+      font-size: 13.5px;
+      color: #64748b;
+      margin: 0;
     }
   }
-
-  p {
-    font-size: 16px;
-    color: #64748b;
-    line-height: 1.6;
-    margin: 0;
-  }
 `;
 
-// Mandatory Medical Disclaimer Banner MSG33 from SRS
-const DisclaimerBanner = styled.div`
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-left: 4px solid #0d9488;
+const DevNoticeAlert = styled.div`
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
   border-radius: 8px;
-  padding: 14px 18px;
-  margin-bottom: 28px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 12px;
   font-size: 13.5px;
+  color: #92400e;
+
+  .icon {
+    font-size: 18px;
+    color: #f59e0b;
+    flex-shrink: 0;
+  }
+
+  strong {
+    color: #78350f;
+  }
+`;
+
+const DisclaimerBanner = styled.div`
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #0d9488;
+  border-radius: 8px;
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
   color: #334155;
 
   .banner-icon {
-    font-size: 18px;
+    font-size: 17px;
     color: #0d9488;
     flex-shrink: 0;
   }
@@ -89,17 +111,16 @@ const DisclaimerBanner = styled.div`
 
 const AssessmentContainer = styled.div`
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
-  padding: 32px;
+  padding: 24px;
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
-  gap: 36px;
+  gap: 28px;
 
   @media (max-width: 960px) {
     grid-template-columns: 1fr;
-    padding: 24px;
+    padding: 16px;
   }
 `;
 
@@ -108,7 +129,7 @@ const FormPane = styled.div`
   flex-direction: column;
 
   .field-label {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 700;
     color: #0f172a;
     margin-bottom: 8px;
@@ -124,7 +145,7 @@ const FormPane = styled.div`
   }
 
   .pet-selector-row {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
     .ant-select {
       width: 100%;
     }
@@ -134,16 +155,16 @@ const FormPane = styled.div`
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 22px;
+    margin-bottom: 20px;
   }
 
   .photo-upload-box {
     border: 1.5px dashed #cbd5e1;
-    border-radius: 10px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 14px;
     text-align: center;
     background: #f8fafc;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
     transition: all 0.15s;
 
     &:hover {
@@ -152,7 +173,7 @@ const FormPane = styled.div`
     }
 
     .upload-hint {
-      font-size: 13px;
+      font-size: 12.5px;
       color: #475569;
       margin-top: 6px;
     }
@@ -164,7 +185,7 @@ const FormPane = styled.div`
   }
 
   .notes-box {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     .ant-input {
       border-radius: 8px;
       border: 1px solid #cbd5e1;
@@ -185,10 +206,10 @@ const FormPane = styled.div`
     background: #0d9488;
     border-color: #0d9488;
     color: #ffffff;
-    height: 44px;
+    height: 42px;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 14.5px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -205,9 +226,9 @@ const SymptomButton = styled.button<{ $active: boolean }>`
   border: 1px solid ${props => (props.$active ? '#0d9488' : '#e2e8f0')};
   background: ${props => (props.$active ? '#f0fdfa' : '#ffffff')};
   color: ${props => (props.$active ? '#0d9488' : '#334155')};
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: ${props => (props.$active ? '600' : '500')};
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s;
@@ -222,9 +243,9 @@ const SymptomButton = styled.button<{ $active: boolean }>`
 
 const ResultPane = styled.div`
   background: #f8fafc;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
 
@@ -232,12 +253,12 @@ const ResultPane = styled.div`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 14px;
+    padding-bottom: 12px;
     border-bottom: 1px solid #e2e8f0;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
 
     .title {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
       color: #0f172a;
       display: flex;
@@ -252,8 +273,8 @@ const ResultPane = styled.div`
 
   .urgency-badge-box {
     border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 18px;
+    padding: 14px;
+    margin-bottom: 16px;
 
     &.urgent {
       background: #fef2f2;
@@ -272,7 +293,7 @@ const ResultPane = styled.div`
     }
 
     .level-title {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 800;
       letter-spacing: 0.3px;
       margin-bottom: 4px;
@@ -282,34 +303,34 @@ const ResultPane = styled.div`
     }
 
     .level-desc {
-      font-size: 13px;
+      font-size: 12.5px;
       line-height: 1.5;
       opacity: 0.95;
     }
   }
 
   .clinical-insights {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
     flex: 1;
 
     h4 {
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
       color: #1e293b;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .causes-list,
     .advice-list {
       list-style: none;
       padding: 0;
-      margin: 0 0 14px 0;
+      margin: 0 0 12px 0;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
 
       li {
-        font-size: 12.5px;
+        font-size: 12px;
         color: #475569;
         display: flex;
         align-items: flex-start;
@@ -328,10 +349,10 @@ const ResultPane = styled.div`
     background: #0d9488;
     color: #ffffff;
     border: none;
-    height: 42px;
+    height: 40px;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13.5px;
     width: 100%;
     display: inline-flex;
     align-items: center;
@@ -340,7 +361,7 @@ const ResultPane = styled.div`
     cursor: pointer;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     transition: all 0.15s;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
 
     &:hover {
       background: #0f766e;
@@ -349,10 +370,10 @@ const ResultPane = styled.div`
 
   .history-box {
     border-top: 1px solid #e2e8f0;
-    padding-top: 14px;
+    padding-top: 12px;
 
     .history-title {
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
       color: #64748b;
       text-transform: uppercase;
@@ -367,14 +388,13 @@ const ResultPane = styled.div`
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 12px;
+      font-size: 11.5px;
       color: #334155;
-      padding: 5px 0;
+      padding: 4px 0;
     }
   }
 `;
 
-// Official Symptom Checklist from VCMOS SRS
 const officialSymptomList = [
   { id: 'lethargy', label: 'Ủ rũ / Mệt mỏi (Lethargy)' },
   { id: 'vomiting', label: 'Nôn mửa (Vomiting)' },
@@ -387,12 +407,13 @@ const officialSymptomList = [
 
 interface AiAssessmentSectionProps {
   onBookAppointment: (notes?: string) => void;
+  isUnderDevelopment?: boolean;
 }
 
 const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
   onBookAppointment,
+  isUnderDevelopment = true,
 }) => {
-  const { isLogin } = useIsLogin();
   const [selectedPet, setSelectedPet] = useState<string>('milo');
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([
     'vomiting',
@@ -421,7 +442,6 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
     setAnalyzing(true);
     setTimeout(() => {
       setAnalyzing(false);
-      // Determine urgency level according to clinical rules
       if (
         selectedSymptoms.includes('vomiting') &&
         selectedSymptoms.includes('diarrhoea')
@@ -432,34 +452,62 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
       } else {
         setUrgencyLevel('Routine');
       }
-      toast.success('Đã hoàn tất phân tích tham khảo sơ bộ');
-    }, 700);
+      toast.info(
+        'Đã hoàn tất phân tích tham khảo sơ bộ (Giao diện xem trước mô phỏng)'
+      );
+    }, 600);
   };
 
   const handleBookFromAssessment = () => {
-    if (!isLogin) {
-      toast.info(
-        'Vui lòng đăng nhập để lưu thông tin sàng lọc vào lịch khám của thú cưng!'
-      );
-      window.dispatchEvent(new CustomEvent('open-vcmos-login'));
-      return;
-    }
     const summaryNotes = `[Sàng lọc tham khảo - Mức độ: ${urgencyLevel}] Triệu chứng: ${selectedSymptoms.join(', ')}. Ghi chú: ${description}`;
-    toast.success('Đã chuyển thông tin vào ghi chú đặt lịch hẹn!');
+    toast.success('Đã chuyển thông tin sàng lọc sang luồng đặt lịch hẹn!');
     onBookAppointment(summaryNotes);
   };
 
   return (
-    <SectionWrapper id="triage">
-      <SectionHeader>
-        <span className="section-tag">Tham Khảo Sơ Bộ Triệu Chứng</span>
-        <h2>Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu</h2>
-        <p>
-          Hệ thống tiếp nhận thông tin lâm sàng và đối chiếu dữ liệu hỗ trợ chủ
-          nuôi nhận biết mức độ khẩn cấp, đưa ra hướng dẫn sơ cứu đúng phác đồ
-          trước khi đưa bé đến khám.
-        </p>
-      </SectionHeader>
+    <TriageCard id="triage">
+      <HeaderRow>
+        <div className="header-left">
+          <h3 className="main-title">
+            <SafetyCertificateOutlined style={{ color: '#0d9488' }} />
+            Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu
+          </h3>
+          <p className="main-desc">
+            Tiếp nhận thông tin lâm sàng và đối chiếu dữ liệu hỗ trợ chủ nuôi
+            nhận biết mức độ khẩn cấp, đưa ra hướng dẫn sơ cứu đúng phác đồ.
+          </p>
+        </div>
+
+        {isUnderDevelopment && (
+          <Tag
+            color="orange"
+            icon={<ToolOutlined />}
+            style={{
+              fontWeight: 700,
+              borderRadius: 6,
+              padding: '4px 12px',
+              fontSize: 12.5,
+              margin: 0,
+            }}
+          >
+            TÍNH NĂNG ĐANG PHÁT TRIỂN
+          </Tag>
+        )}
+      </HeaderRow>
+
+      {/* Development Phase Notice */}
+      {isUnderDevelopment && (
+        <DevNoticeAlert style={{ marginTop: 16 }}>
+          <ToolOutlined className="icon" />
+          <div>
+            <strong>Thông báo lộ trình phát triển:</strong> Tính năng Sàng lọc &
+            Đánh giá triệu chứng trực tuyến đang trong giai đoạn phát triển và
+            sẽ được kích hoạt chính thức sau khi hệ thống hoàn tất toàn bộ các
+            chức năng cốt lõi. Quý khách hiện có thể xem trước giao diện và trải
+            nghiệm mô phỏng quy trình bên dưới.
+          </div>
+        </DevNoticeAlert>
+      )}
 
       {/* Medical Disclaimer Banner */}
       <DisclaimerBanner>
@@ -495,7 +543,7 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
                 },
                 { value: 'new', label: '+ Thêm thú cưng mới vào hồ sơ' },
               ]}
-              size="large"
+              size="middle"
             />
           </div>
 
@@ -527,7 +575,11 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
             <span className="sub">(Tối đa 3 ảnh, dung lượng dưới 5MB)</span>
           </div>
           <div className="photo-upload-box">
-            <Button icon={<UploadOutlined />} size="middle">
+            <Button
+              icon={<UploadOutlined />}
+              size="middle"
+              onClick={() => toast.info('Chức năng tải ảnh đang được chuẩn bị')}
+            >
               Tải ảnh lên (Tối đa 3 ảnh JPG / PNG)
             </Button>
             <div className="upload-hint">
@@ -576,7 +628,7 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
             <div className="timestamp">Thời điểm: Hôm nay, 14:15</div>
           </div>
 
-          {/* Urgency Level Box: Routine, Monitor, Urgent */}
+          {/* Urgency Level Box */}
           {urgencyLevel === 'Urgent' && (
             <div className="urgency-badge-box urgent">
               <div className="level-title">
@@ -615,7 +667,7 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
             </div>
           )}
 
-          {/* Clinical Insights & Home Care Guidance */}
+          {/* Clinical Insights */}
           <div className="clinical-insights">
             <h4>Nguyên nhân khả dĩ cần lưu ý:</h4>
             <ul className="causes-list">
@@ -688,7 +740,7 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
           </div>
         </ResultPane>
       </AssessmentContainer>
-    </SectionWrapper>
+    </TriageCard>
   );
 };
 

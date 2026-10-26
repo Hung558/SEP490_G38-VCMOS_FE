@@ -231,7 +231,7 @@ const HomeFooter = () => {
           <h4>Chủ nuôi & Phòng khám</h4>
           <ul>
             <li>
-              <a href="#triage">Bảng phân loại triệu chứng lâm sàng</a>
+              <a href="#services">Dịch vụ & Bảng phân loại chuyên khoa</a>
             </li>
             <li>
               <a href="#quick-booking">Quy trình tiếp nhận & Bảng giá</a>

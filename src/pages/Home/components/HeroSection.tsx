@@ -318,13 +318,10 @@ const QuickInfoGrid = styled.div`
 
 interface HeroSectionProps {
   onScrollToBooking: () => void;
-  onScrollToAi: () => void;
+  onScrollToAi?: () => void;
 }
 
-const HeroSection: React.FC<HeroSectionProps> = ({
-  onScrollToBooking,
-  onScrollToAi,
-}) => {
+const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
   const { isLogin } = useIsLogin();
 
   const handleBookingClick = () => {
@@ -377,8 +374,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             >
               Dịch vụ & Bảng giá &rsaquo;
             </Button>
-            <Button className="btn-outline-white" onClick={onScrollToAi}>
-              Sàng lọc phân loại (Triage)
+            <Button
+              className="btn-outline-white"
+              onClick={() => scrollToSection('doctors')}
+            >
+              Đội ngũ Bác sĩ
             </Button>
           </div>
         </div>
@@ -407,14 +407,14 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               <TeamOutlined /> Đội ngũ Bác sĩ
             </a>
             <a
-              href="#triage"
+              href="#quick-booking"
               className="subnav-item"
               onClick={e => {
                 e.preventDefault();
-                scrollToSection('triage');
+                scrollToSection('quick-booking');
               }}
             >
-              <SafetyCertificateOutlined /> Sàng lọc lâm sàng (Triage)
+              <CalendarOutlined /> Đặt lịch hẹn khám
             </a>
             <a
               href="#community"

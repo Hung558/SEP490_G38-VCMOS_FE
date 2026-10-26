@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import { toast } from 'sonner';
+import AiAssessmentSection from './components/AiAssessmentSection';
 
 const { Title, Text } = Typography;
 
@@ -601,6 +602,19 @@ const DashboardPage: React.FC = () => {
           size="middle"
         />
       </SectionCard>
+
+      {/* Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu (Đang phát triển) */}
+      <AiAssessmentSection
+        isUnderDevelopment={true}
+        onBookAppointment={notes => {
+          navigate(ROUTER.HOME + '#quick-booking');
+          if (notes) {
+            toast.info(
+              'Đã chuyển tiếp thông tin triệu chứng sang luồng đặt lịch khám!'
+            );
+          }
+        }}
+      />
 
       {/* Inpatient Modal Detail */}
       <Modal
