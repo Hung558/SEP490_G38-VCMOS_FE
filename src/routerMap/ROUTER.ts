@@ -3,6 +3,7 @@ const ROUTER = {
   HOME: '/',
   LOGIN: '/login',
   REGISTER: '/register',
+  FORGOT_PASSWORD: '/forgot-password',
   DASHBOARD: '/dashboard',
   PROFILE: '/profile',
   NOT_FOUND: '*',

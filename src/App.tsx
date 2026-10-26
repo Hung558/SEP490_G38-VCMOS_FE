@@ -9,7 +9,9 @@ import ErrorBoundary from './components/common/Boundary';
 import AppRouter from './routerMap/AppRouter';
 import GlobalThemeConfig from './theme/GlobalThemeConfig';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  '100000000000-dummygoogleclientidforvcmosclinic.apps.googleusercontent.com';
 
 function App() {
   return (

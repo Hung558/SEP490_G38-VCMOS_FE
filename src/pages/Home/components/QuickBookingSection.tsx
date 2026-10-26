@@ -1,322 +1,773 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Button, Form, Input, Select } from 'antd';
+import { Button, Input, Select, Steps } from 'antd';
 import {
   CheckCircleOutlined,
-  CalendarOutlined,
   PhoneOutlined,
+  ClockCircleOutlined,
+  SafetyCertificateOutlined,
+  ScissorOutlined,
+  MedicineBoxOutlined,
+  FileSearchOutlined,
+  RightOutlined,
+  LeftOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { toast } from 'sonner';
+import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 
 const SectionWrapper = styled.section`
   max-width: 1240px;
   margin: 0 auto;
-  padding: 40px 24px 80px 24px;
+  padding: 64px 24px 80px 24px;
 `;
 
-const BannerCard = styled.div`
-  background: #004d40;
-  background: linear-gradient(135deg, #004d40 0%, #00695c 100%);
-  border-radius: 32px;
-  padding: 48px;
+const BookingCard = styled.div`
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  padding: 44px;
   display: grid;
-  grid-template-columns: 1fr 1.15fr;
+  grid-template-columns: 1fr 1.35fr;
   gap: 48px;
-  align-items: center;
-  box-shadow: 0 20px 60px rgba(0, 77, 64, 0.2);
+  align-items: flex-start;
 
   @media (max-width: 960px) {
     grid-template-columns: 1fr;
-    padding: 32px 24px;
-    gap: 36px;
+    padding: 28px 18px;
+    gap: 32px;
+  }
+`;
+
+const GuestNotice = styled.div`
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: #0f766e;
+
+  .btn-guest-login {
+    background: #0d9488;
+    color: #ffffff;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+
+    &:hover {
+      background: #0f766e;
+    }
   }
 `;
 
 const LeftInfo = styled.div`
-  color: #ffffff;
-
-  .offer-badge {
-    display: inline-block;
+  .booking-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 5px 14px;
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    color: #0f766e;
     border-radius: 9999px;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.8px;
     text-transform: uppercase;
+    letter-spacing: 0.8px;
     margin-bottom: 20px;
   }
 
   h2 {
-    font-size: 38px;
-    font-weight: 900;
-    color: #ffffff;
+    font-size: 34px;
+    font-weight: 850;
+    color: #0f172a;
     line-height: 1.25;
-    margin: 0 0 20px 0;
-    letter-spacing: -0.8px;
+    margin: 0 0 16px 0;
+    letter-spacing: -0.02em;
 
     @media (max-width: 640px) {
-      font-size: 28px;
+      font-size: 26px;
     }
   }
 
-  p {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.85);
+  p.desc {
+    font-size: 15px;
+    color: #64748b;
     line-height: 1.6;
-    margin: 0 0 32px 0;
+    margin: 0 0 28px 0;
   }
 
-  .perks {
+  .benefits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 32px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+
+      .icon-box {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: #f0fdfa;
+        color: #0d9488;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .text {
+        strong {
+          display: block;
+          font-size: 14px;
+          color: #0f172a;
+          margin-bottom: 2px;
+        }
+        span {
+          font-size: 13px;
+          color: #64748b;
+        }
+      }
+    }
+  }
+
+  .hotline-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
     display: flex;
     align-items: center;
-    gap: 24px;
-    flex-wrap: wrap;
+    gap: 14px;
 
-    .perk-item {
+    .phone-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #0d9488;
+      color: #ffffff;
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #e0f2f1;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
 
-      svg {
-        color: #4ade80;
-        font-size: 16px;
+    .info {
+      .label {
+        font-size: 12px;
+        color: #64748b;
+      }
+      .phone-num {
+        font-size: 18px;
+        font-weight: 800;
+        color: #0f172a;
       }
     }
   }
 `;
 
-const FormBox = styled.div`
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 36px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+const FormWrap = styled.div`
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 32px;
 
   @media (max-width: 640px) {
-    padding: 24px 20px;
+    padding: 20px 16px;
   }
 
-  .form-header {
-    margin-bottom: 24px;
+  .wizard-steps {
+    margin-bottom: 28px;
+    .ant-steps-item-title {
+      font-size: 13px !important;
+      font-weight: 600;
+    }
+  }
 
-    h3 {
-      font-size: 22px;
-      font-weight: 800;
-      color: #0f172a;
-      margin: 0 0 6px 0;
+  .step-content {
+    min-height: 280px;
+  }
+
+  .section-label {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+  }
+
+  .service-card-select {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+
+    .srv-item {
+      padding: 12px 16px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      background: #ffffff;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
+      justify-content: space-between;
+      transition: all 0.15s;
 
-    p {
-      font-size: 13.5px;
-      color: #64748b;
-      margin: 0;
+      &:hover {
+        border-color: #cbd5e1;
+      }
+
+      &.selected {
+        border-color: #0d9488;
+        background: #f0fdfa;
+      }
+
+      .left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .icon {
+          color: #0d9488;
+          font-size: 18px;
+        }
+
+        .name {
+          font-size: 14px;
+          font-weight: 600;
+          color: #0f172a;
+        }
+
+        .duration {
+          font-size: 12px;
+          color: #64748b;
+        }
+      }
+
+      .price {
+        font-size: 14px;
+        font-weight: 700;
+        color: #0d9488;
+      }
     }
   }
 
-  .form-grid-2 {
+  .summary-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 24px;
+
+    .sum-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13.5px;
+      padding: 6px 0;
+      border-bottom: 1px dashed #f1f5f9;
+      color: #334155;
+
+      &.total {
+        border-bottom: none;
+        border-top: 1.5px solid #e2e8f0;
+        margin-top: 8px;
+        padding-top: 12px;
+        font-size: 15px;
+        font-weight: 800;
+        color: #0f172a;
+
+        .price-final {
+          color: #0d9488;
+        }
+      }
+    }
+  }
+
+  .slots-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
 
     @media (max-width: 600px) {
-      grid-template-columns: 1fr;
-      gap: 0;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .slot-btn {
+      padding: 8px 4px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+
+      &.active {
+        background: #0d9488;
+        border-color: #0d9488;
+        color: #ffffff;
+      }
+
+      &:hover:not(.active) {
+        border-color: #0d9488;
+        color: #0d9488;
+      }
     }
   }
 
-  .ant-form-item-label > label {
-    font-size: 13px;
-    font-weight: 600;
-    color: #334155;
-  }
+  .wizard-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid #e2e8f0;
 
-  .ant-input,
-  .ant-select-selector {
-    border-radius: 10px !important;
-    background-color: #f8fafc !important;
-    border: 1px solid #cbd5e1 !important;
-  }
+    .btn-step {
+      height: 42px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
 
-  .btn-submit {
-    width: 100%;
-    height: 52px;
-    background: #004d40;
-    border-color: #004d40;
-    color: #ffffff;
-    font-size: 15px;
-    font-weight: 800;
-    border-radius: 12px;
-    letter-spacing: 0.5px;
-    margin-top: 8px;
-    transition: all 0.2s;
+    .btn-next,
+    .btn-submit {
+      background: #0d9488;
+      border-color: #0d9488;
+      color: #ffffff;
 
-    &:hover {
-      background: #00695c !important;
-      border-color: #00695c !important;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(0, 77, 64, 0.3);
+      &:hover {
+        background: #0f766e !important;
+        border-color: #0f766e !important;
+      }
     }
   }
 `;
 
+const timeSlots = [
+  '08:30 Sáng',
+  '09:30 Sáng',
+  '10:30 Sáng',
+  '11:15 Trưa',
+  '14:00 Chiều',
+  '15:30 Chiều',
+  '17:00 Chiều',
+  '18:30 Tối',
+];
+
+const availableServices = [
+  {
+    id: 'exam',
+    title: 'Khám lâm sàng tổng quát & Bệnh án SOAP',
+    duration: 30,
+    price: 150000,
+    icon: <MedicineBoxOutlined />,
+  },
+  {
+    id: 'vaccine',
+    title: 'Tiêm chủng Vaccine đa giá & Sổ giun',
+    duration: 20,
+    price: 180000,
+    icon: <CheckCircleOutlined />,
+  },
+  {
+    id: 'grooming',
+    title: 'Grooming Spa & Cắt tỉa lông thẩm mỹ',
+    duration: 60,
+    price: 250000,
+    icon: <ScissorOutlined />,
+  },
+  {
+    id: 'imaging',
+    title: 'Chẩn đoán hình ảnh: Siêu âm Doppler & X-Quang',
+    duration: 30,
+    price: 300000,
+    icon: <FileSearchOutlined />,
+  },
+];
+
+const staffList = [
+  {
+    value: 'any',
+    label: 'Bất kỳ bác sĩ / kỹ thuật viên trực ca (Khuyên dùng)',
+  },
+  {
+    value: 'vet_b',
+    label: 'BS. Trần Thị B (Chuyên khoa Nội & Siêu âm Doppler)',
+  },
+  { value: 'vet_nam', label: 'ThS. BS. Nguyễn Hoàng Nam (Chuyên khoa Ngoại)' },
+  {
+    value: 'groomer_d',
+    label: 'Chuyên viên Lê Thị D (Chuyên khoa Spa & Phục hồi da)',
+  },
+];
+
 const QuickBookingSection: React.FC = () => {
-  const [form] = Form.useForm();
+  const { isLogin } = useIsLogin();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [selectedPet, setSelectedPet] = useState('milo');
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([
+    'exam',
+  ]);
+  const [selectedStaff, setSelectedStaff] = useState('any');
+  const [selectedSlot, setSelectedSlot] = useState('09:30 Sáng');
+  const [bookingNote, setBookingNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const onFinish = (values: any) => {
+  const toggleService = (id: string) => {
+    setSelectedServiceIds(prev =>
+      prev.includes(id)
+        ? prev.length > 1
+          ? prev.filter(item => item !== id)
+          : prev
+        : [...prev, id]
+    );
+  };
+
+  const selectedServices = availableServices.filter(s =>
+    selectedServiceIds.includes(s.id)
+  );
+  const totalDuration = selectedServices.reduce(
+    (sum, s) => sum + s.duration,
+    0
+  );
+  const totalFee = selectedServices.reduce((sum, s) => sum + s.price, 0);
+
+  const handleNext = () => {
+    if (!isLogin && currentStep === 0) {
+      toast.info(
+        'Vui lòng đăng nhập để đồng bộ lịch hẹn với hồ sơ thú cưng của bạn!'
+      );
+      window.dispatchEvent(new CustomEvent('open-vcmos-login'));
+      return;
+    }
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const handlePrev = () => {
+    setCurrentStep(prev => prev - 1);
+  };
+
+  const handleSubmitBooking = () => {
+    if (!isLogin) {
+      toast.info(
+        'Vui lòng đăng nhập tài khoản chủ nuôi để hoàn tất đặt lịch hẹn!'
+      );
+      window.dispatchEvent(new CustomEvent('open-vcmos-login'));
+      return;
+    }
     setSubmitting(true);
     setTimeout(() => {
       setSubmitting(false);
       toast.success(
-        `Đã ghi nhận yêu cầu đặt lịch cho ${values.petInfo}! Tổng đài VCMOS sẽ liên hệ trong 5 phút.`
+        'Đặt lịch hẹn thành công! Phòng khám VCMOS đã ghi nhận lượt hẹn của bạn.'
       );
-      form.resetFields();
-    }, 600);
+      setCurrentStep(0);
+    }, 700);
   };
 
   return (
     <SectionWrapper id="quick-booking">
-      <BannerCard>
+      <BookingCard>
+        {/* Left Information */}
         <LeftInfo>
-          <div className="offer-badge">ƯU ĐÃI THÀNH VIÊN MỚI</div>
-          <h2>Sẵn Sàng Trao Gửi Yêu Thương & Sức Khỏe Cho Bé Cưng Của Bạn?</h2>
-          <p>
-            Tải ứng dụng VCMOS hoặc Đặt lịch hẹn khám ngay hôm nay để nhận Sổ
-            khám sức khỏe điện tử miễn phí trọn đời và gói tầm soát ký sinh
-            trùng sơ bộ.
+          <span className="booking-pill">
+            <SafetyCertificateOutlined /> Quy Trình Đặt Hẹn 4 Bước
+          </span>
+          <h2>Đặt Lịch Dịch Vụ & Khám Bệnh Trực Tuyến</h2>
+          <p className="desc">
+            Chủ động chọn thời gian, bác sĩ phụ trách và dịch vụ liên tiếp cho
+            bé cưng. Lịch hẹn được hệ thống xếp hàng tự động, không lo chờ đợi.
           </p>
 
-          <div className="perks">
-            <div className="perk-item">
-              <CheckCircleOutlined /> Xác nhận hẹn trong 5 phút
+          <ul className="benefits-list">
+            <li>
+              <div className="icon-box">
+                <CheckCircleOutlined />
+              </div>
+              <div className="text">
+                <strong>Xếp slot liên tiếp tự động</strong>
+                <span>
+                  Hệ thống tự động tính toán thời gian nối tiếp giữa các dịch vụ
+                  khám và spa.
+                </span>
+              </div>
+            </li>
+            <li>
+              <div className="icon-box">
+                <ClockCircleOutlined />
+              </div>
+              <div className="text">
+                <strong>Chủ động chọn bác sĩ trực ca</strong>
+                <span>
+                  Lịch hẹn lập tức chuyển sang trạng thái đã đặt mà không cần
+                  chờ duyệt thủ công.
+                </span>
+              </div>
+            </li>
+            <li>
+              <div className="icon-box">
+                <SafetyCertificateOutlined />
+              </div>
+              <div className="text">
+                <strong>Lưu trữ bệnh án điện tử SOAP</strong>
+                <span>
+                  Mọi kết quả và lịch sử khám chữa bệnh lưu trữ trọn đời trên hồ
+                  sơ của bé.
+                </span>
+              </div>
+            </li>
+          </ul>
+
+          <div className="hotline-box">
+            <div className="phone-icon">
+              <PhoneOutlined />
             </div>
-            <div className="perk-item">
-              <CheckCircleOutlined /> Không cần đặt cọc trước
+            <div className="info">
+              <div className="label">Hotline phòng khám (08:00 - 20:00)</div>
+              <div className="phone-num">(024) 7300 8888</div>
             </div>
           </div>
         </LeftInfo>
 
-        <FormBox>
-          <div className="form-header">
-            <h3>
-              <CalendarOutlined style={{ color: '#00796b' }} />
-              Đặt Lịch Khám Ưu Tiên Nhanh
-            </h3>
-            <p>
-              Hệ thống sẽ giữ lịch khám đúng bác sĩ yêu cầu và nhắc lịch qua
-              Zalo/SMS.
-            </p>
+        {/* Right Form Wrap - 4-step wizard */}
+        <FormWrap>
+          {!isLogin && (
+            <GuestNotice>
+              <span>Bạn đang thao tác với tư cách Khách.</span>
+              <button
+                type="button"
+                className="btn-guest-login"
+                onClick={() =>
+                  window.dispatchEvent(new CustomEvent('open-vcmos-login'))
+                }
+              >
+                <UserOutlined /> Đăng nhập để đặt lịch
+              </button>
+            </GuestNotice>
+          )}
+
+          <Steps
+            className="wizard-steps"
+            size="small"
+            current={currentStep}
+            items={[
+              { title: '1. Thú cưng' },
+              { title: '2. Ngày & Bác sĩ' },
+              { title: '3. Ghi chú' },
+              { title: '4. Xác nhận' },
+            ]}
+          />
+
+          <div className="step-content">
+            {/* Step 1: Pet & Services */}
+            {currentStep === 0 && (
+              <div>
+                <div className="section-label">1. Chọn thú cưng của bạn:</div>
+                <Select
+                  value={selectedPet}
+                  onChange={setSelectedPet}
+                  style={{ width: '100%', marginBottom: 20 }}
+                  size="large"
+                  options={[
+                    {
+                      value: 'milo',
+                      label: 'Bé Milo · Chó Poodle (5.2 kg · 3 tuổi)',
+                    },
+                    {
+                      value: 'miu',
+                      label: 'Bé Miu · Mèo Anh lông ngắn (4.0 kg · 2 tuổi)',
+                    },
+                    {
+                      value: 'walkin',
+                      label: '+ Khách mới / Thêm hồ sơ thú cưng khác',
+                    },
+                  ]}
+                />
+
+                <div className="section-label">
+                  2. Chọn dịch vụ (chọn 1 hoặc nhiều):
+                </div>
+                <div className="service-card-select">
+                  {availableServices.map(srv => {
+                    const isSelected = selectedServiceIds.includes(srv.id);
+                    return (
+                      <div
+                        key={srv.id}
+                        className={`srv-item ${isSelected ? 'selected' : ''}`}
+                        onClick={() => toggleService(srv.id)}
+                      >
+                        <div className="left">
+                          <div className="icon">{srv.icon}</div>
+                          <div>
+                            <div className="name">{srv.title}</div>
+                            <div className="duration">
+                              <ClockCircleOutlined /> Ước tính: {srv.duration}{' '}
+                              phút
+                            </div>
+                          </div>
+                        </div>
+                        <div className="price">
+                          {srv.price.toLocaleString('vi-VN')}đ
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Date & Staff */}
+            {currentStep === 1 && (
+              <div>
+                <div className="section-label">
+                  1. Bác sĩ hoặc Chuyên viên mong muốn:
+                </div>
+                <Select
+                  value={selectedStaff}
+                  onChange={setSelectedStaff}
+                  style={{ width: '100%', marginBottom: 20 }}
+                  size="large"
+                  options={staffList}
+                />
+
+                <div className="section-label">
+                  2. Chọn khung giờ tiếp nhận hôm nay:
+                </div>
+                <div className="slots-row">
+                  {timeSlots.map(slot => (
+                    <button
+                      key={slot}
+                      type="button"
+                      className={`slot-btn ${selectedSlot === slot ? 'active' : ''}`}
+                      onClick={() => setSelectedSlot(slot)}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Booking Note */}
+            {currentStep === 2 && (
+              <div>
+                <div className="section-label">
+                  Ghi chú triệu chứng hoặc lưu ý chăm sóc (tối đa 500 ký tự):
+                </div>
+                <Input.TextArea
+                  rows={5}
+                  value={bookingNote}
+                  onChange={e => setBookingNote(e.target.value)}
+                  placeholder="Ví dụ: Bé có tiền sử dị ứng hải sản, sáng nay nôn nhẹ và mệt mỏi. Cần bác sĩ kiểm tra tiêu hoá..."
+                  maxLength={500}
+                  showCount
+                  style={{ marginBottom: 20 }}
+                />
+              </div>
+            )}
+
+            {/* Step 4: Summary & Confirm */}
+            {currentStep === 3 && (
+              <div>
+                <div className="section-label">Tóm tắt thông tin đặt hẹn:</div>
+                <div className="summary-box">
+                  <div className="sum-row">
+                    <span>Thú cưng:</span>
+                    <strong>
+                      {selectedPet === 'milo'
+                        ? 'Bé Milo (Chó Poodle · 5.2 kg)'
+                        : 'Bé Miu (Mèo Anh)'}
+                    </strong>
+                  </div>
+                  <div className="sum-row">
+                    <span>Thời gian hẹn:</span>
+                    <strong>Hôm nay, {selectedSlot}</strong>
+                  </div>
+                  <div className="sum-row">
+                    <span>Bác sĩ phụ trách:</span>
+                    <strong>
+                      {staffList.find(s => s.value === selectedStaff)?.label}
+                    </strong>
+                  </div>
+                  <div className="sum-row">
+                    <span>Tổng thời lượng:</span>
+                    <strong>{totalDuration} phút liên tiếp</strong>
+                  </div>
+                  {bookingNote && (
+                    <div className="sum-row">
+                      <span>Ghi chú:</span>
+                      <span>{bookingNote}</span>
+                    </div>
+                  )}
+                  <div className="sum-row total">
+                    <span>Tổng chi phí ước tính:</span>
+                    <span className="price-final">
+                      {totalFee.toLocaleString('vi-VN')}đ
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={onFinish}
-            initialValues={{
-              facility: 'cau-giay',
-              serviceType: 'examination',
-              dateTime: 'Hôm nay - Ca sớm nhất',
-            }}
-          >
-            <Form.Item
-              name="facility"
-              label="Chọn cơ sở VCMOS gần bạn nhất"
-              rules={[{ required: true, message: 'Vui lòng chọn cơ sở!' }]}
-            >
-              <Select size="large">
-                <Select.Option value="cau-giay">
-                  Cơ sở 1: Tòa VCMOS Complex, 126 Cầu Giấy, Q. Cầu Giấy
-                </Select.Option>
-                <Select.Option value="dong-da">
-                  Cơ sở 2: Số 45 Hoàng Cầu, Q. Đống Đa
-                </Select.Option>
-                <Select.Option value="tay-ho">
-                  Cơ sở 3: Số 88 Xuân Diệu, Q. Tây Hồ
-                </Select.Option>
-              </Select>
-            </Form.Item>
-
-            <div className="form-grid-2">
-              <Form.Item
-                name="dateTime"
-                label="Ngày & Giờ mong muốn"
-                rules={[{ required: true, message: 'Vui lòng chọn ngày giờ!' }]}
+          {/* Stepper Footer Controls */}
+          <div className="wizard-footer">
+            {currentStep > 0 ? (
+              <Button
+                className="btn-step"
+                icon={<LeftOutlined />}
+                onClick={handlePrev}
               >
-                <Input
-                  size="large"
-                  placeholder="VD: 09:00 sáng mai"
-                  prefix={<CalendarOutlined style={{ color: '#94a3b8' }} />}
-                />
-              </Form.Item>
+                Quay lại
+              </Button>
+            ) : (
+              <div />
+            )}
 
-              <Form.Item
-                name="serviceType"
-                label="Loại dịch vụ"
-                rules={[{ required: true, message: 'Vui lòng chọn dịch vụ!' }]}
+            {currentStep < 3 ? (
+              <Button
+                type="primary"
+                className="btn-step btn-next"
+                onClick={handleNext}
               >
-                <Select size="large">
-                  <Select.Option value="examination">
-                    Khám bệnh / Xét nghiệm
-                  </Select.Option>
-                  <Select.Option value="grooming">
-                    Spa & Cắt tỉa Grooming
-                  </Select.Option>
-                  <Select.Option value="vaccine">
-                    Tiêm phòng Vắc-xin
-                  </Select.Option>
-                  <Select.Option value="inpatient">
-                    Nhập viện điều trị
-                  </Select.Option>
-                </Select>
-              </Form.Item>
-            </div>
-
-            <div className="form-grid-2">
-              <Form.Item
-                name="phone"
-                label="Số điện thoại phụ huynh *"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập số điện thoại!' },
-                  {
-                    pattern: /^0\d{9}$/,
-                    message: 'SĐT gồm 10 số, bắt đầu bằng 0!',
-                  },
-                ]}
+                Tiếp tục <RightOutlined />
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                className="btn-step btn-submit"
+                loading={submitting}
+                onClick={handleSubmitBooking}
+                icon={<CheckCircleOutlined />}
               >
-                <Input
-                  size="large"
-                  placeholder="VD: 0902 099 905"
-                  prefix={<PhoneOutlined style={{ color: '#94a3b8' }} />}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="petInfo"
-                label="Tên & Giống thú cưng *"
-                rules={[{ required: true, message: 'Vui lòng nhập tên bé!' }]}
-              >
-                <Input size="large" placeholder="VD: Bé Corgi Mochi (3kg)" />
-              </Form.Item>
-            </div>
-
-            <Button
-              type="primary"
-              htmlType="submit"
-              className="btn-submit"
-              loading={submitting}
-            >
-              ✓ XÁC NHẬN ĐẶT LỊCH TRONG 30 GIÂY
-            </Button>
-          </Form>
-        </FormBox>
-      </BannerCard>
+                Xác nhận đặt lịch hẹn
+              </Button>
+            )}
+          </div>
+        </FormWrap>
+      </BookingCard>
     </SectionWrapper>
   );
 };

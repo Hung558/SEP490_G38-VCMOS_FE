@@ -66,20 +66,20 @@ const CustomFormItem = styled(Form.Item)`
 
 const SubmitButton = styled.button`
   width: 100%;
-  height: 52px;
-  background: linear-gradient(135deg, #00195c 0%, #112e81 100%);
+  height: 50px;
+  background: #0d9488;
   color: #ffffff;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15.5px;
   cursor: pointer;
   margin-top: 12px;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 25, 92, 0.25);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
 
   &:hover {
-    background: linear-gradient(135deg, #112e81 0%, #1a3c9e 100%);
+    background: #0f766e;
   }
 `;
 
@@ -90,12 +90,13 @@ const FooterText = styled.div`
   font-weight: 500;
 
   a {
-    color: #00195c;
+    color: #0d9488;
     text-decoration: none;
     font-weight: 700;
     margin-left: 4px;
 
     &:hover {
+      color: #0f766e;
       text-decoration: underline;
     }
   }
@@ -169,8 +170,8 @@ const VerifyAccountForm: React.FC<VerifyAccountFormProps> = ({
   return (
     <SpinCustom spinning={loading}>
       <FormCard>
-        <HelloTitle>Verify</HelloTitle>
-        <WelcomeTitle>Your Email.</WelcomeTitle>
+        <HelloTitle>Xác thực</HelloTitle>
+        <WelcomeTitle>Email của bạn.</WelcomeTitle>
 
         <Form
           form={form}
@@ -213,11 +214,11 @@ const VerifyAccountForm: React.FC<VerifyAccountFormProps> = ({
             <Input
               size="large"
               prefix={<KeyOutlined />}
-              placeholder="Verification Code"
+              placeholder="Mã xác thực OTP"
             />
           </CustomFormItem>
 
-          <SubmitButton type="submit">Verify Account</SubmitButton>
+          <SubmitButton type="submit">Xác thực tài khoản</SubmitButton>
 
           <FooterText>
             Không nhận được mã?{' '}

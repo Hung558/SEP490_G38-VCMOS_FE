@@ -58,7 +58,7 @@ const HelloTitle = styled.h2`
 const WelcomeTitle = styled.h2`
   font-size: 32px;
   font-weight: 900;
-  color: #00195c;
+  color: #0d9488;
   margin: 0 0 32px 0;
   letter-spacing: -0.8px;
   text-align: left;
@@ -86,8 +86,8 @@ const CustomFormItem = styled(Form.Item)`
     &:focus,
     &:focus-within {
       background-color: #ffffff !important;
-      border-color: #00195c !important;
-      box-shadow: 0 0 0 3px rgba(0, 25, 92, 0.12) !important;
+      border-color: #0d9488 !important;
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15) !important;
     }
   }
 
@@ -134,28 +134,27 @@ const CustomFormItem = styled(Form.Item)`
 
 const SubmitButton = styled.button`
   width: 100%;
-  height: 52px;
-  background: linear-gradient(135deg, #00195c 0%, #112e81 100%);
+  height: 50px;
+  background: #0d9488;
   color: #ffffff;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15.5px;
   cursor: pointer;
   transition: all 0.2s ease;
   margin-top: 12px;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 25, 92, 0.25);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
 
   &:hover {
-    background: linear-gradient(135deg, #112e81 0%, #1a3c9e 100%);
-    box-shadow: 0 6px 20px rgba(0, 25, 92, 0.4);
+    background: #0f766e;
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.3);
     transform: translateY(-1px);
   }
 
   &:active {
     transform: translateY(1px);
-    box-shadow: 0 2px 8px rgba(0, 25, 92, 0.2);
   }
 `;
 
@@ -218,12 +217,13 @@ const FooterText = styled.div`
   font-weight: 500;
 
   a {
-    color: #00195c;
+    color: #0d9488;
     text-decoration: none;
     font-weight: 700;
     margin-left: 4px;
 
     &:hover {
+      color: #0f766e;
       text-decoration: underline;
     }
   }
@@ -350,8 +350,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
   return (
     <SpinCustom spinning={loading}>
       <FormCard>
-        <HelloTitle>Create</HelloTitle>
-        <WelcomeTitle>Account.</WelcomeTitle>
+        <HelloTitle>Tạo mới</HelloTitle>
+        <WelcomeTitle>Tài khoản.</WelcomeTitle>
 
         <Form form={form} layout="vertical" onFinish={onSubmit}>
           {/* Full Name */}
@@ -418,7 +418,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
             <Input.Password
               size="large"
               prefix={<LockOutlined />}
-              placeholder="Password"
+              placeholder="Mật khẩu (tối thiểu 8 ký tự)"
             />
           </CustomFormItem>
 
@@ -443,14 +443,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
             <Input.Password
               size="large"
               prefix={<LockOutlined />}
-              placeholder="Confirm Password"
+              placeholder="Xác nhận lại mật khẩu"
             />
           </CustomFormItem>
 
-          <SubmitButton type="submit">Create Account</SubmitButton>
+          <SubmitButton type="submit">Đăng ký tài khoản</SubmitButton>
 
           <DividerContainer>
-            <span>Or continue with</span>
+            <span>Hoặc tiếp tục với</span>
           </DividerContainer>
 
           <GoogleButton type="button" onClick={() => googleLogin()}>
@@ -477,11 +477,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
                 d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.4C13.46.96 11.42 0 9 0 5.48 0 2.43 2.11.95 4.97l3 2.33c.71-2.12 2.7-3.7 5.05-3.7z"
               />
             </svg>
-            Google
+            Đăng ký với Google
           </GoogleButton>
 
           <FooterText>
-            Already have an account ?{' '}
+            Đã có tài khoản?{' '}
             <a
               href="#login"
               onClick={e => {
@@ -489,7 +489,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
                 onToggleView();
               }}
             >
-              Sign In!
+              Đăng nhập ngay!
             </a>
           </FooterText>
         </Form>

@@ -1,41 +1,56 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Button } from 'antd';
-import { ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
+import {
+  CalendarOutlined,
+  CheckCircleFilled,
+  ClockCircleOutlined,
+  AuditOutlined,
+} from '@ant-design/icons';
+import { toast } from 'sonner';
+import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 
 const SectionWrapper = styled.section`
   max-width: 1240px;
   margin: 0 auto;
-  padding: 40px 24px 80px 24px;
+  padding: 64px 24px 80px 24px;
 `;
 
 const SectionHeader = styled.div`
   text-align: center;
-  max-width: 820px;
-  margin: 0 auto 40px auto;
+  max-width: 780px;
+  margin: 0 auto 52px auto;
 
-  .top-tag {
+  .section-tag {
+    display: inline-block;
     font-size: 12px;
-    font-weight: 800;
-    color: #00796b;
-    letter-spacing: 1px;
+    font-weight: 700;
+    color: #0d9488;
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    padding: 5px 14px;
+    border-radius: 9999px;
     text-transform: uppercase;
-    margin-bottom: 8px;
+    letter-spacing: 0.8px;
+    margin-bottom: 14px;
   }
 
   h2 {
     font-size: 36px;
-    font-weight: 900;
+    font-weight: 850;
     color: #0f172a;
-    margin: 0 0 12px 0;
-    letter-spacing: -0.6px;
+    letter-spacing: -0.02em;
+    margin: 0 0 14px 0;
+
+    @media (max-width: 640px) {
+      font-size: 28px;
+    }
   }
 
   p {
     font-size: 16px;
     color: #64748b;
-    margin: 0;
     line-height: 1.6;
+    margin: 0;
   }
 `;
 
@@ -46,30 +61,32 @@ const DoctorsGrid = styled.div`
 
   @media (max-width: 960px) {
     grid-template-columns: 1fr;
-    gap: 24px;
   }
 `;
 
 const DoctorCard = styled.div`
   background: #ffffff;
-  border-radius: 28px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  transition: all 0.3s;
+  transition: all 0.15s ease-in-out;
 
   &:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 20px 40px rgba(0, 77, 64, 0.08);
-    border-color: #b2dfdb;
+    border-color: #0d9488;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
   }
 
-  .image-wrapper {
+  .avatar-wrap {
+    height: 220px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: relative;
-    height: 260px;
-    background: #f1f5f9;
+    overflow: hidden;
 
     img {
       width: 100%;
@@ -77,171 +94,192 @@ const DoctorCard = styled.div`
       object-fit: cover;
     }
 
-    .exp-badge {
+    .verified-badge {
       position: absolute;
-      top: 14px;
-      right: 14px;
-      background: #00796b;
-      color: #ffffff;
-      font-size: 11.5px;
-      font-weight: 700;
-      padding: 5px 12px;
-      border-radius: 9999px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    }
-
-    .dept-badge {
-      position: absolute;
-      bottom: 14px;
-      left: 14px;
-      background: rgba(15, 23, 42, 0.8);
-      backdrop-filter: blur(8px);
-      color: #ffffff;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #e2e8f0;
+      padding: 4px 10px;
+      border-radius: 6px;
       font-size: 11.5px;
       font-weight: 600;
-      padding: 5px 12px;
-      border-radius: 8px;
+      color: #0f766e;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
   }
 
   .card-body {
-    padding: 24px 20px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
     flex: 1;
 
-    .name {
-      font-size: 20px;
+    h3 {
+      font-size: 18px;
       font-weight: 800;
       color: #0f172a;
       margin: 0 0 4px 0;
     }
 
-    .title {
+    .specialty {
       font-size: 13.5px;
-      font-weight: 700;
-      color: #00796b;
-      margin: 0 0 12px 0;
+      font-weight: 600;
+      color: #0d9488;
+      margin-bottom: 16px;
     }
 
     .bio {
-      font-size: 13px;
+      font-size: 13.5px;
       color: #64748b;
       line-height: 1.55;
       margin: 0 0 20px 0;
       flex: 1;
     }
 
-    .schedule-box {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 10px 14px;
+    .meta-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
       font-size: 12.5px;
       color: #475569;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      padding-top: 16px;
+      border-top: 1px solid #f1f5f9;
       margin-bottom: 20px;
 
-      svg {
-        color: #d97706;
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .icon {
+          color: #0d9488;
+          font-size: 13px;
+        }
       }
     }
 
     .btn-book-doctor {
-      height: 44px;
-      border-radius: 12px;
-      border: 1.5px solid #00796b;
-      color: #00796b;
-      font-weight: 700;
       background: #ffffff;
-      transition: all 0.2s;
+      border: 1px solid #cbd5e1;
+      color: #0f172a;
+      height: 40px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
 
       &:hover {
-        background: #00695c !important;
-        border-color: #00695c !important;
-        color: #ffffff !important;
+        background: #0d9488;
+        border-color: #0d9488;
+        color: #ffffff;
       }
     }
   }
 `;
 
 interface DoctorsSectionProps {
-  onSelectDoctor?: (doctorName: string) => void;
+  onSelectDoctor: (doctorName?: string) => void;
 }
 
+const doctorsList = [
+  {
+    id: 'vet-b',
+    name: 'BS. Trần Thị B',
+    title: 'Bác Sĩ Chuyên Khoa Nội & Chẩn Đoán Hình Ảnh',
+    image:
+      'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80',
+    bio: 'Chuyên sâu về siêu âm Doppler màu, chẩn đoán tiêu hoá, tim mạch, điều trị các bệnh truyền nhiễm và theo dõi bệnh án điện tử.',
+    experience: '8 năm kinh nghiệm lâm sàng thú y',
+    schedule: 'Lịch trực: Ca sáng & Chiều các ngày trong tuần',
+  },
+  {
+    id: 'vet-nam',
+    name: 'ThS. BS. Nguyễn Hoàng Nam',
+    title: 'Bác Sĩ Chuyên Khoa Ngoại & Chấn Thương Chỉnh Hình',
+    image:
+      'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80',
+    bio: 'Tốt nghiệp Thạc sĩ Thú y, giàu kinh nghiệm phẫu thuật mô mềm, kết hợp xương nẹp vít sinh học và chăm sóc ngoại khoa.',
+    experience: '12 năm kinh nghiệm phẫu thuật lâm sàng',
+    schedule: 'Lịch trực: Thứ 2 - Thứ 6 (Ca sáng & chiều)',
+  },
+  {
+    id: 'groomer-d',
+    name: 'Chuyên Viên Lê Thị D',
+    title: 'Trưởng Nhóm Grooming Spa & Chăm Sóc Da Lông',
+    image:
+      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80',
+    bio: 'Chứng chỉ Grooming chuyên nghiệp, chuyên sâu về cắt tỉa thẩm mỹ chuẩn giống loài, phục hồi da nấm viêm nang lông và tắm sấy an toàn cho thú cưng.',
+    experience: '6 năm chuyên môn Spa & Grooming thú cưng',
+    schedule: 'Lịch trực: Thứ 3 - Chủ Nhật (08:30 - 18:30)',
+  },
+];
+
 const DoctorsSection: React.FC<DoctorsSectionProps> = ({ onSelectDoctor }) => {
-  const doctors = [
-    {
-      name: 'BS. CKI. Nguyễn Văn Hoàng',
-      exp: '12 Năm Kinh Nghiệm',
-      dept: 'Khoa Ngoại & Xương khớp',
-      title: 'Trưởng khoa Ngoại & Phẫu thuật xương khớp',
-      bio: 'Chuyên gia đầu ngành về kết hợp xương xâm lấn tối thiểu, phẫu thuật thoát vị đĩa đệm và chấn thương chỉnh hình thú nhỏ. Đã thực hiện thành công hơn 3.500 ca mổ phức tạp.',
-      schedule: 'Lịch trực tuần: Thứ 2, 4, 6 & CN (Cơ sở Cầu Giấy)',
-      image:
-        'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=600&q=80',
-    },
-    {
-      name: 'ThS. BS. Lê Thị Minh Thư',
-      exp: '9 Năm Kinh Nghiệm',
-      dept: 'Da liễu & Nội Tiết Thú Nhỏ',
-      title: 'Chuyên gia Da liễu & Dị ứng miễn dịch',
-      bio: 'Tốt nghiệp Thạc sĩ Thú y tại Đại học Nông Lâm và tu nghiệp chuyên sâu tại Viện Thú y Bangkok (Thái Lan). Chuyên trị các ca viêm da cơ địa dai dẳng, viêm tai mạn tính và rối loạn hormone.',
-      schedule: 'Lịch trực tuần: Thứ 3, 5, 7 (Cơ sở Đống Đa)',
-      image:
-        'https://images.unsplash.com/photo-1594824813589-354924a35f08?auto=format&fit=crop&w=600&q=80',
-    },
-    {
-      name: 'BS. Trần Tuấn Nam',
-      exp: '10 Năm Kinh Nghiệm',
-      dept: 'Chẩn Đoán Hình Ảnh & Cấp Cứu',
-      title: 'Trưởng phòng Chẩn đoán hình ảnh & Cấp cứu 24/7',
-      bio: 'Chuyên gia chẩn đoán siêu âm tim Doppler màu mạch máu, nội soi tiêu hóa can thiệp dị vật và hồi sức tích cực (ICU). Luôn dẫn đầu đội ngũ cấp cứu ban đêm.',
-      schedule: 'Lịch trực tuần: Túc trực ICU & Ca đêm 24/7',
-      image:
-        'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80',
-    },
-  ];
+  const { isLogin } = useIsLogin();
+
+  const handleSelectDoctor = (name: string) => {
+    if (!isLogin) {
+      toast.info('Vui lòng đăng nhập để đặt lịch hẹn với bác sĩ!');
+      window.dispatchEvent(new CustomEvent('open-vcmos-login'));
+    } else {
+      onSelectDoctor(name);
+    }
+  };
 
   return (
-    <SectionWrapper>
+    <SectionWrapper id="doctors">
       <SectionHeader>
-        <div className="top-tag">CHUYÊN MÔN HÀNG ĐẦU</div>
-        <h2>Đội Ngũ Bác Sĩ Thú Y Tận Tâm & Giàu Kinh Nghiệm</h2>
+        <span className="section-tag">Đội Ngũ Chuyên Môn VCMOS</span>
+        <h2>Bác Sĩ Thú Y & Kỹ Thuật Viên Chuyên Trách</h2>
         <p>
-          100% Bác sĩ tốt nghiệp Đại học Y Dược & Nông Nghiệp, sở hữu chứng chỉ
-          hành nghề quốc tế với hơn 8 - 15 năm kinh nghiệm điều trị lâm sàng.
+          Đội ngũ bác sĩ và chuyên viên tại VCMOS đều đạt chứng chỉ hành nghề
+          chính quy, giàu kinh nghiệm lâm sàng và luôn nhẹ nhàng, tận tâm với
+          từng bé cưng.
         </p>
       </SectionHeader>
 
       <DoctorsGrid>
-        {doctors.map(doc => (
-          <DoctorCard key={doc.name}>
-            <div className="image-wrapper">
+        {doctorsList.map(doc => (
+          <DoctorCard key={doc.id}>
+            <div className="avatar-wrap">
               <img src={doc.image} alt={doc.name} />
-              <div className="exp-badge">{doc.exp}</div>
-              <div className="dept-badge">{doc.dept}</div>
+              <div className="verified-badge">
+                <CheckCircleFilled style={{ color: '#10b981' }} />
+                <span>Nhân sự chính quy</span>
+              </div>
             </div>
 
             <div className="card-body">
-              <h3 className="name">{doc.name}</h3>
-              <div className="title">{doc.title}</div>
+              <h3>{doc.name}</h3>
+              <div className="specialty">{doc.title}</div>
               <p className="bio">{doc.bio}</p>
 
-              <div className="schedule-box">
-                <ClockCircleOutlined />
-                <span>{doc.schedule}</span>
+              <div className="meta-list">
+                <div className="item">
+                  <AuditOutlined className="icon" />
+                  <span>{doc.experience}</span>
+                </div>
+                <div className="item">
+                  <ClockCircleOutlined className="icon" />
+                  <span>{doc.schedule}</span>
+                </div>
               </div>
 
-              <Button
+              <button
+                type="button"
                 className="btn-book-doctor"
-                icon={<UserOutlined />}
-                onClick={() => onSelectDoctor?.(doc.name)}
+                onClick={() => handleSelectDoctor(doc.name)}
               >
-                Đặt hẹn khám với {doc.name.split('. ').pop()}
-              </Button>
+                <CalendarOutlined /> Đặt lịch với chuyên gia này
+              </button>
             </div>
           </DoctorCard>
         ))}

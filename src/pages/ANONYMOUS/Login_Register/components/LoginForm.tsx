@@ -52,7 +52,7 @@ const HelloTitle = styled.h2`
 const WelcomeTitle = styled.h2`
   font-size: 32px;
   font-weight: 900;
-  color: #00195c;
+  color: #0d9488;
   margin: 0 0 32px 0;
   letter-spacing: -0.8px;
 `;
@@ -77,8 +77,8 @@ const CustomFormItem = styled(Form.Item)`
     &-focused,
     &:focus {
       background-color: #ffffff !important;
-      border-color: #00195c !important;
-      box-shadow: 0 0 0 3px rgba(0, 25, 92, 0.12) !important;
+      border-color: #0d9488 !important;
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15) !important;
     }
   }
 
@@ -128,34 +128,33 @@ const ForgotPasswordLink = styled.div`
     transition: color 0.2s;
 
     &:hover {
-      color: #00195c;
+      color: #0d9488;
     }
   }
 `;
 
 const SubmitButton = styled.button`
   width: 100%;
-  height: 52px;
-  background: linear-gradient(135deg, #00195c 0%, #112e81 100%);
+  height: 50px;
+  background: #0d9488;
   color: #ffffff;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15.5px;
   cursor: pointer;
   transition: all 0.2s ease;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 25, 92, 0.25);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
 
   &:hover {
-    background: linear-gradient(135deg, #112e81 0%, #1a3c9e 100%);
-    box-shadow: 0 6px 20px rgba(0, 25, 92, 0.4);
+    background: #0f766e;
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.3);
     transform: translateY(-1px);
   }
 
   &:active {
     transform: translateY(1px);
-    box-shadow: 0 2px 8px rgba(0, 25, 92, 0.2);
   }
 `;
 
@@ -218,12 +217,13 @@ const FooterText = styled.div`
   font-weight: 500;
 
   a {
-    color: #00195c;
+    color: #0d9488;
     text-decoration: none;
     font-weight: 700;
     margin-left: 4px;
 
     &:hover {
+      color: #0f766e;
       text-decoration: underline;
     }
   }
@@ -349,8 +349,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
   return (
     <SpinCustom spinning={loading}>
       <FormCard>
-        <HelloTitle>Hello !</HelloTitle>
-        <WelcomeTitle>Welcome.</WelcomeTitle>
+        <HelloTitle>Xin chào !</HelloTitle>
+        <WelcomeTitle>Đăng nhập.</WelcomeTitle>
 
         <Form layout="vertical" onFinish={onSubmit}>
           <CustomFormItem
@@ -380,7 +380,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             <Input.Password
               size="large"
               prefix={<LockOutlined />}
-              placeholder="Password"
+              placeholder="Mật khẩu của bạn"
             />
           </CustomFormItem>
 
@@ -392,14 +392,14 @@ const LoginForm: React.FC<LoginFormProps> = ({
                 onForgotPassword();
               }}
             >
-              forgot password
+              Quên mật khẩu?
             </a>
           </ForgotPasswordLink>
 
-          <SubmitButton type="submit">Sign In</SubmitButton>
+          <SubmitButton type="submit">Đăng nhập</SubmitButton>
 
           <DividerContainer>
-            <span>Or continue with</span>
+            <span>Hoặc tiếp tục với</span>
           </DividerContainer>
 
           <GoogleButton type="button" onClick={() => googleLogin()}>
@@ -426,11 +426,11 @@ const LoginForm: React.FC<LoginFormProps> = ({
                 d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.4C13.46.96 11.42 0 9 0 5.48 0 2.43 2.11.95 4.97l3 2.33c.71-2.12 2.7-3.7 5.05-3.7z"
               />
             </svg>
-            Google
+            Đăng nhập với Google
           </GoogleButton>
 
           <FooterText>
-            Don{"'"}t have an account ?{' '}
+            Chưa có tài khoản?{' '}
             <a
               href="#register"
               onClick={e => {
@@ -438,7 +438,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
                 onToggleView();
               }}
             >
-              Create account!
+              Đăng ký ngay!
             </a>
           </FooterText>
         </Form>

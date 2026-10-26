@@ -17,6 +17,9 @@ const NotFound = React.lazy(() => import('@/pages/SUPPORTPAGES/NotFound'));
 const HomePage = React.lazy(() => import('@/pages/Home'));
 const DashboardPage = React.lazy(() => import('@/pages/Dashboard'));
 const ProfilePage = React.lazy(() => import('@/pages/Profile'));
+const LoginRegisterPage = React.lazy(
+  () => import('@/pages/ANONYMOUS/Login_Register')
+);
 
 const AppRouter = () => {
   const elements = useRoutes([
@@ -37,6 +40,30 @@ const AppRouter = () => {
           ),
         },
       ],
+    },
+    {
+      path: ROUTER.LOGIN,
+      element: (
+        <Suspense fallback={<SpinCustom spinning={true} />}>
+          <LoginRegisterPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: ROUTER.REGISTER,
+      element: (
+        <Suspense fallback={<SpinCustom spinning={true} />}>
+          <LoginRegisterPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: ROUTER.FORGOT_PASSWORD,
+      element: (
+        <Suspense fallback={<SpinCustom spinning={true} />}>
+          <LoginRegisterPage />
+        </Suspense>
+      ),
     },
     {
       element: (
