@@ -347,17 +347,17 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
           <div className="breadcrumb-row">
             <HomeFilled className="home-icon" />
             <span className="separator">&rsaquo;</span>
-            <span>Hệ Thống Y Tế Thú Cưng</span>
+            <span>Hệ Thống Y Tế Thú Y Toàn Diện</span>
             <span className="separator">&rsaquo;</span>
-            <span className="clinic-tag">Cơ sở Hòa Lạc, Hà Nội</span>
+            <span className="clinic-tag">Bệnh Viện Thú Y Hòa Lạc, Hà Nội</span>
           </div>
 
           <h1 className="hospital-title">Bệnh Viện & Phòng Khám Thú Y VCMOS</h1>
 
           <p className="hospital-subtitle">
-            Tiêu chuẩn y khoa hàng đầu trong chăm sóc, chẩn đoán cận lâm sàng,
-            phẫu thuật ngoại khoa và quản lý hồ sơ bệnh án trọn đời cùng thú
-            cưng.
+            Hệ thống y tế thú y chuẩn lâm sàng hàng đầu. Đồng hành chăm sóc trọn
+            đời cùng thú cưng với hồ sơ bệnh án điện tử SOAP, chẩn đoán cận lâm
+            sàng kỹ thuật số hiện đại và đội ngũ bác sĩ tận tâm.
           </p>
 
           <div className="cta-button-group">
@@ -366,7 +366,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
               icon={<CalendarOutlined />}
               onClick={handleBookingClick}
             >
-              Đặt lịch hẹn khám
+              Đặt lịch hẹn khám ưu tiên
             </Button>
             <Button
               className="btn-outline-white"
@@ -424,14 +424,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
                 scrollToSection('community');
               }}
             >
-              <FileTextOutlined /> Đánh giá & Cộng đồng
+              <FileTextOutlined /> Ca bệnh hồi phục & Đánh giá
             </a>
           </div>
 
           <div className="subnav-hours">
             <ClockCircleOutlined className="icon" />
             <span>
-              Giờ tiếp nhận: <strong>08:00 - 20:00</strong> (Tất cả các ngày)
+              Giờ tiếp nhận: <strong>08:00 - 20:00</strong> (Tất cả các ngày
+              trong tuần)
             </span>
           </div>
         </div>
@@ -444,10 +445,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
             <CalendarOutlined />
           </div>
           <div className="info-body">
-            <h4>Khám & Spa liên tiếp</h4>
+            <h4>Khám & Spa Liên Tiếp</h4>
             <p>
-              Quy trình hẹn khám một chạm, chọn bác sĩ và loại hình dịch vụ
-              không phải chờ đợi.
+              Quy trình hẹn khám một chạm, kết hợp khám bệnh và spa vệ sinh khép
+              kín, không mất thời gian chờ đợi.
             </p>
           </div>
         </div>
@@ -457,10 +458,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
             <FileTextOutlined />
           </div>
           <div className="info-body">
-            <h4>Bệnh án điện tử EMR</h4>
+            <h4>Bệnh Án Điện Tử EMR</h4>
             <p>
-              Lưu trữ tiền sử bệnh, kết quả xét nghiệm, lịch tiêm phòng và đơn
-              thuốc trọn đời.
+              Lưu trữ số hóa toàn bộ tiền sử bệnh, kết quả xét nghiệm, lịch tiêm
+              chủng và đơn thuốc trọn đời của bé.
             </p>
           </div>
         </div>
@@ -470,10 +471,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
             <SafetyCertificateOutlined />
           </div>
           <div className="info-body">
-            <h4>Bảng giá minh bạch</h4>
+            <h4>Bảng Giá Minh Bạch</h4>
             <p>
-              Niêm yết công khai từng dịch vụ, vật tư y tế và cam kết không phát
-              sinh phụ phí.
+              Công khai 100% chi phí khám, xét nghiệm và vật tư y tế. Cam kết
+              chỉ định đúng phác đồ, không phát sinh chi phí.
             </p>
           </div>
         </div>
@@ -483,10 +484,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
             <PhoneOutlined />
           </div>
           <div className="info-body">
-            <h4>Hỗ trợ & Tiếp đón</h4>
+            <h4>Cấp Cứu & Hỗ Trợ 24/7</h4>
             <p>
-              Hotline: <strong>(024) 7300 8888</strong>. Tư vấn đặt chỗ & hướng
-              dẫn đưa thú cưng tới khám.
+              Hotline khẩn cấp: <strong>0902.099.905</strong>. Bác sĩ trực sẵn
+              sàng tư vấn sơ cứu và tiếp nhận cấp cứu tức thì.
             </p>
           </div>
         </div>

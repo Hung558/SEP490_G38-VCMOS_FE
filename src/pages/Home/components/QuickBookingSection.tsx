@@ -414,12 +414,17 @@ const staffList = [
   },
   {
     value: 'vet_b',
-    label: 'BS. Trần Thị B (Chuyên khoa Nội & Siêu âm Doppler)',
+    label: 'BS. CKI Trần Mai Anh (Trưởng khoa Nội & Siêu âm Doppler)',
   },
-  { value: 'vet_nam', label: 'ThS. BS. Nguyễn Hoàng Nam (Chuyên khoa Ngoại)' },
+  {
+    value: 'vet_nam',
+    label:
+      'ThS. BS. Nguyễn Hoàng Nam (Chuyên khoa Ngoại & Chấn thương chỉnh hình)',
+  },
   {
     value: 'groomer_d',
-    label: 'Chuyên viên Lê Thị D (Chuyên khoa Spa & Phục hồi da)',
+    label:
+      'Chuyên viên Lê Thu Trang (Trưởng nhóm Grooming Spa & Trị liệu da lông)',
   },
 ];
 
@@ -545,8 +550,8 @@ const QuickBookingSection: React.FC = () => {
               <PhoneOutlined />
             </div>
             <div className="info">
-              <div className="label">Hotline phòng khám (08:00 - 20:00)</div>
-              <div className="phone-num">(024) 7300 8888</div>
+              <div className="label">Hotline tiếp nhận & cấp cứu 24/7</div>
+              <div className="phone-num">0902.099.905</div>
             </div>
           </div>
         </LeftInfo>
