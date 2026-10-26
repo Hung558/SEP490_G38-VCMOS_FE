@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import { useRoutes } from 'react-router-dom';
 
 import SpinCustom from '@/components/common/Spin';
@@ -10,12 +10,10 @@ import ProtectedRoute from '@/pages/SUPPORTPAGES/ProtectedRoute';
 import NotFound from '@/pages/SUPPORTPAGES/NotFound';
 
 // Pages
-const HomePage = React.lazy(() => import('@/pages/Home'));
-const DashboardPage = React.lazy(() => import('@/pages/Dashboard'));
-const ProfilePage = React.lazy(() => import('@/pages/Profile'));
-const LoginRegisterPage = React.lazy(
-  () => import('@/pages/ANONYMOUS/Login_Register')
-);
+import HomePage from '@/pages/Home';
+import DashboardPage from '@/pages/Dashboard';
+import ProfilePage from '@/pages/Profile';
+import LoginRegisterPage from '@/pages/ANONYMOUS/Login_Register';
 
 const AppRouter = () => {
   const elements = useRoutes([
