@@ -49,6 +49,32 @@ const ProfileCard = styled(Card)`
   .ant-card-body {
     padding: 32px;
   }
+
+  .ant-descriptions-view {
+    border-radius: 10px;
+    overflow: hidden;
+    border-color: #e2e8f0 !important;
+  }
+
+  .ant-descriptions-row {
+    border-bottom-color: #e2e8f0 !important;
+  }
+
+  .ant-descriptions-item-label {
+    background-color: #f8fafc !important;
+    border-right-color: #e2e8f0 !important;
+    font-size: 13.5px;
+    padding: 14px 18px !important;
+  }
+
+  .ant-descriptions-item-content {
+    background-color: #ffffff !important;
+    border-right-color: #e2e8f0 !important;
+    font-size: 14px;
+    padding: 14px 18px !important;
+    word-break: normal !important;
+    white-space: normal;
+  }
 `;
 
 const ProfileHeader = styled.div`
@@ -434,29 +460,82 @@ const ProfilePage: React.FC = () => {
 
             <Descriptions
               bordered
-              column={{ xs: 1, sm: 2 }}
-              labelStyle={{ fontWeight: 600, color: '#475569', width: '25%' }}
-              contentStyle={{ color: '#0f172a' }}
+              size="middle"
+              column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+              labelStyle={{
+                fontWeight: 600,
+                color: '#475569',
+                width: '18%',
+                minWidth: '140px',
+                whiteSpace: 'nowrap',
+              }}
+              contentStyle={{
+                color: '#0f172a',
+                width: '32%',
+              }}
             >
               <Descriptions.Item label="Mã thành viên">
-                <Tag color="blue" style={{ fontWeight: 700 }}>
-                  <IdcardOutlined style={{ marginRight: 6 }} />
+                <Tag
+                  color="teal"
+                  style={{
+                    fontWeight: 700,
+                    borderRadius: 6,
+                    padding: '2px 10px',
+                    margin: 0,
+                    fontSize: '13px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <IdcardOutlined />
                   {profile?.code || 'USR-000001'}
                 </Tag>
               </Descriptions.Item>
 
               <Descriptions.Item label="Họ và tên">
-                <strong>{profile?.fullName || 'Nguyen Van A'}</strong>
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '15px',
+                    color: '#0f172a',
+                  }}
+                >
+                  {profile?.fullName || 'Nguyen Van A'}
+                </span>
               </Descriptions.Item>
 
               <Descriptions.Item label="Số điện thoại">
-                <PhoneOutlined style={{ marginRight: 6, color: '#0d9488' }} />
-                {profile?.phone || '0901000001'}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontWeight: 600,
+                  }}
+                >
+                  <PhoneOutlined
+                    style={{ color: '#0d9488', fontSize: '15px' }}
+                  />
+                  <span>{profile?.phone || '0901000001'}</span>
+                </div>
               </Descriptions.Item>
 
               <Descriptions.Item label="Email xác thực">
-                <MailOutlined style={{ marginRight: 6, color: '#0d9488' }} />
-                {profile?.email || 'owner@vcmos.com'}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <MailOutlined
+                    style={{ color: '#0d9488', fontSize: '15px' }}
+                  />
+                  <span style={{ color: '#334155' }}>
+                    {profile?.email || 'owner@vcmos.com'}
+                  </span>
+                </div>
               </Descriptions.Item>
             </Descriptions>
           </>
@@ -566,7 +645,7 @@ const ProfilePage: React.FC = () => {
               ),
             },
             {
-              color: '#0284c7',
+              color: '#0d9488',
               children: (
                 <MilestoneCard>
                   <div className="m-header">

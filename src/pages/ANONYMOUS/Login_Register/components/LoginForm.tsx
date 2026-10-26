@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SpinCustom from '@/components/common/Spin';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
@@ -13,64 +13,64 @@ import ROUTER from '@/routerMap/ROUTER';
 import { useGoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
 
-const FormCard = styled.div`
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 48px;
+const FormContainer = styled.div`
   width: 100%;
   max-width: 440px;
-  box-shadow:
-    0 20px 60px rgba(0, 25, 92, 0.15),
-    0 4px 12px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  margin: 0 auto;
+  animation: fadeIn 0.35s ease-in-out;
 
-  @keyframes slideUpFade {
+  @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
+`;
 
-  @media (max-width: 480px) {
-    padding: 32px 24px;
+const FormHeader = styled.div`
+  margin-bottom: 24px;
+
+  h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    font-size: 13.5px;
+    color: #64748b;
+    margin: 0;
   }
 `;
 
-const HelloTitle = styled.h2`
-  font-size: 32px;
-  font-weight: 900;
-  color: #0f172a;
-  margin: 0 0 4px 0;
-  letter-spacing: -0.8px;
-`;
-
-const WelcomeTitle = styled.h2`
-  font-size: 32px;
-  font-weight: 900;
-  color: #0d9488;
-  margin: 0 0 32px 0;
-  letter-spacing: -0.8px;
+const FieldLabel = styled.label`
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
 `;
 
 const CustomFormItem = styled(Form.Item)`
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 
   .ant-input-affix-wrapper {
     background-color: #f8fafc !important;
     border: 1.5px solid #e2e8f0 !important;
     border-radius: 12px !important;
-    padding: 12px 16px !important;
-    font-size: 15px;
+    padding: 11px 16px !important;
+    font-size: 14.5px;
     box-shadow: none !important;
     transition: all 0.2s ease !important;
 
     &:hover {
-      border-color: #cbd5e1 !important;
+      border-color: #94a3b8 !important;
       background-color: #f1f5f9 !important;
     }
 
@@ -85,7 +85,7 @@ const CustomFormItem = styled(Form.Item)`
   .ant-input {
     background-color: transparent !important;
     color: #0f172a;
-    font-size: 15px;
+    font-size: 14.5px;
 
     &::placeholder {
       color: #94a3b8;
@@ -107,9 +107,9 @@ const CustomFormItem = styled(Form.Item)`
   }
 
   .ant-form-item-explain-error {
-    font-size: 12.5px;
+    font-size: 12px;
     margin-top: 4px;
-    padding-left: 4px;
+    padding-left: 2px;
     color: #ef4444;
   }
 `;
@@ -117,44 +117,53 @@ const CustomFormItem = styled(Form.Item)`
 const ForgotPasswordLink = styled.div`
   display: flex;
   justify-content: flex-end;
-  margin-top: -8px;
-  margin-bottom: 28px;
+  margin-top: -6px;
+  margin-bottom: 22px;
 
   a {
-    color: #64748b;
-    font-size: 13.5px;
+    color: #0d9488;
+    font-size: 13px;
     text-decoration: none;
     font-weight: 600;
     transition: color 0.2s;
 
     &:hover {
-      color: #0d9488;
+      color: #0f766e;
+      text-decoration: underline;
     }
   }
 `;
 
 const SubmitButton = styled.button`
   width: 100%;
-  height: 50px;
-  background: #0d9488;
+  height: 48px;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
   color: #ffffff;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 700;
-  font-size: 15.5px;
+  font-size: 15px;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+  margin-bottom: 18px;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    background: #0f766e;
-    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.3);
+    background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+    box-shadow: 0 6px 18px rgba(13, 148, 136, 0.38);
     transform: translateY(-1px);
   }
 
   &:active {
     transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 `;
 
@@ -162,10 +171,10 @@ const DividerContainer = styled.div`
   display: flex;
   align-items: center;
   text-align: center;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 24px;
+  color: #94a3b8;
+  font-size: 12.5px;
+  font-weight: 500;
+  margin-bottom: 18px;
 
   &::before,
   &::after {
@@ -175,57 +184,36 @@ const DividerContainer = styled.div`
   }
 
   span {
-    padding: 0 16px;
+    padding: 0 14px;
   }
 `;
 
 const GoogleButton = styled.button`
   width: 100%;
-  height: 52px;
+  height: 46px;
   background-color: #ffffff;
   color: #334155;
   border: 1.5px solid #e2e8f0;
   border-radius: 12px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   transition: all 0.2s ease;
-  margin-bottom: 28px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 
   &:hover {
     background-color: #f8fafc;
     border-color: #cbd5e1;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
   }
 
   &:active {
     transform: translateY(1px);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  }
-`;
-
-const FooterText = styled.div`
-  text-align: center;
-  font-size: 14px;
-  color: #64748b;
-  font-weight: 500;
-
-  a {
-    color: #0d9488;
-    text-decoration: none;
-    font-weight: 700;
-    margin-left: 4px;
-
-    &:hover {
-      color: #0f766e;
-      text-decoration: underline;
-    }
   }
 `;
 
@@ -239,18 +227,25 @@ interface LoginFormProps {
     fullName: string;
     avatarUrl?: string;
   }) => void;
+  initialIdentifier?: string;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({
-  onToggleView,
   onForgotPassword,
-  onNeedsVerification: _onNeedsVerification,
   onNeedsProfileCompletion,
+  initialIdentifier,
 }) => {
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(false);
   const { setIsLogin } = useIsLogin();
   const { setUser } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (initialIdentifier) {
+      form.setFieldsValue({ identifier: initialIdentifier });
+    }
+  }, [initialIdentifier, form]);
 
   const googleLogin = useGoogleLogin({
     onSuccess: async tokenResponse => {
@@ -339,7 +334,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
       const errorMsg =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
-        'Đăng nhập thất bại. Vui lòng thử lại!';
+        'Đăng nhập thất bại. Vui lòng kiểm tra số điện thoại/email hoặc mật khẩu!';
       toast.error(errorMsg);
     } finally {
       setLoading(false);
@@ -348,41 +343,49 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
   return (
     <SpinCustom spinning={loading}>
-      <FormCard>
-        <HelloTitle>Xin chào !</HelloTitle>
-        <WelcomeTitle>Đăng nhập.</WelcomeTitle>
+      <FormContainer>
+        <FormHeader>
+          <h2>Đăng nhập để bắt đầu phiên làm việc</h2>
+          <p>An toàn, nhanh chóng và dễ dàng</p>
+        </FormHeader>
 
-        <Form layout="vertical" onFinish={onSubmit}>
-          <CustomFormItem
-            name="identifier"
-            rules={[
-              {
-                required: true,
-                message: 'Vui lòng nhập số điện thoại hoặc email!',
-              },
-              { max: 100, message: 'Tối đa 100 ký tự!' },
-            ]}
-          >
-            <Input
-              size="large"
-              prefix={<UserOutlined />}
-              placeholder="Số điện thoại hoặc Email"
-            />
-          </CustomFormItem>
+        <Form form={form} layout="vertical" onFinish={onSubmit}>
+          <div>
+            <FieldLabel>Email ID / Số điện thoại</FieldLabel>
+            <CustomFormItem
+              name="identifier"
+              rules={[
+                {
+                  required: true,
+                  message: 'Vui lòng nhập số điện thoại hoặc email!',
+                },
+                { max: 100, message: 'Tối đa 100 ký tự!' },
+              ]}
+            >
+              <Input
+                size="large"
+                prefix={<UserOutlined />}
+                placeholder="Nhập số điện thoại hoặc email"
+              />
+            </CustomFormItem>
+          </div>
 
-          <CustomFormItem
-            name="password"
-            rules={[
-              { required: true, message: 'Vui lòng nhập mật khẩu!' },
-              { max: 50, message: 'Mật khẩu tối đa 50 ký tự!' },
-            ]}
-          >
-            <Input.Password
-              size="large"
-              prefix={<LockOutlined />}
-              placeholder="Mật khẩu của bạn"
-            />
-          </CustomFormItem>
+          <div>
+            <FieldLabel>Mật khẩu</FieldLabel>
+            <CustomFormItem
+              name="password"
+              rules={[
+                { required: true, message: 'Vui lòng nhập mật khẩu!' },
+                { max: 72, message: 'Mật khẩu tối đa 72 ký tự!' },
+              ]}
+            >
+              <Input.Password
+                size="large"
+                prefix={<LockOutlined />}
+                placeholder="Nhập mật khẩu của bạn"
+              />
+            </CustomFormItem>
+          </div>
 
           <ForgotPasswordLink>
             <a
@@ -396,7 +399,9 @@ const LoginForm: React.FC<LoginFormProps> = ({
             </a>
           </ForgotPasswordLink>
 
-          <SubmitButton type="submit">Đăng nhập</SubmitButton>
+          <SubmitButton type="submit" disabled={loading}>
+            Đăng nhập
+          </SubmitButton>
 
           <DividerContainer>
             <span>Hoặc tiếp tục với</span>
@@ -428,21 +433,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
             </svg>
             Đăng nhập với Google
           </GoogleButton>
-
-          <FooterText>
-            Chưa có tài khoản?{' '}
-            <a
-              href="#register"
-              onClick={e => {
-                e.preventDefault();
-                onToggleView();
-              }}
-            >
-              Đăng ký ngay!
-            </a>
-          </FooterText>
         </Form>
-      </FormCard>
+      </FormContainer>
     </SpinCustom>
   );
 };

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Button, Layout, Popover, Avatar, Modal } from 'antd';
+import { useEffect } from 'react';
+import { Button, Layout, Popover, Avatar } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -7,13 +7,6 @@ import ROUTER from '@/routerMap/ROUTER';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import MenuUser from '@/components/layout/Header/components/MenuUser';
-import LoginForm from '@/pages/ANONYMOUS/Login_Register/components/LoginForm';
-import RegisterForm from '@/pages/ANONYMOUS/Login_Register/components/RegisterForm';
-import ForgotPasswordForm from '@/pages/ANONYMOUS/Login_Register/components/ForgotPasswordForm';
-import VerifyAccountForm from '@/pages/ANONYMOUS/Login_Register/components/VerifyAccountForm';
-import CompleteProfileForm, {
-  type PendingGoogleProfile,
-} from '@/pages/ANONYMOUS/Login_Register/components/CompleteProfileForm';
 
 const { Header } = Layout;
 
@@ -180,59 +173,30 @@ const StyledHeader = styled(Header)`
 const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
   const { isLogin } = useIsLogin();
   const { user } = useAuth();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authView, setAuthView] = useState<
-    'login' | 'register' | 'forgot' | 'verify' | 'completeProfile'
-  >('login');
-  const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
-  const [pendingGoogleProfile, setPendingGoogleProfile] =
-    useState<PendingGoogleProfile | null>(null);
-
-  const goToVerify = (email: string) => {
-    setPendingVerifyEmail(email);
-    setAuthView('verify');
-  };
-
-  const goToCompleteProfile = (profile: PendingGoogleProfile) => {
-    setPendingGoogleProfile(profile);
-    setAuthView('completeProfile');
-  };
-
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isLogin) {
-      setIsAuthModalOpen(false);
-    }
-  }, [isLogin]);
-
-  useEffect(() => {
     if (location.state?.openLogin && !isLogin) {
-      setAuthView('login');
-      setIsAuthModalOpen(true);
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate(ROUTER.LOGIN, { replace: true, state: {} });
     }
-  }, [location.state, isLogin, navigate, location.pathname]);
+  }, [location.state, isLogin, navigate]);
 
   useEffect(() => {
     const handleOpenLogin = () => {
-      setAuthView('login');
-      setIsAuthModalOpen(true);
+      navigate(ROUTER.LOGIN);
     };
     window.addEventListener('open-vcmos-login', handleOpenLogin);
     return () =>
       window.removeEventListener('open-vcmos-login', handleOpenLogin);
-  }, []);
+  }, [navigate]);
 
   const openLogin = () => {
-    setAuthView('login');
-    setIsAuthModalOpen(true);
+    navigate(ROUTER.LOGIN);
   };
 
   const openRegister = () => {
-    setAuthView('register');
-    setIsAuthModalOpen(true);
+    navigate(ROUTER.REGISTER);
   };
 
   const scrollToSection = (id: string) => {
@@ -358,55 +322,6 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
           </>
         )}
       </div>
-
-      <Modal
-        open={isAuthModalOpen}
-        onCancel={() => setIsAuthModalOpen(false)}
-        footer={null}
-        width={440}
-        centered
-        destroyOnClose
-        styles={{
-          content: { background: 'transparent', boxShadow: 'none', padding: 0 },
-          body: { background: 'transparent', padding: 0 },
-          mask: {
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-          },
-        }}
-      >
-        {authView === 'login' && (
-          <LoginForm
-            onToggleView={() => setAuthView('register')}
-            onForgotPassword={() => setAuthView('forgot')}
-            onNeedsVerification={goToVerify}
-            onNeedsProfileCompletion={goToCompleteProfile}
-          />
-        )}
-        {authView === 'register' && (
-          <RegisterForm
-            onToggleView={() => setAuthView('login')}
-            onNeedsVerification={goToVerify}
-            onNeedsProfileCompletion={goToCompleteProfile}
-          />
-        )}
-        {authView === 'forgot' && (
-          <ForgotPasswordForm onToggleView={() => setAuthView('login')} />
-        )}
-        {authView === 'verify' && (
-          <VerifyAccountForm
-            email={pendingVerifyEmail}
-            onToggleView={() => setAuthView('login')}
-          />
-        )}
-        {authView === 'completeProfile' && pendingGoogleProfile && (
-          <CompleteProfileForm
-            profile={pendingGoogleProfile}
-            onToggleView={() => setAuthView('login')}
-          />
-        )}
-      </Modal>
     </StyledHeader>
   );
 };

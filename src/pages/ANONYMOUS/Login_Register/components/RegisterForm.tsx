@@ -18,93 +18,80 @@ import { useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import { useGoogleLogin } from '@react-oauth/google';
 
-const FormCard = styled.div`
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 48px;
+const FormContainer = styled.div`
   width: 100%;
   max-width: 440px;
-  box-shadow:
-    0 20px 60px rgba(0, 25, 92, 0.15),
-    0 4px 12px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  margin: 0 auto;
+  animation: fadeIn 0.35s ease-in-out;
 
-  @keyframes slideUpFade {
+  @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
+`;
 
-  @media (max-width: 480px) {
-    padding: 32px 24px;
+const FormHeader = styled.div`
+  margin-bottom: 20px;
+
+  h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    font-size: 13.5px;
+    color: #64748b;
+    margin: 0;
   }
 `;
 
-const HelloTitle = styled.h2`
-  font-size: 32px;
-  font-weight: 900;
-  color: #0f172a;
-  margin: 0 0 4px 0;
-  letter-spacing: -0.8px;
-  text-align: left;
-`;
-
-const WelcomeTitle = styled.h2`
-  font-size: 32px;
-  font-weight: 900;
-  color: #0d9488;
-  margin: 0 0 32px 0;
-  letter-spacing: -0.8px;
-  text-align: left;
+const FieldLabel = styled.label`
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 5px;
 `;
 
 const CustomFormItem = styled(Form.Item)`
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 
-  .ant-input-affix-wrapper,
-  & > .ant-input {
+  .ant-input-affix-wrapper {
     background-color: #f8fafc !important;
     border: 1.5px solid #e2e8f0 !important;
     border-radius: 12px !important;
-    padding: 12px 16px !important;
-    font-size: 15px;
+    padding: 8px 14px !important;
+    font-size: 14px;
     box-shadow: none !important;
     transition: all 0.2s ease !important;
 
     &:hover {
-      border-color: #cbd5e1 !important;
+      border-color: #94a3b8 !important;
       background-color: #f1f5f9 !important;
     }
 
     &-focused,
-    &:focus,
-    &:focus-within {
+    &:focus {
       background-color: #ffffff !important;
       border-color: #0d9488 !important;
       box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15) !important;
     }
   }
 
-  .ant-input-affix-wrapper .ant-input {
-    background-color: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    color: #0f172a;
-    font-size: 15px;
-
-    &::placeholder {
-      color: #94a3b8;
-    }
-  }
-
   .ant-input {
+    background-color: transparent !important;
     color: #0f172a;
+    font-size: 14px;
+
     &::placeholder {
       color: #94a3b8;
     }
@@ -113,7 +100,7 @@ const CustomFormItem = styled(Form.Item)`
   .ant-input-prefix {
     margin-right: 10px;
     color: #64748b;
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .ant-input-password-icon {
@@ -125,36 +112,44 @@ const CustomFormItem = styled(Form.Item)`
   }
 
   .ant-form-item-explain-error {
-    font-size: 12.5px;
-    margin-top: 4px;
-    padding-left: 4px;
+    font-size: 11.5px;
+    margin-top: 2px;
+    padding-left: 2px;
     color: #ef4444;
   }
 `;
 
 const SubmitButton = styled.button`
   width: 100%;
-  height: 50px;
-  background: #0d9488;
+  height: 44px;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
   color: #ffffff;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 700;
-  font-size: 15.5px;
+  font-size: 14.5px;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-top: 12px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+  margin-top: 4px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    background: #0f766e;
-    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.3);
+    background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+    box-shadow: 0 6px 18px rgba(13, 148, 136, 0.38);
     transform: translateY(-1px);
   }
 
   &:active {
     transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 `;
 
@@ -162,10 +157,10 @@ const DividerContainer = styled.div`
   display: flex;
   align-items: center;
   text-align: center;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 24px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 12px;
 
   &::before,
   &::after {
@@ -175,62 +170,41 @@ const DividerContainer = styled.div`
   }
 
   span {
-    padding: 0 16px;
+    padding: 0 14px;
   }
 `;
 
 const GoogleButton = styled.button`
   width: 100%;
-  height: 52px;
+  height: 42px;
   background-color: #ffffff;
   color: #334155;
   border: 1.5px solid #e2e8f0;
   border-radius: 12px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 13.5px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   transition: all 0.2s ease;
-  margin-bottom: 28px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 
   &:hover {
     background-color: #f8fafc;
     border-color: #cbd5e1;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
   }
 
   &:active {
     transform: translateY(1px);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  }
-`;
-
-const FooterText = styled.div`
-  text-align: center;
-  font-size: 14px;
-  color: #64748b;
-  font-weight: 500;
-
-  a {
-    color: #0d9488;
-    text-decoration: none;
-    font-weight: 700;
-    margin-left: 4px;
-
-    &:hover {
-      color: #0f766e;
-      text-decoration: underline;
-    }
   }
 `;
 
 interface RegisterFormProps {
-  onToggleView: () => void;
+  onToggleView: (registeredIdentifier?: string) => void;
   onNeedsVerification: (email: string) => void;
   onNeedsProfileCompletion: (profile: {
     googleAccessToken: string;
@@ -242,7 +216,6 @@ interface RegisterFormProps {
 
 const RegisterForm: React.FC<RegisterFormProps> = ({
   onToggleView,
-  onNeedsVerification: _onNeedsVerification,
   onNeedsProfileCompletion,
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
@@ -333,7 +306,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
       if (res) {
         toast.success('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
         form.resetFields();
-        onToggleView();
+        onToggleView(payload.phone);
       }
     } catch (error: any) {
       console.error('Register error:', error);
@@ -349,105 +322,124 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
 
   return (
     <SpinCustom spinning={loading}>
-      <FormCard>
-        <HelloTitle>Tạo mới</HelloTitle>
-        <WelcomeTitle>Tài khoản.</WelcomeTitle>
+      <FormContainer>
+        <FormHeader>
+          <h2>Tạo tài khoản thành viên mới</h2>
+          <p>Trải nghiệm dịch vụ y tế & đặt lịch thông minh</p>
+        </FormHeader>
 
         <Form form={form} layout="vertical" onFinish={onSubmit}>
           {/* Full Name */}
-          <CustomFormItem
-            name="fullName"
-            rules={[
-              { required: true, message: 'Vui lòng nhập họ và tên!' },
-              { max: 100, message: 'Họ và tên tối đa 100 ký tự!' },
-            ]}
-          >
-            <Input
-              size="large"
-              prefix={<UserOutlined />}
-              placeholder="Họ và tên"
-            />
-          </CustomFormItem>
+          <div>
+            <FieldLabel>Họ và tên</FieldLabel>
+            <CustomFormItem
+              name="fullName"
+              rules={[
+                { required: true, message: 'Vui lòng nhập họ và tên!' },
+                { max: 100, message: 'Họ và tên tối đa 100 ký tự!' },
+              ]}
+            >
+              <Input
+                size="large"
+                prefix={<UserOutlined />}
+                placeholder="Ví dụ: Nguyễn Văn An"
+              />
+            </CustomFormItem>
+          </div>
 
           {/* Phone */}
-          <CustomFormItem
-            name="phone"
-            rules={[
-              { required: true, message: 'Vui lòng nhập số điện thoại!' },
-              {
-                pattern: /^0\d{9}$/,
-                message: 'Số điện thoại phải gồm 10 số, bắt đầu bằng 0!',
-              },
-            ]}
-          >
-            <Input
-              size="large"
-              prefix={<PhoneOutlined />}
-              placeholder="Số điện thoại"
-            />
-          </CustomFormItem>
+          <div>
+            <FieldLabel>Số điện thoại</FieldLabel>
+            <CustomFormItem
+              name="phone"
+              rules={[
+                { required: true, message: 'Vui lòng nhập số điện thoại!' },
+                {
+                  pattern: /^0\d{9}$/,
+                  message: 'Số điện thoại phải gồm 10 số, bắt đầu bằng 0!',
+                },
+              ]}
+            >
+              <Input
+                size="large"
+                prefix={<PhoneOutlined />}
+                placeholder="Ví dụ: 0912345678"
+              />
+            </CustomFormItem>
+          </div>
 
           {/* Email */}
-          <CustomFormItem
-            name="email"
-            rules={[
-              { required: false },
-              { max: 100, message: 'Email tối đa 100 ký tự!' },
-              {
-                pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                message: 'Định dạng email không đúng!',
-              },
-            ]}
-          >
-            <Input
-              size="large"
-              prefix={<MailOutlined />}
-              placeholder="Email (không bắt buộc)"
-            />
-          </CustomFormItem>
+          <div>
+            <FieldLabel>Email (không bắt buộc)</FieldLabel>
+            <CustomFormItem
+              name="email"
+              rules={[
+                { required: false },
+                { max: 100, message: 'Email tối đa 100 ký tự!' },
+                {
+                  pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: 'Định dạng email không hợp lệ!',
+                },
+              ]}
+            >
+              <Input
+                size="large"
+                prefix={<MailOutlined />}
+                placeholder="Ví dụ: hotro@vcmos.vn"
+              />
+            </CustomFormItem>
+          </div>
 
           {/* Password */}
-          <CustomFormItem
-            name="password"
-            rules={[
-              { required: true, message: 'Vui lòng nhập mật khẩu!' },
-              { min: 8, message: 'Mật khẩu tối thiểu 8 ký tự!' },
-              { max: 50, message: 'Mật khẩu tối đa 50 ký tự!' },
-            ]}
-          >
-            <Input.Password
-              size="large"
-              prefix={<LockOutlined />}
-              placeholder="Mật khẩu (tối thiểu 8 ký tự)"
-            />
-          </CustomFormItem>
+          <div>
+            <FieldLabel>Mật khẩu</FieldLabel>
+            <CustomFormItem
+              name="password"
+              rules={[
+                { required: true, message: 'Vui lòng nhập mật khẩu!' },
+                { min: 8, message: 'Mật khẩu tối thiểu 8 ký tự!' },
+                { max: 72, message: 'Mật khẩu tối đa 72 ký tự!' },
+              ]}
+            >
+              <Input.Password
+                size="large"
+                prefix={<LockOutlined />}
+                placeholder="Tối thiểu 8 ký tự"
+              />
+            </CustomFormItem>
+          </div>
 
           {/* Confirm Password */}
-          <CustomFormItem
-            name="confirmPassword"
-            dependencies={['password']}
-            rules={[
-              { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('password') === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(
-                    new Error('Mật khẩu xác nhận không trùng khớp!')
-                  );
-                },
-              }),
-            ]}
-          >
-            <Input.Password
-              size="large"
-              prefix={<LockOutlined />}
-              placeholder="Xác nhận lại mật khẩu"
-            />
-          </CustomFormItem>
+          <div>
+            <FieldLabel>Xác nhận mật khẩu</FieldLabel>
+            <CustomFormItem
+              name="confirmPassword"
+              dependencies={['password']}
+              rules={[
+                { required: true, message: 'Vui lòng xác nhận lại mật khẩu!' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('password') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(
+                      new Error('Mật khẩu xác nhận không trùng khớp!')
+                    );
+                  },
+                }),
+              ]}
+            >
+              <Input.Password
+                size="large"
+                prefix={<LockOutlined />}
+                placeholder="Nhập lại mật khẩu"
+              />
+            </CustomFormItem>
+          </div>
 
-          <SubmitButton type="submit">Đăng ký tài khoản</SubmitButton>
+          <SubmitButton type="submit" disabled={loading}>
+            Đăng ký ngay
+          </SubmitButton>
 
           <DividerContainer>
             <span>Hoặc tiếp tục với</span>
@@ -479,21 +471,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
             </svg>
             Đăng ký với Google
           </GoogleButton>
-
-          <FooterText>
-            Đã có tài khoản?{' '}
-            <a
-              href="#login"
-              onClick={e => {
-                e.preventDefault();
-                onToggleView();
-              }}
-            >
-              Đăng nhập ngay!
-            </a>
-          </FooterText>
         </Form>
-      </FormCard>
+      </FormContainer>
     </SpinCustom>
   );
 };

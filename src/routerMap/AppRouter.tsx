@@ -5,13 +5,9 @@ import SpinCustom from '@/components/common/Spin';
 import ROUTER from './ROUTER';
 
 // Common Layout Wrappers
-const PublicRouters = React.lazy(
-  () => import('@/pages/SUPPORTPAGES/PublicRouters')
-);
-const ProtectedRoute = React.lazy(
-  () => import('@/pages/SUPPORTPAGES/ProtectedRoute')
-);
-const NotFound = React.lazy(() => import('@/pages/SUPPORTPAGES/NotFound'));
+import PublicRouters from '@/pages/SUPPORTPAGES/PublicRouters';
+import ProtectedRoute from '@/pages/SUPPORTPAGES/ProtectedRoute';
+import NotFound from '@/pages/SUPPORTPAGES/NotFound';
 
 // Pages
 const HomePage = React.lazy(() => import('@/pages/Home'));
@@ -25,11 +21,7 @@ const AppRouter = () => {
   const elements = useRoutes([
     {
       path: ROUTER.HOME,
-      element: (
-        <Suspense fallback={<SpinCustom spinning={true} />}>
-          <PublicRouters />
-        </Suspense>
-      ),
+      element: <PublicRouters />,
       children: [
         {
           index: true,
@@ -66,11 +58,7 @@ const AppRouter = () => {
       ),
     },
     {
-      element: (
-        <Suspense fallback={<SpinCustom spinning={true} />}>
-          <ProtectedRoute />
-        </Suspense>
-      ),
+      element: <ProtectedRoute />,
       children: [
         {
           path: ROUTER.DASHBOARD,
@@ -92,11 +80,7 @@ const AppRouter = () => {
     },
     {
       path: ROUTER.NOT_FOUND,
-      element: (
-        <Suspense fallback={<SpinCustom spinning={true} />}>
-          <NotFound />
-        </Suspense>
-      ),
+      element: <NotFound />,
     },
   ]);
 

@@ -9,189 +9,314 @@ import VerifyAccountForm from './components/VerifyAccountForm';
 import CompleteProfileForm from './components/CompleteProfileForm';
 import {
   HomeOutlined,
-  SafetyCertificateOutlined,
-  CalendarOutlined,
-  HeartOutlined,
-  MedicineBoxOutlined,
-  PhoneOutlined,
+  CheckCircleFilled,
+  ArrowLeftOutlined,
+  PlusCircleFilled,
 } from '@ant-design/icons';
 
 const PageWrapper = styled.div`
   min-height: 100vh;
   display: flex;
-  background-color: #f8fafc;
-
-  @media (max-width: 960px) {
-    flex-direction: column;
-  }
-`;
-
-const BrandPanel = styled.div`
-  flex: 1;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+    circle at 10% 20%,
+    #f0fdfa 0%,
+    #e6f7f5 40%,
+    #f0fdf4 70%,
+    #f8fafc 100%
+  );
+  padding: 40px 20px;
   position: relative;
-  background: #0f172a;
-  background-image: url('/images/vcmos_hospital_hero.jpg');
-  background-size: cover;
-  background-position: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 48px;
   overflow: hidden;
 
-  /* Dark Navy Overlay for High Contrast */
+  /* Ambient glowing orbs */
   &::before {
     content: '';
     position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      145deg,
-      rgba(15, 23, 42, 0.95) 0%,
-      rgba(15, 59, 92, 0.9) 50%,
-      rgba(13, 148, 136, 0.82) 100%
+    width: 600px;
+    height: 600px;
+    top: -150px;
+    left: -100px;
+    background: radial-gradient(
+      circle,
+      rgba(13, 148, 136, 0.12) 0%,
+      transparent 70%
     );
-    z-index: 1;
+    border-radius: 50%;
+    pointer-events: none;
   }
 
-  .panel-content {
-    position: relative;
-    z-index: 2;
+  &::after {
+    content: '';
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    bottom: -100px;
+    right: -100px;
+    background: radial-gradient(
+      circle,
+      rgba(16, 185, 129, 0.1) 0%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    pointer-events: none;
   }
+`;
 
-  .top-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    .back-home {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: #e2e8f0;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 8px 16px;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 9999px;
-      backdrop-filter: blur(8px);
-      transition: all 0.2s ease;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.22);
-        color: #ffffff;
-        transform: translateX(-2px);
-      }
-    }
-  }
-
-  .center-info {
-    max-width: 520px;
-    margin: 40px 0;
-
-    .pill-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 9999px;
-      background: rgba(13, 148, 136, 0.3);
-      border: 1px solid rgba(94, 234, 212, 0.4);
-      color: #5eead4;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 24px;
-    }
-
-    h1 {
-      font-size: 38px;
-      font-weight: 800;
-      line-height: 1.25;
-      color: #ffffff;
-      margin: 0 0 16px 0;
-      letter-spacing: -0.025em;
-
-      @media (max-width: 1200px) {
-        font-size: 30px;
-      }
-    }
-
-    p.desc {
-      font-size: 16px;
-      color: #cbd5e1;
-      line-height: 1.6;
-      margin: 0 0 32px 0;
-    }
-
-    .features-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-
-      .feature-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        color: #f1f5f9;
-        font-size: 14.5px;
-        line-height: 1.5;
-
-        .icon {
-          color: #2dd4bf;
-          font-size: 18px;
-          margin-top: 2px;
-          flex-shrink: 0;
-        }
-
-        strong {
-          color: #ffffff;
-        }
-      }
-    }
-  }
-
-  .footer-info {
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
-    padding-top: 20px;
-    color: #94a3b8;
-    font-size: 13px;
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-
-    .hotline {
-      color: #ffffff;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-  }
+const UnifiedAuthCard = styled.div`
+  width: 100%;
+  max-width: 1040px;
+  min-height: 620px;
+  background: #ffffff;
+  border-radius: 28px;
+  box-shadow:
+    0 25px 60px -15px rgba(13, 148, 136, 0.14),
+    0 10px 30px -5px rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
 
   @media (max-width: 960px) {
-    padding: 32px 24px;
+    flex-direction: column;
+    max-width: 520px;
+    border-radius: 24px;
     min-height: auto;
+  }
+`;
 
-    .center-info {
-      margin: 24px 0;
+/* ================= LEFT COLUMN: HERO SHOWCASE ================= */
+const HeroShowcasePanel = styled.div`
+  flex: 0 0 46%;
+  background: #f8fafc;
+  background-image:
+    radial-gradient(#e2e8f0 1.2px, transparent 1.2px),
+    radial-gradient(#e2e8f0 1.2px, #f8fafc 1.2px);
+  background-size: 24px 24px;
+  background-position:
+    0 0,
+    12px 12px;
+  padding: 36px 32px 32px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  border-right: 1px solid #f1f5f9;
+
+  @media (max-width: 960px) {
+    display: none;
+  }
+`;
+
+const ShowcaseHeader = styled.div`
+  position: relative;
+  margin-bottom: 20px;
+
+  .sparkle-icon {
+    display: inline-flex;
+    color: #0d9488;
+    font-size: 14px;
+    margin-right: 8px;
+  }
+
+  h1 {
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 1.35;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    margin: 0;
+
+    span.highlight {
+      color: #0d9488;
     }
   }
 `;
 
-const FormPanel = styled.div`
+const DoctorCardWrapper = styled.div`
+  position: relative;
+  border-radius: 24px;
+  background: linear-gradient(155deg, #14b8a6 0%, #0d9488 45%, #0f766e 100%);
+  overflow: hidden;
   flex: 1;
-  max-width: 600px;
+  min-height: 420px;
+  box-shadow: 0 16px 36px -10px rgba(13, 148, 136, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  img.doctor-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    transition: transform 0.5s ease;
+  }
+
+  &:hover img.doctor-img {
+    transform: scale(1.02);
+  }
+`;
+
+const FloatingBadge = styled.div<{ $position: 'left' | 'right' }>`
+  position: absolute;
+  ${props =>
+    props.$position === 'left'
+      ? 'top: 36%; left: 16px;'
+      : 'bottom: 22px; right: 16px;'}
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  z-index: 3;
+  animation: floatAnim 4s ease-in-out infinite alternate;
+
+  @keyframes floatAnim {
+    0% {
+      transform: translateY(0px);
+    }
+    100% {
+      transform: translateY(-4px);
+    }
+  }
+
+  .badge-icon {
+    font-size: 16px;
+    color: ${props => (props.$position === 'left' ? '#0d9488' : '#10b981')};
+  }
+`;
+
+/* ================= RIGHT COLUMN: INTERACTIVE FORM ================= */
+const AuthInteractivePanel = styled.div`
+  flex: 1 1 54%;
+  padding: 36px 44px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  @media (max-width: 480px) {
+    padding: 32px 20px;
+  }
+`;
+
+const TopBrandHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+
+  .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+
+    .logo-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+
+      span.sub {
+        color: #0d9488;
+      }
+    }
+  }
+
+  .back-home-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      color: #0d9488;
+      background: #f0fdfa;
+    }
+  }
+`;
+
+/* Capsule Segmented Switcher */
+const SegmentedCapsule = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #f1f5f9;
+  border-radius: 9999px;
+  padding: 4px;
+  margin-bottom: 24px;
+  border: 1px solid #e2e8f0;
+  position: relative;
+`;
+
+const SegmentedItem = styled.button<{ $active: boolean }>`
+  border: none;
+  background: ${props => (props.$active ? '#ffffff' : 'transparent')};
+  color: ${props => (props.$active ? '#0d9488' : '#64748b')};
+  font-weight: ${props => (props.$active ? '700' : '600')};
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 9999px;
+  cursor: pointer;
+  box-shadow: ${props =>
+    props.$active ? '0 2px 8px rgba(0, 0, 0, 0.08)' : 'none'};
+  transition: all 0.25s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
-  background-color: #ffffff;
+  gap: 6px;
 
-  @media (max-width: 960px) {
-    max-width: 100%;
-    padding: 32px 16px;
+  &:hover {
+    color: ${props => (props.$active ? '#0d9488' : '#0f172a')};
+  }
+`;
+
+const BackToLoginButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #0d9488;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 18px;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #0f766e;
+    text-decoration: underline;
   }
 `;
 
@@ -208,6 +333,7 @@ const LoginRegisterPage: React.FC = () => {
   };
 
   const [authView, setAuthView] = useState<AuthView>(getInitialView());
+  const [prefilledIdentifier, setPrefilledIdentifier] = useState<string>('');
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string>('');
   const [pendingGoogleProfile, setPendingGoogleProfile] = useState<{
     googleAccessToken: string;
@@ -227,15 +353,21 @@ const LoginRegisterPage: React.FC = () => {
   }, [location.pathname]);
 
   const handleToggleToRegister = () => {
-    navigate(ROUTER.REGISTER);
+    setAuthView('register');
+    navigate(ROUTER.REGISTER, { replace: true });
   };
 
-  const handleToggleToLogin = () => {
-    navigate(ROUTER.LOGIN);
+  const handleToggleToLogin = (registeredIdentifier?: string) => {
+    if (registeredIdentifier) {
+      setPrefilledIdentifier(registeredIdentifier);
+    }
+    setAuthView('login');
+    navigate(ROUTER.LOGIN, { replace: true });
   };
 
   const handleToggleToForgot = () => {
-    navigate(ROUTER.FORGOT_PASSWORD);
+    setAuthView('forgot');
+    navigate(ROUTER.FORGOT_PASSWORD, { replace: true });
   };
 
   const goToVerify = (email: string) => {
@@ -253,102 +385,126 @@ const LoginRegisterPage: React.FC = () => {
     setAuthView('completeProfile');
   };
 
+  const showSegmentedTabs = authView === 'login' || authView === 'register';
+
   return (
     <PageWrapper>
-      {/* Left Medical Brand Showcase */}
-      <BrandPanel>
-        <div className="panel-content top-bar">
-          <Link to={ROUTER.HOME} className="back-home">
-            <HomeOutlined /> Quay về trang chủ
-          </Link>
-        </div>
+      <UnifiedAuthCard>
+        {/* Left Hero Illustration Showcase */}
+        <HeroShowcasePanel>
+          <ShowcaseHeader>
+            <h1>
+              <span className="sparkle-icon">✦</span>
+              Chăm Sóc & Bảo Vệ Sức Khỏe Thú Cưng —{' '}
+              <span className="highlight">Đặt Lịch Trực Tuyến Dễ Dàng.</span>
+            </h1>
+          </ShowcaseHeader>
 
-        <div className="panel-content center-info">
-          <div className="pill-badge">
-            <MedicineBoxOutlined />
-            <span>Phòng Khám Thú Y VCMOS</span>
-          </div>
+          <DoctorCardWrapper>
+            <img
+              src="/images/auth_doctor_banner.jpg"
+              alt="Bác sĩ thú y VCMOS"
+              className="doctor-img"
+            />
 
-          <h1>Cổng Dịch Vụ Y Tế & Chăm Sóc Thú Cưng</h1>
+            <FloatingBadge $position="left">
+              <CheckCircleFilled className="badge-icon" />
+              <span>15.000+ Thú cưng được chăm sóc</span>
+            </FloatingBadge>
 
-          <p className="desc">
-            Đăng nhập để theo dõi hồ sơ bệnh án điện tử, đặt lịch khám chữa
-            bệnh, tiêm chủng định kỳ và dịch vụ spa làm đẹp cho thú cưng của
-            bạn.
-          </p>
+            <FloatingBadge $position="right">
+              <CheckCircleFilled className="badge-icon" />
+              <span>98% Tỉ lệ hồi phục hoàn hảo</span>
+            </FloatingBadge>
+          </DoctorCardWrapper>
+        </HeroShowcasePanel>
 
-          <div className="features-list">
-            <div className="feature-item">
-              <SafetyCertificateOutlined className="icon" />
-              <div>
-                <strong>Bệnh án điện tử EMR trọn đời:</strong> Lưu trữ kết quả
-                xét nghiệm, siêu âm, đơn thuốc và lịch sử phẫu thuật minh bạch.
+        {/* Right Form Interaction Panel */}
+        <AuthInteractivePanel>
+          <TopBrandHeader>
+            <Link to={ROUTER.HOME} className="brand-logo">
+              <div className="logo-badge">
+                <PlusCircleFilled />
               </div>
-            </div>
-
-            <div className="feature-item">
-              <CalendarOutlined className="icon" />
-              <div>
-                <strong>Đặt lịch khám & Spa một chạm:</strong> Chọn ngày giờ và
-                bác sĩ phụ trách nhanh gọn, không cần xếp hàng bốc số.
+              <div className="brand-name">
+                VCMOS <span className="sub">Clinic</span>
               </div>
-            </div>
+            </Link>
 
-            <div className="feature-item">
-              <HeartOutlined className="icon" />
-              <div>
-                <strong>Đồng hành sức khỏe trọn vẹn:</strong> Nhận nhắc nhở lịch
-                tiêm phòng và theo dõi tiến trình hồi phục của thú cưng chu đáo.
-              </div>
-            </div>
-          </div>
-        </div>
+            <Link to={ROUTER.HOME} className="back-home-link">
+              <HomeOutlined /> Trang chủ
+            </Link>
+          </TopBrandHeader>
 
-        <div className="panel-content footer-info">
-          <div>Cơ sở Hòa Lạc, Thạch Thất, Hà Nội</div>
-          <div className="hotline">
-            <PhoneOutlined /> Hotline: (024) 7300 8888
-          </div>
-        </div>
-      </BrandPanel>
+          {/* Capsule Pill Switcher (New Patient / Existing Patient) */}
+          {showSegmentedTabs && (
+            <SegmentedCapsule>
+              <SegmentedItem
+                type="button"
+                $active={authView === 'register'}
+                onClick={handleToggleToRegister}
+              >
+                Khách hàng mới
+              </SegmentedItem>
 
-      {/* Right Form Card Container */}
-      <FormPanel>
-        {authView === 'login' && (
-          <LoginForm
-            onToggleView={handleToggleToRegister}
-            onForgotPassword={handleToggleToForgot}
-            onNeedsVerification={goToVerify}
-            onNeedsProfileCompletion={goToCompleteProfile}
-          />
-        )}
+              <SegmentedItem
+                type="button"
+                $active={authView === 'login'}
+                onClick={() => handleToggleToLogin()}
+              >
+                Đã có tài khoản
+              </SegmentedItem>
+            </SegmentedCapsule>
+          )}
 
-        {authView === 'register' && (
-          <RegisterForm
-            onToggleView={handleToggleToLogin}
-            onNeedsVerification={goToVerify}
-            onNeedsProfileCompletion={goToCompleteProfile}
-          />
-        )}
+          {/* Back button for other views */}
+          {!showSegmentedTabs && (
+            <BackToLoginButton
+              type="button"
+              onClick={() => handleToggleToLogin()}
+            >
+              <ArrowLeftOutlined /> Quay lại đăng nhập
+            </BackToLoginButton>
+          )}
 
-        {authView === 'forgot' && (
-          <ForgotPasswordForm onToggleView={handleToggleToLogin} />
-        )}
+          {/* Form views */}
+          {authView === 'login' && (
+            <LoginForm
+              initialIdentifier={prefilledIdentifier}
+              onToggleView={handleToggleToRegister}
+              onForgotPassword={handleToggleToForgot}
+              onNeedsVerification={goToVerify}
+              onNeedsProfileCompletion={goToCompleteProfile}
+            />
+          )}
 
-        {authView === 'verify' && (
-          <VerifyAccountForm
-            email={pendingVerifyEmail}
-            onToggleView={handleToggleToLogin}
-          />
-        )}
+          {authView === 'register' && (
+            <RegisterForm
+              onToggleView={handleToggleToLogin}
+              onNeedsVerification={goToVerify}
+              onNeedsProfileCompletion={goToCompleteProfile}
+            />
+          )}
 
-        {authView === 'completeProfile' && pendingGoogleProfile && (
-          <CompleteProfileForm
-            profile={pendingGoogleProfile}
-            onToggleView={handleToggleToLogin}
-          />
-        )}
-      </FormPanel>
+          {authView === 'forgot' && (
+            <ForgotPasswordForm onToggleView={() => handleToggleToLogin()} />
+          )}
+
+          {authView === 'verify' && (
+            <VerifyAccountForm
+              email={pendingVerifyEmail}
+              onToggleView={() => handleToggleToLogin()}
+            />
+          )}
+
+          {authView === 'completeProfile' && pendingGoogleProfile && (
+            <CompleteProfileForm
+              profile={pendingGoogleProfile}
+              onToggleView={() => handleToggleToLogin()}
+            />
+          )}
+        </AuthInteractivePanel>
+      </UnifiedAuthCard>
     </PageWrapper>
   );
 };
