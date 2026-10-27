@@ -17,16 +17,15 @@ import { toast } from 'sonner';
 import UserService from '@/services/UserService';
 
 const FormCard = styled.div`
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 40px 36px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   width: 100%;
-  max-width: 460px;
-  box-shadow:
-    0 20px 60px rgba(0, 77, 64, 0.12),
-    0 4px 16px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-width: 440px;
+  margin: 0 auto;
+  box-shadow: none;
+  border: none;
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 
   @keyframes slideUpFade {
     from {
@@ -47,8 +46,8 @@ const FormCard = styled.div`
 const ShieldIconBox = styled.div`
   width: 56px;
   height: 56px;
-  background: #e6f4f2;
-  color: #00796b;
+  background: #f0fdfa;
+  color: #0d9488;
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -60,8 +59,8 @@ const ShieldIconBox = styled.div`
 const CategoryBadge = styled.div`
   display: inline-block;
   padding: 4px 12px;
-  background: #e0f2f1;
-  color: #00796b;
+  background: #f0fdfa;
+  color: #0d9488;
   font-size: 11px;
   font-weight: 700;
   border-radius: 9999px;
@@ -129,11 +128,11 @@ const StepItem = styled.div<{ $active: boolean; $completed: boolean }>`
     font-size: 12px;
     font-weight: 700;
     background: ${props =>
-      props.$completed ? '#00796b' : props.$active ? '#00796b' : '#ffffff'};
+      props.$completed ? '#0d9488' : props.$active ? '#0d9488' : '#ffffff'};
     color: ${props =>
       props.$completed || props.$active ? '#ffffff' : '#94a3b8'};
     border: 2px solid
-      ${props => (props.$completed || props.$active ? '#00796b' : '#cbd5e1')};
+      ${props => (props.$completed || props.$active ? '#0d9488' : '#cbd5e1')};
     transition: all 0.3s;
   }
 
@@ -166,8 +165,8 @@ const CustomFormItem = styled(Form.Item)`
     &:focus,
     &:focus-within {
       background-color: #ffffff !important;
-      border-color: #00796b !important;
-      box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.15) !important;
+      border-color: #0d9488 !important;
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15) !important;
     }
   }
 
@@ -188,7 +187,7 @@ const CustomFormItem = styled(Form.Item)`
 const PrimarySubmitBtn = styled.button`
   width: 100%;
   height: 50px;
-  background: #00695c;
+  background: #0d9488;
   color: #ffffff;
   border: none;
   border-radius: 12px;
@@ -198,15 +197,15 @@ const PrimarySubmitBtn = styled.button`
   transition: all 0.2s ease;
   margin-top: 12px;
   margin-bottom: 16px;
-  box-shadow: 0 4px 12px rgba(0, 105, 92, 0.25);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 
   &:hover {
-    background: #004d40;
-    box-shadow: 0 6px 16px rgba(0, 105, 92, 0.35);
+    background: #0f766e;
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.35);
     transform: translateY(-1px);
   }
 
@@ -237,7 +236,7 @@ const BackLink = styled.button`
   transition: color 0.2s;
 
   &:hover {
-    color: #00695c;
+    color: #0d9488;
     text-decoration: underline;
   }
 `;
@@ -267,7 +266,7 @@ const SecurityFooter = styled.div`
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #00796b;
+    color: #0d9488;
     font-weight: 500;
   }
 `;
@@ -567,7 +566,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
                   style={{
                     border: 'none',
                     background: 'none',
-                    color: '#00796b',
+                    color: '#0d9488',
                     fontSize: 13,
                     cursor: 'pointer',
                     textDecoration: 'underline',
@@ -622,7 +621,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
                     style={{
                       border: 'none',
                       background: 'none',
-                      color: '#00796b',
+                      color: '#0d9488',
                       fontWeight: 600,
                       cursor: 'pointer',
                       textDecoration: 'underline',
@@ -734,7 +733,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
               {/* Security Checklist */}
               <SecurityChecklist>
                 <div className="title">
-                  <SafetyCertificateOutlined style={{ color: '#00796b' }} />
+                  <SafetyCertificateOutlined style={{ color: '#0d9488' }} />
                   Yêu cầu bảo mật tiêu chuẩn y tế:
                 </div>
                 <div className="grid">

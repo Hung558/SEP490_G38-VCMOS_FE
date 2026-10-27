@@ -192,11 +192,11 @@ interface DoctorsSectionProps {
 const doctorsList = [
   {
     id: 'vet-b',
-    name: 'BS. Trần Thị B',
-    title: 'Bác Sĩ Chuyên Khoa Nội & Chẩn Đoán Hình Ảnh',
+    name: 'BS. CKI Trần Mai Anh',
+    title: 'Bác Sĩ Trưởng Khoa Nội & Chẩn Đoán Hình Ảnh',
     image:
       'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80',
-    bio: 'Chuyên sâu về siêu âm Doppler màu, chẩn đoán tiêu hoá, tim mạch, điều trị các bệnh truyền nhiễm và theo dõi bệnh án điện tử.',
+    bio: 'Chuyên sâu về siêu âm Doppler màu, chẩn đoán tiêu hoá, tim mạch, điều trị các bệnh truyền nhiễm và quản lý phác đồ bệnh án điện tử SOAP.',
     experience: '8 năm kinh nghiệm lâm sàng thú y',
     schedule: 'Lịch trực: Ca sáng & Chiều các ngày trong tuần',
   },
@@ -206,17 +206,17 @@ const doctorsList = [
     title: 'Bác Sĩ Chuyên Khoa Ngoại & Chấn Thương Chỉnh Hình',
     image:
       'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80',
-    bio: 'Tốt nghiệp Thạc sĩ Thú y, giàu kinh nghiệm phẫu thuật mô mềm, kết hợp xương nẹp vít sinh học và chăm sóc ngoại khoa.',
+    bio: 'Tốt nghiệp Thạc sĩ Thú y, giàu kinh nghiệm phẫu thuật mô mềm, kết hợp xương nẹp vít sinh học và theo dõi hồi sức ngoại khoa tích cực.',
     experience: '12 năm kinh nghiệm phẫu thuật lâm sàng',
     schedule: 'Lịch trực: Thứ 2 - Thứ 6 (Ca sáng & chiều)',
   },
   {
     id: 'groomer-d',
-    name: 'Chuyên Viên Lê Thị D',
-    title: 'Trưởng Nhóm Grooming Spa & Chăm Sóc Da Lông',
+    name: 'Chuyên Viên Lê Thu Trang',
+    title: 'Trưởng Nhóm Grooming Spa & Trị Liệu Da Lông',
     image:
       'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80',
-    bio: 'Chứng chỉ Grooming chuyên nghiệp, chuyên sâu về cắt tỉa thẩm mỹ chuẩn giống loài, phục hồi da nấm viêm nang lông và tắm sấy an toàn cho thú cưng.',
+    bio: 'Chứng chỉ Grooming chuyên nghiệp quốc tế, chuyên sâu về cắt tỉa thẩm mỹ chuẩn giống loài, phục hồi da nấm viêm nang lông và chăm sóc êm ái.',
     experience: '6 năm chuyên môn Spa & Grooming thú cưng',
     schedule: 'Lịch trực: Thứ 3 - Chủ Nhật (08:30 - 18:30)',
   },
@@ -253,7 +253,7 @@ const DoctorsSection: React.FC<DoctorsSectionProps> = ({ onSelectDoctor }) => {
               <img src={doc.image} alt={doc.name} />
               <div className="verified-badge">
                 <CheckCircleFilled style={{ color: '#10b981' }} />
-                <span>Nhân sự chính quy</span>
+                <span>Chứng chỉ hành nghề</span>
               </div>
             </div>
 

@@ -11,19 +11,15 @@ import styled from 'styled-components';
 import { toast } from 'sonner';
 
 const FormCard = styled.div`
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 48px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   width: 100%;
   max-width: 440px;
-  box-shadow:
-    0 20px 60px rgba(0, 25, 92, 0.15),
-    0 4px 12px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-
-  @media (max-width: 480px) {
-    padding: 32px 24px;
-  }
+  margin: 0 auto;
+  box-shadow: none;
+  border: none;
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 `;
 
 const HelloTitle = styled.h2`
@@ -38,7 +34,7 @@ const HelloTitle = styled.h2`
 const WelcomeTitle = styled.h2`
   font-size: 32px;
   font-weight: 900;
-  color: #00195c;
+  color: #0d9488;
   margin: 0 0 32px 0;
   letter-spacing: -0.8px;
   text-align: left;

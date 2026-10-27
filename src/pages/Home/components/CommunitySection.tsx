@@ -270,13 +270,13 @@ const PostCard = styled.div`
 const timelineSharesData = [
   {
     id: 1,
-    author: 'Nguyen Van A',
+    author: 'Nguyễn Văn An',
     authorRole: 'Chủ thú cưng',
     petName: 'Milo',
     petSpecies: 'Chó Poodle · 5.2 kg',
     title: 'Hành trình điều trị dứt điểm viêm dạ dày ruột cấp cho bé Milo',
     content:
-      'Bé Milo bỏ ăn 2 ngày, nôn dịch bọt trắng được BS. Trần Thị B thăm khám và lập bệnh án SOAP. Sau 5 ngày dùng kháng sinh kết hợp ăn cháo dinh dưỡng theo chỉ định, bé đã vui vẻ trở lại và chạy nhảy bình thường!',
+      'Bé Milo bỏ ăn 2 ngày, nôn dịch bọt trắng được BS. CKI Trần Mai Anh thăm khám và lập bệnh án SOAP. Sau 5 ngày dùng kháng sinh kết hợp ăn cháo dinh dưỡng theo chỉ định, bé đã vui vẻ trở lại và chạy nhảy bình thường!',
     date: 'Hôm qua lúc 16:30',
     likes: 18,
     comments: 4,
@@ -349,7 +349,7 @@ const discussionsData = [
     petSpecies: 'Toy Poodle · 3.8 kg',
     title: 'Review dịch vụ Grooming cắt tỉa tạo kiểu gấu bông tại VCMOS',
     content:
-      'Bạn Groomer Lê Thị D làm việc cực kỳ êm ái, bé Xù vốn nhát nước mà được tắm sấy rất ngoan ngoãn. Form cắt tỉa tròn trịa rất ưng ý!',
+      'Chuyên viên Lê Thu Trang làm việc cực kỳ êm ái, bé Xù vốn nhát nước mà được tắm sấy rất ngoan ngoãn. Form cắt tỉa tròn trịa rất ưng ý!',
     date: '4 ngày trước',
     likes: 19,
     comments: 5,

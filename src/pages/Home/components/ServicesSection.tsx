@@ -416,12 +416,12 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
   return (
     <SectionWrapper id="services">
       <SectionHeader>
-        <span className="section-tag">Dịch Vụ Phòng Khám VCMOS</span>
-        <h2>Hệ Thống Dịch Vụ Lâm Sàng & Chăm Sóc VCMOS</h2>
+        <span className="section-tag">Hệ Sinh Thái Dịch Vụ Y Tế Toàn Diện</span>
+        <h2>Dịch Vụ Khám Chữa Bệnh & Chăm Sóc Sức Khỏe Thú Cưng</h2>
         <p>
-          Tất cả dịch vụ đều được chuẩn hoá quy trình y khoa, niêm yết biểu phí
-          công khai và lưu trữ kết quả trực tiếp vào hồ sơ bệnh án điện tử của
-          thú cưng.
+          Quy trình y khoa chuẩn mực, thiết bị cận lâm sàng hiện đại cùng bảng
+          giá niêm yết công khai. Toàn bộ chẩn đoán và phác đồ điều trị được tự
+          động số hóa vào hồ sơ bệnh án điện tử SOAP.
         </p>
       </SectionHeader>
 

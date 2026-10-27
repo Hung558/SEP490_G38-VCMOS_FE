@@ -1,35 +1,25 @@
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import { useRoutes } from 'react-router-dom';
 
 import SpinCustom from '@/components/common/Spin';
 import ROUTER from './ROUTER';
 
 // Common Layout Wrappers
-const PublicRouters = React.lazy(
-  () => import('@/pages/SUPPORTPAGES/PublicRouters')
-);
-const ProtectedRoute = React.lazy(
-  () => import('@/pages/SUPPORTPAGES/ProtectedRoute')
-);
-const NotFound = React.lazy(() => import('@/pages/SUPPORTPAGES/NotFound'));
+import PublicRouters from '@/pages/SUPPORTPAGES/PublicRouters';
+import ProtectedRoute from '@/pages/SUPPORTPAGES/ProtectedRoute';
+import NotFound from '@/pages/SUPPORTPAGES/NotFound';
 
 // Pages
-const HomePage = React.lazy(() => import('@/pages/Home'));
-const DashboardPage = React.lazy(() => import('@/pages/Dashboard'));
-const ProfilePage = React.lazy(() => import('@/pages/Profile'));
-const LoginRegisterPage = React.lazy(
-  () => import('@/pages/ANONYMOUS/Login_Register')
-);
+import HomePage from '@/pages/Home';
+import DashboardPage from '@/pages/Dashboard';
+import ProfilePage from '@/pages/Profile';
+import LoginRegisterPage from '@/pages/ANONYMOUS/Login_Register';
 
 const AppRouter = () => {
   const elements = useRoutes([
     {
       path: ROUTER.HOME,
-      element: (
-        <Suspense fallback={<SpinCustom spinning={true} />}>
-          <PublicRouters />
-        </Suspense>
-      ),
+      element: <PublicRouters />,
       children: [
         {
           index: true,
@@ -66,11 +56,7 @@ const AppRouter = () => {
       ),
     },
     {
-      element: (
-        <Suspense fallback={<SpinCustom spinning={true} />}>
-          <ProtectedRoute />
-        </Suspense>
-      ),
+      element: <ProtectedRoute />,
       children: [
         {
           path: ROUTER.DASHBOARD,
@@ -92,11 +78,7 @@ const AppRouter = () => {
     },
     {
       path: ROUTER.NOT_FOUND,
-      element: (
-        <Suspense fallback={<SpinCustom spinning={true} />}>
-          <NotFound />
-        </Suspense>
-      ),
+      element: <NotFound />,
     },
   ]);
 

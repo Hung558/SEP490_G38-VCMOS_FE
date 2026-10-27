@@ -290,6 +290,22 @@ export default class ErrorBoundary extends Component<
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('ErrorBoundary caught error:', error, info);
     this.setState({ errorInfo: info });
+
+    // Tự động tải lại trang nếu gặp lỗi chunk mismatch hoặc dynamic module import
+    const isChunkError =
+      error?.message &&
+      (error.message.includes('Failed to fetch dynamically imported module') ||
+        error.message.includes('dynamically imported module') ||
+        error.message.includes('Loading chunk'));
+
+    if (isChunkError) {
+      const lastReload = sessionStorage.getItem('chunk_reload_retry');
+      const now = Date.now();
+      if (!lastReload || now - Number(lastReload) > 10000) {
+        sessionStorage.setItem('chunk_reload_retry', String(now));
+        window.location.reload();
+      }
+    }
   }
 
   render() {

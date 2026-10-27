@@ -2,7 +2,6 @@ import React from 'react';
 import styled from 'styled-components';
 import HeroSection from './components/HeroSection';
 import ServicesSection from './components/ServicesSection';
-import AiAssessmentSection from './components/AiAssessmentSection';
 import DoctorsSection from './components/DoctorsSection';
 import CommunitySection from './components/CommunitySection';
 import QuickBookingSection from './components/QuickBookingSection';
@@ -22,36 +21,21 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const scrollToAi = () => {
-    const el =
-      document.getElementById('triage') ||
-      document.getElementById('ai-assistant');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   return (
     <HomePageWrapper>
       {/* 1. Hero Section */}
-      <HeroSection
-        onScrollToBooking={scrollToBooking}
-        onScrollToAi={scrollToAi}
-      />
+      <HeroSection onScrollToBooking={scrollToBooking} />
 
       {/* 2. Hệ Sinh Thái Dịch Vụ Khép Kín */}
       <ServicesSection onSelectService={() => scrollToBooking()} />
 
-      {/* 3. Trợ Lý Ảo AI Sàng Lọc Sơ Bộ */}
-      <AiAssessmentSection onBookAppointment={scrollToBooking} />
-
-      {/* 4. Đội Ngũ Bác Sĩ Thú Y Tận Tâm */}
+      {/* 3. Đội Ngũ Bác Sĩ Thú Y Tận Tâm */}
       <DoctorsSection onSelectDoctor={() => scrollToBooking()} />
 
-      {/* 5. Hành Trình Hồi Phục - Câu Chuyện Thật Từ Cộng Đồng */}
+      {/* 4. Hành Trình Hồi Phục - Câu Chuyện Thật Từ Cộng Đồng */}
       <CommunitySection />
 
-      {/* 6. Form Đặt Lịch Khám Ưu Tiên Nhanh */}
+      {/* 5. Form Đặt Lịch Khám Ưu Tiên Nhanh */}
       <QuickBookingSection />
     </HomePageWrapper>
   );
