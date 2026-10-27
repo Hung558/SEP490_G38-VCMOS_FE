@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import {
   Card,
@@ -11,6 +11,10 @@ import {
   Button,
   Modal,
   Steps,
+  Segmented,
+  Popconfirm,
+  Avatar,
+  Tooltip,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -19,12 +23,24 @@ import {
   HeartOutlined,
   CheckCircleOutlined,
   EyeOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  InboxOutlined,
+  CopyOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import { toast } from 'sonner';
 import AiAssessmentSection from './components/AiAssessmentSection';
+import PetService from '@/services/PetService';
+import type { Pet, PetStatusFilter } from '@/types';
+import PetFormModal from './components/PetFormModal';
+import PetDetailModal, {
+  calculatePetAge,
+  getSpeciesEmoji,
+} from './components/PetDetailModal';
 
 const { Title, Text } = Typography;
 
@@ -279,6 +295,64 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [isInpatientModalOpen, setIsInpatientModalOpen] = useState(false);
 
+  // Pets state connected to backend API
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [petsTotal, setPetsTotal] = useState(0);
+  const [petsLoading, setPetsLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<PetStatusFilter>('Active');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Modal controllers
+  const [isPetFormModalOpen, setIsPetFormModalOpen] = useState(false);
+  const [isPetDetailModalOpen, setIsPetDetailModalOpen] = useState(false);
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [editingPet, setEditingPet] = useState<Pet | null>(null);
+
+  const fetchPets = useCallback(async () => {
+    try {
+      setPetsLoading(true);
+      const res = await PetService.listPets({
+        status: statusFilter,
+        page,
+        limit,
+      });
+      setPets(res.items || []);
+      setPetsTotal(res.total || 0);
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || 'Không thể tải danh sách thú cưng'
+      );
+    } finally {
+      setPetsLoading(false);
+    }
+  }, [statusFilter, page, limit]);
+
+  useEffect(() => {
+    fetchPets();
+  }, [fetchPets]);
+
+  const handleCopyCode = (e: React.MouseEvent, code: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    toast.success(`Đã sao chép mã số: ${code}`);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const handleDeletePet = async (pet: Pet) => {
+    try {
+      await PetService.deletePet(pet._id);
+      toast.success(`Đã lưu trữ hồ sơ bé ${pet.name}!`);
+      fetchPets();
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || 'Không thể lưu trữ hồ sơ thú cưng'
+      );
+    }
+  };
+
   // Appointments adhering to SRS Order Lifecycle
   const appointmentColumns = [
     {
@@ -367,76 +441,214 @@ const DashboardPage: React.FC = () => {
   const petsColumns = [
     {
       title: 'Mã số & Tên thú cưng',
-      dataIndex: 'name',
       key: 'name',
-      render: (name: string, record: any) => (
-        <div>
-          <span style={{ fontWeight: 600, color: '#0f172a' }}>🐾 {name}</span>
-          <div style={{ fontSize: 11.5, color: '#0d9488' }}>
-            Mã: {record.code}
+      render: (_: any, record: Pet) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {record.photoUrl ? (
+            <Avatar
+              shape="square"
+              size={44}
+              src={record.photoUrl}
+              style={{
+                borderRadius: 8,
+                border: '1.5px solid #0d9488',
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                background: '#f0fdfa',
+                color: '#0d9488',
+                fontSize: 22,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid #ccfbf1',
+                flexShrink: 0,
+              }}
+            >
+              {getSpeciesEmoji(record.species)}
+            </div>
+          )}
+          <div>
+            <div
+              style={{
+                fontWeight: 700,
+                color: '#0f172a',
+                fontSize: 14,
+                cursor: 'pointer',
+              }}
+              onClick={() => {
+                setSelectedPet(record);
+                setIsPetDetailModalOpen(true);
+              }}
+            >
+              🐾 {record.name}
+            </div>
+            <Tooltip title="Nhấp để sao chép mã số">
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: '#0d9488',
+                  fontFamily: 'monospace',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  marginTop: 2,
+                }}
+                onClick={e => handleCopyCode(e, record.code)}
+              >
+                Mã: {record.code}
+                {copiedCode === record.code ? (
+                  <CheckOutlined style={{ color: '#059669', fontSize: 11 }} />
+                ) : (
+                  <CopyOutlined style={{ fontSize: 11 }} />
+                )}
+              </span>
+            </Tooltip>
           </div>
         </div>
       ),
     },
     {
       title: 'Loài & Giống',
-      dataIndex: 'species',
       key: 'species',
+      render: (_: any, record: Pet) => (
+        <div>
+          <Tag color="cyan" style={{ marginBottom: 4 }}>
+            {record.species || 'Chưa rõ loài'}
+          </Tag>
+          <div style={{ fontSize: 13, color: '#334155' }}>
+            {record.breed || 'Chưa rõ giống'}
+          </div>
+          {record.coatColor && (
+            <div style={{ fontSize: 11.5, color: '#64748b' }}>
+              Màu: {record.coatColor}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
-      title: 'Thể trọng',
-      dataIndex: 'weight',
+      title: 'Tuổi & Thể trọng',
       key: 'weight',
+      render: (_: any, record: Pet) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#0f172a' }}>
+            {record.weight !== null && record.weight !== undefined
+              ? `${record.weight} kg`
+              : 'Chưa cân'}
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>
+            {calculatePetAge(record.dob)}
+          </div>
+        </div>
+      ),
     },
     {
-      title: 'Tình trạng y khoa & Dị ứng',
-      dataIndex: 'medicalNote',
-      key: 'medicalNote',
-      render: (note: string) => (
-        <span style={{ fontSize: 13, color: '#dc2626' }}>{note}</span>
+      title: 'Tình trạng y khoa & Cảnh báo',
+      dataIndex: 'notes',
+      key: 'notes',
+      render: (notes: string | null) =>
+        notes ? (
+          <span
+            style={{
+              fontSize: 12.5,
+              color: '#b45309',
+              background: '#fef3c7',
+              padding: '4px 8px',
+              borderRadius: 6,
+              display: 'inline-block',
+              maxWidth: 240,
+              lineHeight: 1.4,
+            }}
+          >
+            ⚠️ {notes}
+          </span>
+        ) : (
+          <span style={{ fontSize: 12.5, color: '#94a3b8' }}>
+            Bình thường / Chưa ghi chú
+          </span>
+        ),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => (
+        <Tag color={status === 'Active' ? 'cyan' : 'default'}>
+          {status === 'Active' ? 'Đang nuôi' : 'Đã lưu trữ'}
+        </Tag>
       ),
     },
     {
       title: 'Thao tác nhanh',
       key: 'action',
-      render: () => (
-        <Space size="middle">
+      render: (_: any, record: Pet) => (
+        <Space size="small">
           <Button
             size="small"
+            icon={<EyeOutlined />}
             style={{ borderColor: '#0d9488', color: '#0d9488' }}
-            onClick={() => navigate(ROUTER.PROFILE)}
+            onClick={() => {
+              setSelectedPet(record);
+              setIsPetDetailModalOpen(true);
+            }}
+            title="Xem chi tiết hồ sơ y bạ"
           >
-            Hồ sơ EMR (SOAP)
+            Chi tiết
           </Button>
+
+          {record.status === 'Active' && (
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setEditingPet(record);
+                setIsPetFormModalOpen(true);
+              }}
+              title="Chỉnh sửa thông tin"
+            />
+          )}
+
+          {record.status === 'Active' && (
+            <Popconfirm
+              title="Lưu trữ hồ sơ thú cưng"
+              description={`Bạn có chắc muốn lưu trữ hồ sơ bé ${record.name}?`}
+              onConfirm={() => handleDeletePet(record)}
+              okText="Đồng ý"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                size="small"
+                danger
+                icon={<InboxOutlined />}
+                title="Lưu trữ thú cưng"
+              />
+            </Popconfirm>
+          )}
+
           <Button
             size="small"
             type="primary"
             style={{ background: '#0d9488' }}
-            onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
+            icon={<CalendarOutlined />}
+            onClick={() => {
+              navigate(ROUTER.HOME + '#quick-booking');
+              toast.info(`Đặt lịch khám cho bé ${record.name}`);
+            }}
+            title="Đặt lịch khám"
           >
             Đặt lịch
           </Button>
         </Space>
       ),
-    },
-  ];
-
-  const petsData = [
-    {
-      key: '1',
-      code: 'PET-000001',
-      name: 'Milo',
-      species: 'Chó · Poodle nâu (3 tuổi)',
-      weight: '5.2 kg',
-      medicalNote: 'Dị ứng hải sản; tiền sử viêm dạ dày ruột cấp',
-    },
-    {
-      key: '2',
-      code: 'PET-000002',
-      name: 'Bé Miu',
-      species: 'Mèo · Anh lông ngắn xám (2 tuổi)',
-      weight: '4.0 kg',
-      medicalNote: 'Đã hoàn tất sổ giun & vaccine 4 bệnh',
     },
   ];
 
@@ -461,7 +673,10 @@ const DashboardPage: React.FC = () => {
           <Button
             className="btn-add-pet"
             icon={<PlusOutlined />}
-            onClick={() => toast.info('Mở form tạo hồ sơ thú cưng mới')}
+            onClick={() => {
+              setEditingPet(null);
+              setIsPetFormModalOpen(true);
+            }}
           >
             Thêm thú cưng
           </Button>
@@ -516,8 +731,16 @@ const DashboardPage: React.FC = () => {
                 <MedicineBoxOutlined />
               </div>
             </div>
-            <div className="num">2</div>
-            <div className="sub">Bé Milo & Bé Miu</div>
+            <div className="num">{petsTotal}</div>
+            <div className="sub">
+              {pets.length > 0
+                ? pets
+                    .slice(0, 2)
+                    .map(p => `Bé ${p.name}`)
+                    .join(' & ') +
+                  (petsTotal > 2 ? ` và ${petsTotal - 2} bé khác` : '')
+                : 'Chưa có hồ sơ thú cưng'}
+            </div>
           </StatCard>
         </Col>
 
@@ -594,12 +817,101 @@ const DashboardPage: React.FC = () => {
       </SectionCard>
 
       {/* My Pets Table */}
-      <SectionCard title="Hồ Sơ Thú Cưng Của Tôi">
+      <SectionCard
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>🐾 Hồ Sơ Thú Cưng Của Tôi</span>
+            <Tag color="cyan">{petsTotal} hồ sơ</Tag>
+          </div>
+        }
+        extra={
+          <Space wrap>
+            <Segmented
+              value={statusFilter}
+              onChange={val => {
+                setStatusFilter(val as PetStatusFilter);
+                setPage(1);
+              }}
+              options={[
+                { label: 'Đang nuôi (Active)', value: 'Active' },
+                { label: 'Đã lưu trữ (Archived)', value: 'Archived' },
+                { label: 'Tất cả (All)', value: 'All' },
+              ]}
+            />
+            <Button
+              icon={<ReloadOutlined spin={petsLoading} />}
+              onClick={fetchPets}
+              title="Làm mới danh sách"
+            />
+            <Button
+              type="primary"
+              style={{ background: '#0d9488', borderColor: '#0d9488' }}
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setEditingPet(null);
+                setIsPetFormModalOpen(true);
+              }}
+            >
+              Thêm thú cưng
+            </Button>
+          </Space>
+        }
+      >
         <Table
           columns={petsColumns}
-          dataSource={petsData}
-          pagination={false}
+          dataSource={pets}
+          rowKey="_id"
+          loading={petsLoading}
+          pagination={{
+            current: page,
+            pageSize: limit,
+            total: petsTotal,
+            onChange: (p, l) => {
+              setPage(p);
+              setLimit(l);
+            },
+            showSizeChanger: true,
+            pageSizeOptions: ['5', '10', '20'],
+          }}
           size="middle"
+          locale={{
+            emptyText: (
+              <div style={{ padding: '32px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🐾</div>
+                <div
+                  style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}
+                >
+                  {statusFilter === 'Archived'
+                    ? 'Không có thú cưng nào trong mục lưu trữ'
+                    : 'Bạn chưa có hồ sơ thú cưng nào'}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: '#64748b',
+                    marginTop: 4,
+                    marginBottom: 16,
+                  }}
+                >
+                  Đăng ký thông tin thú cưng để theo dõi lịch tiêm phòng, bệnh
+                  án điện tử và đặt hẹn ưu tiên
+                </div>
+                {statusFilter !== 'Archived' && (
+                  <Button
+                    type="primary"
+                    style={{ background: '#0d9488', borderColor: '#0d9488' }}
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      setEditingPet(null);
+                      setIsPetFormModalOpen(true);
+                    }}
+                  >
+                    + Đăng ký thú cưng đầu tiên
+                  </Button>
+                )}
+              </div>
+            ),
+          }}
         />
       </SectionCard>
 
@@ -705,6 +1017,36 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Pet Create/Edit Modal */}
+      <PetFormModal
+        open={isPetFormModalOpen}
+        onCancel={() => {
+          setIsPetFormModalOpen(false);
+          setEditingPet(null);
+        }}
+        onSuccess={() => fetchPets()}
+        editingPet={editingPet}
+      />
+
+      {/* Pet Detail Modal */}
+      <PetDetailModal
+        open={isPetDetailModalOpen}
+        onCancel={() => {
+          setIsPetDetailModalOpen(false);
+          setSelectedPet(null);
+        }}
+        pet={selectedPet}
+        onEdit={pet => {
+          setEditingPet(pet);
+          setIsPetFormModalOpen(true);
+        }}
+        onDelete={handleDeletePet}
+        onBookAppointment={pet => {
+          navigate(ROUTER.HOME + '#quick-booking');
+          toast.info(`Đặt lịch khám cho bé ${pet.name}`);
+        }}
+      />
     </DashboardWrapper>
   );
 };
