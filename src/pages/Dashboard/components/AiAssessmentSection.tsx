@@ -405,27 +405,55 @@ const officialSymptomList = [
   { id: 'limping', label: 'Đi khập khiễng (Limping)' },
 ];
 
+import type { Pet } from '@/types';
+
 interface AiAssessmentSectionProps {
-  onBookAppointment: (notes?: string) => void;
+  onBookAppointment: (notes: string) => void;
+  onAddNewPet?: () => void;
+  userPets?: Pet[];
   isUnderDevelopment?: boolean;
 }
 
 const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
   onBookAppointment,
+  onAddNewPet,
+  userPets = [],
   isUnderDevelopment = true,
 }) => {
-  const [selectedPet, setSelectedPet] = useState<string>('milo');
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([
-    'vomiting',
-    'loss_of_appetite',
-  ]);
-  const [description, setDescription] = useState<string>(
-    'Bé Milo (Poodle, 5.2kg) nôn dịch bọt trắng 2 lần sáng nay, bỏ bữa và có dấu hiệu mệt mỏi.'
-  );
+  const petOptions = React.useMemo(() => {
+    if (userPets && userPets.length > 0) {
+      return [
+        ...userPets.map(p => ({
+          value: p._id,
+          label: `Bé ${p.name} · ${p.species || 'Thú cưng'}${p.breed ? ` (${p.breed})` : ''}${p.weight ? ` · ${p.weight} kg` : ''}`,
+        })),
+        { value: 'new', label: '+ Thêm thú cưng mới vào hồ sơ' },
+      ];
+    }
+    return [
+      { value: 'none', label: 'Chưa có hồ sơ thú cưng' },
+      { value: 'new', label: '+ Thêm thú cưng mới vào hồ sơ' },
+    ];
+  }, [userPets]);
+
+  const [selectedPet, setSelectedPet] = useState<string>(() => {
+    return userPets && userPets.length > 0 ? userPets[0]._id : 'none';
+  });
+
+  React.useEffect(() => {
+    if (userPets && userPets.length > 0 && selectedPet === 'none') {
+      setSelectedPet(userPets[0]._id);
+    }
+  }, [userPets, selectedPet]);
+
+  const currentPetObj = userPets?.find(p => p._id === selectedPet);
+
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [description, setDescription] = useState<string>('');
   const [analyzing, setAnalyzing] = useState<boolean>(false);
   const [urgencyLevel, setUrgencyLevel] = useState<
     'Routine' | 'Monitor' | 'Urgent'
-  >('Monitor');
+  >('Routine');
 
   const toggleSymptom = (id: string) => {
     setSelectedSymptoms(prev =>
@@ -531,18 +559,14 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
           <div className="pet-selector-row">
             <Select
               value={selectedPet}
-              onChange={val => setSelectedPet(val)}
-              options={[
-                {
-                  value: 'milo',
-                  label: 'Bé Milo · Chó Poodle (5.2 kg · 3 tuổi · Đực)',
-                },
-                {
-                  value: 'miu',
-                  label: 'Bé Miu · Mèo Anh lông ngắn (4.0 kg · 2 tuổi · Cái)',
-                },
-                { value: 'new', label: '+ Thêm thú cưng mới vào hồ sơ' },
-              ]}
+              onChange={val => {
+                if (val === 'new') {
+                  onAddNewPet?.();
+                } else {
+                  setSelectedPet(val);
+                }
+              }}
+              options={petOptions}
               size="middle"
             />
           </div>
@@ -723,19 +747,20 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
 
           <div className="history-box">
             <div className="history-title">
-              <HistoryOutlined /> Lịch sử đánh giá của bé Milo
+              <HistoryOutlined />{' '}
+              {currentPetObj
+                ? `Lịch sử đánh giá của bé ${currentPetObj.name}`
+                : 'Lịch sử đánh giá triệu chứng'}
             </div>
-            <div className="history-item">
-              <span>24/10/2026 · Nôn nhẹ sau ăn</span>
-              <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>
-                Monitor
-              </Tag>
-            </div>
-            <div className="history-item">
-              <span>10/09/2026 · Kiểm tra thể trạng</span>
-              <Tag color="cyan" style={{ margin: 0, fontSize: 11 }}>
-                Routine
-              </Tag>
+            <div
+              style={{
+                fontSize: 12.5,
+                color: '#94a3b8',
+                fontStyle: 'italic',
+                marginTop: 4,
+              }}
+            >
+              Chưa có lịch sử đánh giá triệu chứng nào được lưu trữ.
             </div>
           </div>
         </ResultPane>
