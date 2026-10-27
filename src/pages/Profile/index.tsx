@@ -14,6 +14,8 @@ import {
   Timeline,
   Table,
   Alert,
+  Segmented,
+  Empty,
 } from 'antd';
 import {
   UserOutlined,
@@ -32,9 +34,19 @@ import {
   EyeOutlined,
   EyeInvisibleOutlined,
   ReloadOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import UserService from '@/services/UserService';
+import PetService from '@/services/PetService';
+import type { Pet } from '@/types';
+import {
+  calculatePetAge,
+  getSpeciesEmoji,
+} from '../Dashboard/components/PetDetailModal';
 import { useAuth } from '@/contexts/routerProvider/authContext';
+import { useNavigate } from 'react-router-dom';
+import ROUTER from '@/routerMap/ROUTER';
+import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import { STORAGE, storage } from '@/lib/storage';
 
@@ -330,6 +342,7 @@ const MilestoneCard = styled.div`
 `;
 
 const ProfilePage: React.FC = () => {
+  const navigate = useNavigate();
   const { user, setUser } = useAuth();
   const [profile, setProfile] = useState<any>(user);
   const [loading, setLoading] = useState<boolean>(false);
@@ -338,6 +351,29 @@ const ProfilePage: React.FC = () => {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [form] = Form.useForm();
+
+  // Pets state
+  const [userPets, setUserPets] = useState<Pet[]>([]);
+  const [selectedPetId, setSelectedPetId] = useState<string>('');
+  const [petsLoading, setPetsLoading] = useState<boolean>(false);
+
+  const fetchPets = () => {
+    setPetsLoading(true);
+    PetService.listPets({ status: 'Active' })
+      .then(res => {
+        const items = res.items || [];
+        setUserPets(items);
+        if (items.length > 0) {
+          setSelectedPetId(items[0]._id);
+        }
+      })
+      .catch(err => {
+        console.error('Fetch pets error:', err);
+      })
+      .finally(() => {
+        setPetsLoading(false);
+      });
+  };
 
   // Email verification state
   const [isVerifyEmailModalOpen, setIsVerifyEmailModalOpen] =
@@ -404,7 +440,12 @@ const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     fetchProfile();
+    fetchPets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const currentPet =
+    userPets.find(p => p._id === selectedPetId) || userPets[0] || null;
 
   const openEditModal = () => {
     form.setFieldsValue({
@@ -817,182 +858,307 @@ const ProfilePage: React.FC = () => {
       </ProfileCard>
 
       {/* Pet Profile & Unified Medical Timeline */}
-      <Title
-        level={4}
-        style={{ marginBottom: 16, color: '#0f172a', fontWeight: 800 }}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
       >
-        Hồ Sơ Thú Cưng & Dòng Thời Gian Bệnh Án Điện Tử
-      </Title>
+        <Title
+          level={4}
+          style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}
+        >
+          Hồ Sơ Thú Cưng & Dòng Thời Gian Bệnh Án Điện Tử
+        </Title>
+        <Button
+          type="primary"
+          style={{ background: '#0d9488', borderColor: '#0d9488' }}
+          icon={<PlusOutlined />}
+          onClick={() => navigate(ROUTER.DASHBOARD)}
+        >
+          Quản lý thú cưng tại Dashboard
+        </Button>
+      </div>
 
-      <PetProfileBox>
-        <div className="pet-top">
-          <div className="pet-identity">
-            <div className="pet-avatar">🐕</div>
-            <div className="pet-details">
-              <h4>Bé Milo · Mã PET-000001</h4>
-              <span>
-                Chó Poodle · Giới tính: Đực · Ngày sinh: 01/05/2023 (3 tuổi)
+      {userPets.length === 0 ? (
+        <Card
+          style={{
+            borderRadius: 16,
+            textAlign: 'center',
+            padding: '36px 20px',
+            border: '1px solid #e2e8f0',
+            marginBottom: 32,
+          }}
+        >
+          <Empty
+            description={
+              <div>
+                <div
+                  style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}
+                >
+                  Bạn chưa có hồ sơ thú cưng nào
+                </div>
+                <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+                  Tạo hồ sơ thú cưng để theo dõi bệnh án điện tử SOAP/EMR và
+                  lịch sử tiêm phòng
+                </div>
+              </div>
+            }
+          >
+            <Button
+              type="primary"
+              style={{
+                background: '#0d9488',
+                borderColor: '#0d9488',
+                marginTop: 16,
+              }}
+              icon={<PlusOutlined />}
+              onClick={() => navigate(ROUTER.DASHBOARD)}
+            >
+              + Đăng ký thú cưng tại Dashboard
+            </Button>
+          </Empty>
+        </Card>
+      ) : (
+        <Spin spinning={petsLoading}>
+          <PetProfileBox>
+            {userPets.length > 1 && (
+              <div
+                style={{
+                  padding: '16px 24px',
+                  borderBottom: '1px solid #f1f5f9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span
+                  style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}
+                >
+                  Chọn thú cưng:
+                </span>
+                <Segmented
+                  value={selectedPetId}
+                  onChange={val => setSelectedPetId(val as string)}
+                  options={userPets.map(p => ({
+                    label: `🐾 ${p.name} (${p.species || 'Thú cưng'})`,
+                    value: p._id,
+                  }))}
+                />
+              </div>
+            )}
+
+            <div className="pet-top">
+              <div className="pet-identity">
+                {currentPet?.photoUrl ? (
+                  <img
+                    src={currentPet.photoUrl}
+                    alt={currentPet.name}
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 12,
+                      objectFit: 'cover',
+                      border: '2px solid #0d9488',
+                    }}
+                  />
+                ) : (
+                  <div className="pet-avatar">
+                    {getSpeciesEmoji(currentPet?.species)}
+                  </div>
+                )}
+                <div className="pet-details">
+                  <h4>
+                    Bé {currentPet?.name} · Mã {currentPet?.code}
+                  </h4>
+                  <span>
+                    {currentPet?.species || 'Thú cưng'}
+                    {currentPet?.breed ? ` · ${currentPet.breed}` : ''}
+                    {currentPet?.dob
+                      ? ` · Ngày sinh: ${dayjs(currentPet.dob).format('DD/MM/YYYY')} (${calculatePetAge(currentPet.dob)})`
+                      : ''}
+                  </span>
+                </div>
+              </div>
+              <div className="badge-wrap">
+                {currentPet?.notes && (
+                  <Tag color="magenta">⚠️ {currentPet.notes}</Tag>
+                )}
+                <Tag color="cyan">Đang theo dõi sức khỏe</Tag>
+              </div>
+            </div>
+
+            <div className="pet-metrics-grid">
+              <div className="metric">
+                <div className="label">Thể trọng hiện tại</div>
+                <div className="val">
+                  {currentPet?.weight !== null &&
+                  currentPet?.weight !== undefined
+                    ? `${currentPet.weight} kg`
+                    : 'Chưa cập nhật'}
+                </div>
+              </div>
+              <div className="metric">
+                <div className="label">Màu lông</div>
+                <div className="val">
+                  {currentPet?.coatColor || 'Chưa cập nhật'}
+                </div>
+              </div>
+              <div className="metric">
+                <div className="label">Bác sĩ phụ trách</div>
+                <div className="val">BS. Trần Thị B</div>
+              </div>
+              <div className="metric">
+                <div className="label">Lần khám gần nhất</div>
+                <div className="val">25/10/2026</div>
+              </div>
+            </div>
+
+            <div className="timeline-header">
+              <h4>Dòng thời gian y khoa hợp nhất (Unified EMR Timeline)</h4>
+              <span style={{ fontSize: 13, color: '#64748b' }}>
+                Hợp nhất Khám - Grooming - Nội trú - Hoá đơn
               </span>
             </div>
-          </div>
-          <div className="badge-wrap">
-            <Tag color="magenta">Dị ứng hải sản</Tag>
-            <Tag color="green">Đang điều trị nội trú (C-01)</Tag>
-          </div>
-        </div>
 
-        <div className="pet-metrics-grid">
-          <div className="metric">
-            <div className="label">Thể trọng hiện tại</div>
-            <div className="val">5.2 kg</div>
-          </div>
-          <div className="metric">
-            <div className="label">Màu lông</div>
-            <div className="val">Nâu đỏ (Brown)</div>
-          </div>
-          <div className="metric">
-            <div className="label">Bác sĩ phụ trách</div>
-            <div className="val">BS. Trần Thị B</div>
-          </div>
-          <div className="metric">
-            <div className="label">Lần khám gần nhất</div>
-            <div className="val">25/10/2026</div>
-          </div>
-        </div>
-
-        <div className="timeline-header">
-          <h4>Dòng thời gian y khoa hợp nhất (Unified EMR Timeline)</h4>
-          <span style={{ fontSize: 13, color: '#64748b' }}>
-            Hợp nhất Khám - Grooming - Nội trú - Hoá đơn
-          </span>
-        </div>
-
-        <Timeline
-          items={[
-            {
-              color: '#0d9488',
-              children: (
-                <MilestoneCard>
-                  <div className="m-header">
-                    <div className="m-title">
-                      Khám Lâm Sàng Tổng Quát & Điều Trị Viêm Dạ Dày Ruột Cấp
-                    </div>
-                    <span className="m-status">Đã hoàn tất (Done)</span>
-                  </div>
-                  <div className="m-body">
-                    Thời gian: <strong>25/10/2026</strong> · Bác sĩ thực hiện:{' '}
-                    <strong>BS. Trần Thị B (vet@vcmos.com)</strong>
-                    <br />
-                    Chẩn đoán xác định: Viêm dạ dày ruột cấp tính, chỉ định nhập
-                    viện theo dõi Chuồng C-01 và dùng kháng sinh Amoxicillin 5
-                    ngày.
-                  </div>
-                  <div className="m-footer">
-                    <div style={{ color: '#0d9488', fontWeight: 600 }}>
-                      Mã phiếu khám: #EMR-20261025-01
-                    </div>
-                    <div className="actions">
-                      <button
-                        type="button"
-                        className="btn-m-action primary"
-                        onClick={() => setIsSoapModalOpen(true)}
-                      >
-                        <FileTextOutlined /> Xem bệnh án SOAP
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-m-action"
-                        onClick={() => setIsInvoiceModalOpen(true)}
-                      >
-                        <DollarOutlined /> Xem hoá đơn
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-m-action"
-                        onClick={handleShareToCommunity}
-                      >
-                        <ShareAltOutlined /> Chia sẻ lên Cộng đồng (UC-49)
-                      </button>
-                    </div>
-                  </div>
-                </MilestoneCard>
-              ),
-            },
-            {
-              color: '#0d9488',
-              children: (
-                <MilestoneCard>
-                  <div className="m-header">
-                    <div className="m-title">
-                      Tiêm Chủng Vaccine 7 Bệnh & Sổ Giun Định Kỳ
-                    </div>
-                    <span className="m-status">Đã hoàn tất (Done)</span>
-                  </div>
-                  <div className="m-body">
-                    Thời gian: <strong>15/09/2026</strong> · Bác sĩ:{' '}
-                    <strong>BS. Trần Thị B</strong>
-                    <br />
-                    Thực hiện tiêm vaccine đa giá phòng 7 bệnh truyền nhiễm chó
-                    mèo. Tự động đồng bộ lịch tái chủng sau 12 tháng.
-                  </div>
-                  <div className="m-footer">
-                    <div style={{ color: '#64748b' }}>
-                      Vaccine lô: GSP-2026-08A
-                    </div>
-                    <div className="actions">
-                      <button
-                        type="button"
-                        className="btn-m-action"
-                        onClick={() =>
-                          toast.info('Sổ tiêm chủng điện tử đã được ghi nhận')
-                        }
-                      >
-                        <SafetyCertificateOutlined /> Sổ tiêm chủng
-                      </button>
-                    </div>
-                  </div>
-                </MilestoneCard>
-              ),
-            },
-            {
-              color: '#d97706',
-              children: (
-                <MilestoneCard>
-                  <div className="m-header">
-                    <div className="m-title">
-                      Grooming Spa & Cắt Tỉa Lông Thẩm Mỹ Chuẩn Giống
-                    </div>
-                    <span className="m-status">Đã hoàn tất (Done)</span>
-                  </div>
-                  <div className="m-body">
-                    Thời gian: <strong>01/08/2026</strong> · Groomer:{' '}
-                    <strong>Chuyên viên Lê Thị D</strong>
-                    <br />
-                    Tắm sấy dưỡng lông thảo dược, cắt tỉa form gấu bông, vệ sinh
-                    tai và cắt dũa móng an toàn.
-                  </div>
-                  <div className="m-footer">
-                    <div style={{ color: '#64748b' }}>Thời lượng: 60 phút</div>
-                    <div className="actions">
-                      <button
-                        type="button"
-                        className="btn-m-action"
-                        onClick={() =>
-                          toast.info(
-                            'Ghi chú grooming: Bé hợp tác, da tai sạch'
-                          )
-                        }
-                      >
-                        Ghi chú Grooming
-                      </button>
-                    </div>
-                  </div>
-                </MilestoneCard>
-              ),
-            },
-          ]}
-        />
-      </PetProfileBox>
+            <Timeline
+              items={[
+                {
+                  color: '#0d9488',
+                  children: (
+                    <MilestoneCard>
+                      <div className="m-header">
+                        <div className="m-title">
+                          Khám Lâm Sàng Tổng Quát & Điều Trị Viêm Dạ Dày Ruột
+                          Cấp
+                        </div>
+                        <span className="m-status">Đã hoàn tất (Done)</span>
+                      </div>
+                      <div className="m-body">
+                        Thời gian: <strong>25/10/2026</strong> · Bác sĩ thực
+                        hiện: <strong>BS. Trần Thị B (vet@vcmos.com)</strong>
+                        <br />
+                        Chẩn đoán xác định: Viêm dạ dày ruột cấp tính, chỉ định
+                        nhập viện theo dõi Chuồng C-01 và dùng kháng sinh
+                        Amoxicillin 5 ngày.
+                      </div>
+                      <div className="m-footer">
+                        <div style={{ color: '#0d9488', fontWeight: 600 }}>
+                          Mã phiếu khám: #EMR-20261025-01
+                        </div>
+                        <div className="actions">
+                          <button
+                            type="button"
+                            className="btn-m-action primary"
+                            onClick={() => setIsSoapModalOpen(true)}
+                          >
+                            <FileTextOutlined /> Xem bệnh án SOAP
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-m-action"
+                            onClick={() => setIsInvoiceModalOpen(true)}
+                          >
+                            <DollarOutlined /> Xem hoá đơn
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-m-action"
+                            onClick={handleShareToCommunity}
+                          >
+                            <ShareAltOutlined /> Chia sẻ lên Cộng đồng (UC-49)
+                          </button>
+                        </div>
+                      </div>
+                    </MilestoneCard>
+                  ),
+                },
+                {
+                  color: '#0d9488',
+                  children: (
+                    <MilestoneCard>
+                      <div className="m-header">
+                        <div className="m-title">
+                          Tiêm Chủng Vaccine 7 Bệnh & Sổ Giun Định Kỳ
+                        </div>
+                        <span className="m-status">Đã hoàn tất (Done)</span>
+                      </div>
+                      <div className="m-body">
+                        Thời gian: <strong>15/09/2026</strong> · Bác sĩ:{' '}
+                        <strong>BS. Trần Thị B</strong>
+                        <br />
+                        Thực hiện tiêm vaccine đa giá phòng 7 bệnh truyền nhiễm
+                        chó mèo. Tự động đồng bộ lịch tái chủng sau 12 tháng.
+                      </div>
+                      <div className="m-footer">
+                        <div style={{ color: '#64748b' }}>
+                          Vaccine lô: GSP-2026-08A
+                        </div>
+                        <div className="actions">
+                          <button
+                            type="button"
+                            className="btn-m-action"
+                            onClick={() =>
+                              toast.info(
+                                'Sổ tiêm chủng điện tử đã được ghi nhận'
+                              )
+                            }
+                          >
+                            <SafetyCertificateOutlined /> Sổ tiêm chủng
+                          </button>
+                        </div>
+                      </div>
+                    </MilestoneCard>
+                  ),
+                },
+                {
+                  color: '#d97706',
+                  children: (
+                    <MilestoneCard>
+                      <div className="m-header">
+                        <div className="m-title">
+                          Grooming Spa & Cắt Tỉa Lông Thẩm Mỹ Chuẩn Giống
+                        </div>
+                        <span className="m-status">Đã hoàn tất (Done)</span>
+                      </div>
+                      <div className="m-body">
+                        Thời gian: <strong>01/08/2026</strong> · Groomer:{' '}
+                        <strong>Chuyên viên Lê Thị D</strong>
+                        <br />
+                        Tắm sấy dưỡng lông thảo dược, cắt tỉa form gấu bông, vệ
+                        sinh tai và cắt dũa móng an toàn.
+                      </div>
+                      <div className="m-footer">
+                        <div style={{ color: '#64748b' }}>
+                          Thời lượng: 60 phút
+                        </div>
+                        <div className="actions">
+                          <button
+                            type="button"
+                            className="btn-m-action"
+                            onClick={() =>
+                              toast.info(
+                                'Ghi chú grooming: Bé hợp tác, da tai sạch'
+                              )
+                            }
+                          >
+                            Ghi chú Grooming
+                          </button>
+                        </div>
+                      </div>
+                    </MilestoneCard>
+                  ),
+                },
+              ]}
+            />
+          </PetProfileBox>
+        </Spin>
+      )}
 
       {/* Edit Profile Modal */}
       <Modal
