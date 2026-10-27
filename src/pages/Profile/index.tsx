@@ -26,8 +26,6 @@ import {
   CheckCircleOutlined,
   SafetyCertificateOutlined,
   FileTextOutlined,
-  ShareAltOutlined,
-  DollarOutlined,
   KeyOutlined,
   LockOutlined,
   WarningOutlined,
@@ -35,6 +33,7 @@ import {
   EyeInvisibleOutlined,
   ReloadOutlined,
   PlusOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import UserService from '@/services/UserService';
 import PetService from '@/services/PetService';
@@ -636,12 +635,6 @@ const ProfilePage: React.FC = () => {
     return 'Mạnh';
   };
 
-  const handleShareToCommunity = () => {
-    toast.success(
-      'Bài chia sẻ hành trình điều trị đã được gửi tới ban kiểm duyệt (MSG32)!'
-    );
-  };
-
   return (
     <ProfileWrapper>
       <Title
@@ -1011,11 +1004,19 @@ const ProfilePage: React.FC = () => {
               </div>
               <div className="metric">
                 <div className="label">Bác sĩ phụ trách</div>
-                <div className="val">BS. Trần Thị B</div>
+                <div className="val">
+                  {(currentPet as any)?.assignedDoctor || 'Chưa phân công'}
+                </div>
               </div>
               <div className="metric">
                 <div className="label">Lần khám gần nhất</div>
-                <div className="val">25/10/2026</div>
+                <div className="val">
+                  {(currentPet as any)?.lastVisitDate
+                    ? dayjs((currentPet as any).lastVisitDate).format(
+                        'DD/MM/YYYY'
+                      )
+                    : 'Chưa có lượt khám'}
+                </div>
               </div>
             </div>
 
@@ -1026,136 +1027,75 @@ const ProfilePage: React.FC = () => {
               </span>
             </div>
 
-            <Timeline
-              items={[
-                {
-                  color: '#0d9488',
-                  children: (
-                    <MilestoneCard>
-                      <div className="m-header">
-                        <div className="m-title">
-                          Khám Lâm Sàng Tổng Quát & Điều Trị Viêm Dạ Dày Ruột
-                          Cấp
+            {(currentPet as any)?.medicalRecords &&
+            (currentPet as any).medicalRecords.length > 0 ? (
+              <Timeline
+                items={((currentPet as any).medicalRecords as any[]).map(
+                  (rec: any, idx: number) => ({
+                    color: rec.color || '#0d9488',
+                    children: (
+                      <MilestoneCard key={idx}>
+                        <div className="m-header">
+                          <div className="m-title">{rec.title}</div>
+                          <span className="m-status">
+                            {rec.status || 'Đã hoàn tất (Done)'}
+                          </span>
                         </div>
-                        <span className="m-status">Đã hoàn tất (Done)</span>
-                      </div>
-                      <div className="m-body">
-                        Thời gian: <strong>25/10/2026</strong> · Bác sĩ thực
-                        hiện: <strong>BS. Trần Thị B (vet@vcmos.com)</strong>
-                        <br />
-                        Chẩn đoán xác định: Viêm dạ dày ruột cấp tính, chỉ định
-                        nhập viện theo dõi Chuồng C-01 và dùng kháng sinh
-                        Amoxicillin 5 ngày.
-                      </div>
-                      <div className="m-footer">
-                        <div style={{ color: '#0d9488', fontWeight: 600 }}>
-                          Mã phiếu khám: #EMR-20261025-01
+                        <div className="m-body">
+                          Thời gian: <strong>{rec.date}</strong> · Bác sĩ:{' '}
+                          <strong>{rec.doctor}</strong>
+                          <br />
+                          {rec.diagnosis}
                         </div>
-                        <div className="actions">
-                          <button
-                            type="button"
-                            className="btn-m-action primary"
-                            onClick={() => setIsSoapModalOpen(true)}
-                          >
-                            <FileTextOutlined /> Xem bệnh án SOAP
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-m-action"
-                            onClick={() => setIsInvoiceModalOpen(true)}
-                          >
-                            <DollarOutlined /> Xem hoá đơn
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-m-action"
-                            onClick={handleShareToCommunity}
-                          >
-                            <ShareAltOutlined /> Chia sẻ lên Cộng đồng (UC-49)
-                          </button>
-                        </div>
-                      </div>
-                    </MilestoneCard>
-                  ),
-                },
-                {
-                  color: '#0d9488',
-                  children: (
-                    <MilestoneCard>
-                      <div className="m-header">
-                        <div className="m-title">
-                          Tiêm Chủng Vaccine 7 Bệnh & Sổ Giun Định Kỳ
-                        </div>
-                        <span className="m-status">Đã hoàn tất (Done)</span>
-                      </div>
-                      <div className="m-body">
-                        Thời gian: <strong>15/09/2026</strong> · Bác sĩ:{' '}
-                        <strong>BS. Trần Thị B</strong>
-                        <br />
-                        Thực hiện tiêm vaccine đa giá phòng 7 bệnh truyền nhiễm
-                        chó mèo. Tự động đồng bộ lịch tái chủng sau 12 tháng.
-                      </div>
-                      <div className="m-footer">
-                        <div style={{ color: '#64748b' }}>
-                          Vaccine lô: GSP-2026-08A
-                        </div>
-                        <div className="actions">
-                          <button
-                            type="button"
-                            className="btn-m-action"
-                            onClick={() =>
-                              toast.info(
-                                'Sổ tiêm chủng điện tử đã được ghi nhận'
-                              )
-                            }
-                          >
-                            <SafetyCertificateOutlined /> Sổ tiêm chủng
-                          </button>
-                        </div>
-                      </div>
-                    </MilestoneCard>
-                  ),
-                },
-                {
-                  color: '#d97706',
-                  children: (
-                    <MilestoneCard>
-                      <div className="m-header">
-                        <div className="m-title">
-                          Grooming Spa & Cắt Tỉa Lông Thẩm Mỹ Chuẩn Giống
-                        </div>
-                        <span className="m-status">Đã hoàn tất (Done)</span>
-                      </div>
-                      <div className="m-body">
-                        Thời gian: <strong>01/08/2026</strong> · Groomer:{' '}
-                        <strong>Chuyên viên Lê Thị D</strong>
-                        <br />
-                        Tắm sấy dưỡng lông thảo dược, cắt tỉa form gấu bông, vệ
-                        sinh tai và cắt dũa móng an toàn.
-                      </div>
-                      <div className="m-footer">
-                        <div style={{ color: '#64748b' }}>
-                          Thời lượng: 60 phút
-                        </div>
-                        <div className="actions">
-                          <button
-                            type="button"
-                            className="btn-m-action"
-                            onClick={() =>
-                              toast.info(
-                                'Ghi chú grooming: Bé hợp tác, da tai sạch'
-                              )
-                            }
-                          >
-                            Ghi chú Grooming
-                          </button>
-                        </div>
-                      </div>
-                    </MilestoneCard>
-                  ),
-                },
-              ]}
-            />
+                      </MilestoneCard>
+                    ),
+                  })
+                )}
+              />
+            ) : (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '36px 16px',
+                  background: '#f8fafc',
+                  borderRadius: 12,
+                  border: '1px dashed #cbd5e1',
+                  margin: '16px 0',
+                }}
+              >
+                <FileTextOutlined
+                  style={{ fontSize: 36, color: '#94a3b8', marginBottom: 10 }}
+                />
+                <div
+                  style={{ fontSize: 14.5, fontWeight: 700, color: '#0f172a' }}
+                >
+                  Bé {currentPet?.name} chưa có bệnh án điện tử SOAP hoặc lịch
+                  sử khám
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: '#64748b',
+                    marginTop: 4,
+                    marginBottom: 16,
+                    maxWidth: 420,
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                  }}
+                >
+                  Khi bé đến khám, toàn bộ chẩn đoán SOAP, đơn thuốc, lịch tiêm
+                  phòng và lịch sử chăm sóc sẽ được lưu trữ tự động tại đây.
+                </div>
+                <Button
+                  type="primary"
+                  style={{ background: '#0d9488', borderColor: '#0d9488' }}
+                  icon={<CalendarOutlined />}
+                  onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
+                >
+                  + Đặt lịch khám cho bé {currentPet?.name}
+                </Button>
+              </div>
+            )}
           </PetProfileBox>
         </Spin>
       )}
@@ -1729,8 +1669,17 @@ const ProfilePage: React.FC = () => {
             }}
           >
             <div>
-              Bệnh nhân: <strong>Bé Milo (Chó Poodle · 5.2 kg)</strong> · Chủ
-              nuôi: <strong>Nguyen Van A</strong>
+              Bệnh nhân:{' '}
+              <strong>
+                Bé {currentPet?.name || 'Thú cưng'} (
+                {currentPet?.species || 'Thú cưng'}
+                {currentPet?.breed ? ` · ${currentPet.breed}` : ''}
+                {currentPet?.weight ? ` · ${currentPet.weight} kg` : ''})
+              </strong>{' '}
+              · Chủ nuôi:{' '}
+              <strong>
+                {profile?.fullName || user?.fullName || 'Khách hàng'}
+              </strong>
             </div>
             <div>
               Bác sĩ khám: <strong>BS. Trần Thị B</strong> · Ngày khám:{' '}
@@ -1835,7 +1784,8 @@ const ProfilePage: React.FC = () => {
             <div>
               Mã hoá đơn: <strong>#INV-20261025-01</strong>
               <br />
-              Thú cưng: <strong>Bé Milo</strong> (PET-000001)
+              Thú cưng: <strong>Bé {currentPet?.name || 'Thú cưng'}</strong> (
+              {currentPet?.code || 'Chưa cấp mã'})
             </div>
             <div style={{ textAlign: 'right' }}>
               Ngày xuất: <strong>25/10/2026</strong>

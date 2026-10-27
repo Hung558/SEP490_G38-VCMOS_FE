@@ -304,6 +304,16 @@ const DashboardPage: React.FC = () => {
   const [limit, setLimit] = useState(10);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
+  // Dynamic appointments and inpatient data (not hardcoded mock data)
+  const [appointments] = useState<any[]>([]);
+  const [inpatientStay] = useState<any | null>(null);
+
+  const activeAppointments = appointments.filter(
+    a => a.status !== 'Done' && a.status !== 'Cancelled'
+  );
+  const activeAppointment = activeAppointments[0] || null;
+  const completedAppointments = appointments.filter(a => a.status === 'Done');
+
   // Modal controllers
   const [isPetFormModalOpen, setIsPetFormModalOpen] = useState(false);
   const [isPetDetailModalOpen, setIsPetDetailModalOpen] = useState(false);
@@ -402,39 +412,6 @@ const DashboardPage: React.FC = () => {
         if (status === 'Done') color = 'green';
         return <Tag color={color}>{status}</Tag>;
       },
-    },
-  ];
-
-  const appointmentData = [
-    {
-      key: '1',
-      code: 'APT-1082',
-      petName: 'Bé Milo (Mã PET-000001)',
-      breed: 'Chó Poodle · 5.2 kg',
-      service: 'Khám lâm sàng tổng quát & Đơn thuốc',
-      doctor: 'BS. Trần Thị B (vet@vcmos.com)',
-      datetime: 'Hôm nay, 14:30',
-      status: 'InProgress (Đang khám)',
-    },
-    {
-      key: '2',
-      code: 'APT-1075',
-      petName: 'Bé Miu',
-      breed: 'Mèo Anh lông ngắn · 4.0 kg',
-      service: 'Grooming Spa & Cắt tỉa lông thẩm mỹ',
-      doctor: 'Chuyên viên Lê Thị D',
-      datetime: 'Ngày mai, 10:00',
-      status: 'Booked',
-    },
-    {
-      key: '3',
-      code: 'APT-1049',
-      petName: 'Bé Milo',
-      breed: 'Chó Poodle',
-      service: 'Tiêm chủng Vaccine 7 bệnh định kỳ',
-      doctor: 'BS. Trần Thị B',
-      datetime: '15/09/2026',
-      status: 'Done',
     },
   ];
 
@@ -661,7 +638,7 @@ const DashboardPage: React.FC = () => {
             level={3}
             style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}
           >
-            Xin chào, {user?.fullName || 'Nguyen Van A'}!
+            Xin chào, {user?.fullName || user?.phone || 'Quý khách'}!
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
             Bảng theo dõi sức khoẻ thú cưng & quản lý chu trình khám chữa bệnh
@@ -691,35 +668,42 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Inpatient Stay Banner */}
-      <InpatientBanner>
-        <div className="banner-left">
-          <div className="icon-wrap">
-            <HeartOutlined />
+      {/* Inpatient Stay Banner - Only shown when there is an active inpatient pet */}
+      {inpatientStay && (
+        <InpatientBanner>
+          <div className="banner-left">
+            <div className="icon-wrap">
+              <HeartOutlined />
+            </div>
+            <div className="info">
+              <div className="tag-row">
+                <span className="badge-pulse">LƯU CHUỒNG ĐIỀU TRỊ NỘI TRÚ</span>
+                <Tag color="cyan">
+                  {inpatientStay.room || 'Chuồng C-01'} (Occupied)
+                </Tag>
+              </div>
+              <div className="title">
+                Bé {inpatientStay.petName || 'Thú cưng'} đang được theo dõi điều
+                trị nội trú (Ngày thứ {inpatientStay.days || 1})
+              </div>
+              <div className="sub">
+                Bác sĩ điều trị:{' '}
+                <strong>{inpatientStay.doctor || 'Bác sĩ trực'}</strong> · Chẩn
+                đoán: {inpatientStay.diagnosis || 'Đang theo dõi'} · Sinh hiệu:{' '}
+                {inpatientStay.vitals || 'Ổn định'}
+              </div>
+            </div>
           </div>
-          <div className="info">
-            <div className="tag-row">
-              <span className="badge-pulse">LƯU CHUỒNG ĐIỀU TRỊ NỘI TRÚ</span>
-              <Tag color="cyan">Chuồng C-01 (Occupied)</Tag>
-            </div>
-            <div className="title">
-              Bé Milo đang được theo dõi điều trị nội trú (Ngày thứ 2)
-            </div>
-            <div className="sub">
-              Bác sĩ điều trị: <strong>BS. Trần Thị B</strong> · Chẩn đoán: Viêm
-              dạ dày ruột cấp · Sinh hiệu: Thân nhiệt 38.6°C (Hạ sốt ổn định)
-            </div>
-          </div>
-        </div>
 
-        <button
-          type="button"
-          className="btn-view-progress"
-          onClick={() => setIsInpatientModalOpen(true)}
-        >
-          <EyeOutlined /> Theo dõi nhật ký lâm sàng từ xa
-        </button>
-      </InpatientBanner>
+          <button
+            type="button"
+            className="btn-view-progress"
+            onClick={() => setIsInpatientModalOpen(true)}
+          >
+            <EyeOutlined /> Theo dõi nhật ký lâm sàng từ xa
+          </button>
+        </InpatientBanner>
+      )}
 
       {/* Stats Cards */}
       <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
@@ -752,8 +736,12 @@ const DashboardPage: React.FC = () => {
                 <CalendarOutlined />
               </div>
             </div>
-            <div className="num">1</div>
-            <div className="sub">Hôm nay lúc 14:30 (Đang khám)</div>
+            <div className="num">{activeAppointments.length}</div>
+            <div className="sub">
+              {activeAppointments.length > 0
+                ? `${activeAppointments.length} lượt hẹn đang tiến hành`
+                : 'Không có lịch hẹn đang xử lý'}
+            </div>
           </StatCard>
         </Col>
 
@@ -765,8 +753,12 @@ const DashboardPage: React.FC = () => {
                 <HeartOutlined />
               </div>
             </div>
-            <div className="num">1</div>
-            <div className="sub">Chuồng C-01 (Ngày 2)</div>
+            <div className="num">{inpatientStay ? 1 : 0}</div>
+            <div className="sub">
+              {inpatientStay
+                ? `${inpatientStay.room} (Ngày ${inpatientStay.days})`
+                : 'Không có thú cưng lưu chuồng'}
+            </div>
           </StatCard>
         </Col>
 
@@ -778,41 +770,102 @@ const DashboardPage: React.FC = () => {
                 <CheckCircleOutlined />
               </div>
             </div>
-            <div className="num">12</div>
-            <div className="sub">Đã lưu trữ bệnh án SOAP</div>
+            <div className="num">{completedAppointments.length}</div>
+            <div className="sub">
+              {completedAppointments.length > 0
+                ? `${completedAppointments.length} bệnh án SOAP đã lưu trữ`
+                : 'Chưa có bệnh án SOAP'}
+            </div>
           </StatCard>
         </Col>
       </Row>
 
-      {/* Live Order Stepper Preview (SRS Lifecycle) */}
-      <StatusStepperBox>
-        <div className="stepper-header">
-          <div>
-            <strong>Chu trình lượt hẹn trực tiếp mã #APT-1082:</strong> Bé Milo
-            (Khám lâm sàng tổng quát)
+      {/* Live Order Stepper Preview (SRS Lifecycle) - Only shown if there is an active appointment */}
+      {activeAppointment && (
+        <StatusStepperBox>
+          <div className="stepper-header">
+            <div>
+              <strong>
+                Chu trình lượt hẹn trực tiếp mã #{activeAppointment.code}:
+              </strong>{' '}
+              {activeAppointment.petName}({activeAppointment.service})
+            </div>
+            <span>Bác sĩ phụ trách: {activeAppointment.doctor}</span>
           </div>
-          <span>Bác sĩ phụ trách: BS. Trần Thị B</span>
-        </div>
-        <Steps
-          size="small"
-          current={2}
-          items={[
-            { title: 'Đã đặt (Booked)' },
-            { title: 'Đã tiếp nhận (Checked In)' },
-            { title: 'Đang thực hiện (In Progress)' },
-            { title: 'Chờ chủ đón (Wait Owner)' },
-            { title: 'Hoàn tất (Done)' },
-          ]}
-        />
-      </StatusStepperBox>
+          <Steps
+            size="small"
+            current={activeAppointment.stepIndex || 0}
+            items={[
+              { title: 'Đã đặt (Booked)' },
+              { title: 'Đã tiếp nhận (Checked In)' },
+              { title: 'Đang thực hiện (In Progress)' },
+              { title: 'Chờ chủ đón (Wait Owner)' },
+              { title: 'Hoàn tất (Done)' },
+            ]}
+          />
+        </StatusStepperBox>
+      )}
 
       {/* Upcoming Appointments Table */}
-      <SectionCard title="Danh Sách Lịch Hẹn & Tiến Trình Khám Lâm Sàng">
+      <SectionCard
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>Danh Sách Lịch Hẹn & Tiến Trình Khám Lâm Sàng</span>
+            <Tag color={appointments.length > 0 ? 'cyan' : 'default'}>
+              {appointments.length} lượt hẹn
+            </Tag>
+          </div>
+        }
+        extra={
+          <Button
+            type="primary"
+            style={{ background: '#0d9488', borderColor: '#0d9488' }}
+            icon={<CalendarOutlined />}
+            onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
+          >
+            + Đặt lịch khám
+          </Button>
+        }
+      >
         <Table
           columns={appointmentColumns}
-          dataSource={appointmentData}
+          dataSource={appointments}
           pagination={false}
           size="middle"
+          locale={{
+            emptyText: (
+              <div style={{ padding: '28px 0', textAlign: 'center' }}>
+                <CalendarOutlined
+                  style={{ fontSize: 32, color: '#94a3b8', marginBottom: 8 }}
+                />
+                <div
+                  style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}
+                >
+                  Chưa có lịch hẹn khám nào
+                </div>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: '#64748b',
+                    marginTop: 4,
+                    marginBottom: 14,
+                  }}
+                >
+                  Đặt lịch khám, tiêm phòng hoặc spa làm đẹp cho thú cưng dễ
+                  dàng trực tuyến
+                </div>
+                <Button
+                  type="primary"
+                  size="small"
+                  style={{ background: '#0d9488' }}
+                  icon={<CalendarOutlined />}
+                  onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
+                >
+                  + Đặt lịch khám ngay
+                </Button>
+              </div>
+            ),
+          }}
         />
       </SectionCard>
 
@@ -918,6 +971,11 @@ const DashboardPage: React.FC = () => {
       {/* Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu (Đang phát triển) */}
       <AiAssessmentSection
         isUnderDevelopment={true}
+        userPets={pets}
+        onAddNewPet={() => {
+          setEditingPet(null);
+          setIsPetFormModalOpen(true);
+        }}
         onBookAppointment={notes => {
           navigate(ROUTER.HOME + '#quick-booking');
           if (notes) {

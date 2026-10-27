@@ -6,7 +6,6 @@ import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import ForgotPasswordForm from './components/ForgotPasswordForm';
 import VerifyAccountForm from './components/VerifyAccountForm';
-import CompleteProfileForm from './components/CompleteProfileForm';
 import {
   HomeOutlined,
   CheckCircleFilled,
@@ -320,7 +319,7 @@ const BackToLoginButton = styled.button`
   }
 `;
 
-type AuthView = 'login' | 'register' | 'forgot' | 'verify' | 'completeProfile';
+type AuthView = 'login' | 'register' | 'forgot' | 'verify';
 
 const LoginRegisterPage: React.FC = () => {
   const location = useLocation();
@@ -335,12 +334,6 @@ const LoginRegisterPage: React.FC = () => {
   const [authView, setAuthView] = useState<AuthView>(getInitialView());
   const [prefilledIdentifier, setPrefilledIdentifier] = useState<string>('');
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string>('');
-  const [pendingGoogleProfile, setPendingGoogleProfile] = useState<{
-    googleAccessToken: string;
-    email: string;
-    fullName: string;
-    avatarUrl?: string;
-  } | null>(null);
 
   useEffect(() => {
     if (location.pathname === ROUTER.REGISTER) {
@@ -373,16 +366,6 @@ const LoginRegisterPage: React.FC = () => {
   const goToVerify = (email: string) => {
     setPendingVerifyEmail(email);
     setAuthView('verify');
-  };
-
-  const goToCompleteProfile = (profile: {
-    googleAccessToken: string;
-    email: string;
-    fullName: string;
-    avatarUrl?: string;
-  }) => {
-    setPendingGoogleProfile(profile);
-    setAuthView('completeProfile');
   };
 
   const showSegmentedTabs = authView === 'login' || authView === 'register';
@@ -474,7 +457,6 @@ const LoginRegisterPage: React.FC = () => {
               onToggleView={handleToggleToRegister}
               onForgotPassword={handleToggleToForgot}
               onNeedsVerification={goToVerify}
-              onNeedsProfileCompletion={goToCompleteProfile}
             />
           )}
 
@@ -482,7 +464,6 @@ const LoginRegisterPage: React.FC = () => {
             <RegisterForm
               onToggleView={handleToggleToLogin}
               onNeedsVerification={goToVerify}
-              onNeedsProfileCompletion={goToCompleteProfile}
             />
           )}
 
@@ -493,13 +474,6 @@ const LoginRegisterPage: React.FC = () => {
           {authView === 'verify' && (
             <VerifyAccountForm
               email={pendingVerifyEmail}
-              onToggleView={() => handleToggleToLogin()}
-            />
-          )}
-
-          {authView === 'completeProfile' && pendingGoogleProfile && (
-            <CompleteProfileForm
-              profile={pendingGoogleProfile}
               onToggleView={() => handleToggleToLogin()}
             />
           )}
