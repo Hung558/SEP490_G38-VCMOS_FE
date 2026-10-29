@@ -97,7 +97,6 @@ const MenuUser = () => {
       label: (
         <div className="account-infor">
           <Avatar
-            src={user?.avatar}
             size={36}
             icon={<UserOutlined />}
             style={{ backgroundColor: '#0d9488' }}

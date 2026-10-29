@@ -149,12 +149,6 @@ const SubmitButton = styled.button`
 interface RegisterFormProps {
   onToggleView: (registeredIdentifier?: string) => void;
   onNeedsVerification: (email: string) => void;
-  onNeedsProfileCompletion?: (profile: {
-    googleAccessToken: string;
-    email: string;
-    fullName: string;
-    avatarUrl?: string;
-  }) => void;
 }
 
 const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {

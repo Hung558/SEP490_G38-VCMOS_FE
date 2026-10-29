@@ -7,6 +7,7 @@ import ROUTER from '@/routerMap/ROUTER';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import MenuUser from '@/components/layout/Header/components/MenuUser';
+import { EmailVerifyBadge } from '@/components/common/EmailVerifyReminder';
 
 const { Header } = Layout;
 
@@ -268,6 +269,7 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
       <div className="right-section">
         {isLogin ? (
           <>
+            <EmailVerifyBadge />
             <Button
               className="btn-booking"
               onClick={() => scrollToSection('quick-booking')}
@@ -284,7 +286,6 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
                   {user?.fullName || user?.username}
                 </span>
                 <Avatar
-                  src={user?.avatar}
                   size={34}
                   icon={<UserOutlined />}
                   style={{

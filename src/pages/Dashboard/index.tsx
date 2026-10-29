@@ -12,7 +12,6 @@ import {
   Modal,
   Steps,
   Segmented,
-  Popconfirm,
   Avatar,
   Tooltip,
 } from 'antd';
@@ -25,7 +24,7 @@ import {
   EyeOutlined,
   ReloadOutlined,
   EditOutlined,
-  InboxOutlined,
+  DeleteOutlined,
   CopyOutlined,
   CheckOutlined,
 } from '@ant-design/icons';
@@ -37,6 +36,7 @@ import AiAssessmentSection from './components/AiAssessmentSection';
 import PetService from '@/services/PetService';
 import type { Pet, PetStatusFilter } from '@/types';
 import PetFormModal from './components/PetFormModal';
+import DeletePetModal from './components/DeletePetModal';
 import PetDetailModal, {
   calculatePetAge,
   getSpeciesEmoji,
@@ -319,6 +319,7 @@ const DashboardPage: React.FC = () => {
   const [isPetDetailModalOpen, setIsPetDetailModalOpen] = useState(false);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [editingPet, setEditingPet] = useState<Pet | null>(null);
+  const [petToDelete, setPetToDelete] = useState<Pet | null>(null);
 
   const fetchPets = useCallback(async () => {
     try {
@@ -351,14 +352,16 @@ const DashboardPage: React.FC = () => {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  // Called by DeletePetModal once the owner has typed the pet's name
   const handleDeletePet = async (pet: Pet) => {
     try {
       await PetService.deletePet(pet._id);
-      toast.success(`Đã lưu trữ hồ sơ bé ${pet.name}!`);
+      toast.success(`Đã xóa hồ sơ bé ${pet.name}`);
+      setPetToDelete(null);
       fetchPets();
     } catch (error: any) {
       toast.error(
-        error?.response?.data?.message || 'Không thể lưu trữ hồ sơ thú cưng'
+        error?.response?.data?.message || 'Không thể xóa hồ sơ thú cưng'
       );
     }
   };
@@ -559,7 +562,7 @@ const DashboardPage: React.FC = () => {
       key: 'status',
       render: (status: string) => (
         <Tag color={status === 'Active' ? 'cyan' : 'default'}>
-          {status === 'Active' ? 'Đang nuôi' : 'Đã lưu trữ'}
+          {status === 'Active' ? 'Đang nuôi' : 'Đã xóa'}
         </Tag>
       ),
     },
@@ -594,21 +597,14 @@ const DashboardPage: React.FC = () => {
           )}
 
           {record.status === 'Active' && (
-            <Popconfirm
-              title="Lưu trữ hồ sơ thú cưng"
-              description={`Bạn có chắc muốn lưu trữ hồ sơ bé ${record.name}?`}
-              onConfirm={() => handleDeletePet(record)}
-              okText="Đồng ý"
-              cancelText="Hủy"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                size="small"
-                danger
-                icon={<InboxOutlined />}
-                title="Lưu trữ thú cưng"
-              />
-            </Popconfirm>
+            <Button
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              title="Xóa thú cưng"
+              aria-label={`Xóa thú cưng ${record.name}`}
+              onClick={() => setPetToDelete(record)}
+            />
           )}
 
           <Button
@@ -887,7 +883,7 @@ const DashboardPage: React.FC = () => {
               }}
               options={[
                 { label: 'Đang nuôi (Active)', value: 'Active' },
-                { label: 'Đã lưu trữ (Archived)', value: 'Archived' },
+                { label: 'Đã xóa (Deleted)', value: 'Deleted' },
                 { label: 'Tất cả (All)', value: 'All' },
               ]}
             />
@@ -934,8 +930,8 @@ const DashboardPage: React.FC = () => {
                 <div
                   style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}
                 >
-                  {statusFilter === 'Archived'
-                    ? 'Không có thú cưng nào trong mục lưu trữ'
+                  {statusFilter === 'Deleted'
+                    ? 'Không có thú cưng nào đã xóa'
                     : 'Bạn chưa có hồ sơ thú cưng nào'}
                 </div>
                 <div
@@ -949,7 +945,7 @@ const DashboardPage: React.FC = () => {
                   Đăng ký thông tin thú cưng để theo dõi lịch tiêm phòng, bệnh
                   án điện tử và đặt hẹn ưu tiên
                 </div>
-                {statusFilter !== 'Archived' && (
+                {statusFilter !== 'Deleted' && (
                   <Button
                     type="primary"
                     style={{ background: '#0d9488', borderColor: '#0d9488' }}
@@ -1099,11 +1095,18 @@ const DashboardPage: React.FC = () => {
           setEditingPet(pet);
           setIsPetFormModalOpen(true);
         }}
-        onDelete={handleDeletePet}
+        onDelete={pet => setPetToDelete(pet)}
         onBookAppointment={pet => {
           navigate(ROUTER.HOME + '#quick-booking');
           toast.info(`Đặt lịch khám cho bé ${pet.name}`);
         }}
+      />
+
+      {/* Pet Delete Confirmation (type the pet's name) */}
+      <DeletePetModal
+        pet={petToDelete}
+        onCancel={() => setPetToDelete(null)}
+        onConfirm={handleDeletePet}
       />
     </DashboardWrapper>
   );

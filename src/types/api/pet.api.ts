@@ -10,13 +10,13 @@ export interface Pet {
   dob?: string | null;
   weight?: number | null;
   photoUrl?: string | null;
-  status: 'Active' | 'Archived';
+  status: 'Active' | 'Deleted';
   createdAt: string;
   updatedAt: string;
   __v?: number;
 }
 
-export type PetStatusFilter = 'Active' | 'Archived' | 'All';
+export type PetStatusFilter = 'Active' | 'Deleted' | 'All';
 
 export interface ListPetsParams {
   status?: PetStatusFilter;

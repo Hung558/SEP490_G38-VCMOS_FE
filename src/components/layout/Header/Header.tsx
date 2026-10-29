@@ -156,7 +156,6 @@ const HeaderTop = ({ ...rest }) => {
                     </div>
                   </div>
                   <Avatar
-                    src={user?.avatar}
                     size={36}
                     className="style-avt"
                     icon={<UserOutlined />}
