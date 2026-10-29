@@ -170,12 +170,6 @@ interface LoginFormProps {
   onToggleView: () => void;
   onForgotPassword: () => void;
   onNeedsVerification: (email: string) => void;
-  onNeedsProfileCompletion?: (profile: {
-    googleAccessToken: string;
-    email: string;
-    fullName: string;
-    avatarUrl?: string;
-  }) => void;
   initialIdentifier?: string;
 }
 
@@ -201,19 +195,23 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
     const loginInfo: Login = {
       _id: rawUser._id,
+      code: rawUser.code,
       token: token,
       expiredAt: data.expiredAt || Date.now() + 24 * 60 * 60 * 1000,
       username: rawUser.username || rawUser.phone || '',
       fullName: rawUser.fullName || '',
       phone: rawUser.phone,
       email: rawUser.email,
-      avatar: rawUser.avatar || '',
+      isEmailVerified: rawUser.isEmailVerified === true,
       systemRole: rawUser.systemRole || rawUser.role || 'user',
       role: rawUser.role || 'user',
+      status: rawUser.status,
     };
 
     storage.setLocalStorage(STORAGE.TOKEN, loginInfo.token);
     storage.setLocalStorage(STORAGE.USER_INFO, JSON.stringify(loginInfo));
+    // Every new login shows the "verify your email" notice again
+    storage.deleteSessionStorage(STORAGE.EMAIL_NOTICE_DISMISSED);
     setIsLogin(STORAGE.TOKEN);
     setUser(loginInfo);
 

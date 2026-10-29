@@ -43,7 +43,7 @@ import {
   getSpeciesEmoji,
 } from '../Dashboard/components/PetDetailModal';
 import { useAuth } from '@/contexts/routerProvider/authContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
@@ -342,8 +342,10 @@ const MilestoneCard = styled.div`
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, setUser } = useAuth();
   const [profile, setProfile] = useState<any>(user);
+  const [profileLoaded, setProfileLoaded] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [isSoapModalOpen, setIsSoapModalOpen] = useState<boolean>(false);
@@ -421,6 +423,7 @@ const ProfilePage: React.FC = () => {
       .then((res: any) => {
         if (res && res.user) {
           setProfile(res.user);
+          setProfileLoaded(true);
           const currentInfo = storage.getLocalStorage<any>(STORAGE.USER_INFO);
           if (currentInfo) {
             const updated = { ...currentInfo, ...res.user };
@@ -500,6 +503,23 @@ const ProfilePage: React.FC = () => {
     setIsVerifyEmailModalOpen(true);
     await handleSendEmailOtp();
   };
+
+  // Opened from the "verify your email" notice: start the flow once the
+  // fresh profile is loaded (add an email first if the account has none)
+  const wantsVerifyEmail = Boolean(
+    (location.state as { openVerifyEmail?: boolean } | null)?.openVerifyEmail
+  );
+  useEffect(() => {
+    if (!wantsVerifyEmail || !profileLoaded) return;
+    navigate(location.pathname, { replace: true, state: null });
+    if (profile?.isEmailVerified) return;
+    if (profile?.email) {
+      openVerifyEmailModal();
+    } else {
+      openEditModal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantsVerifyEmail, profileLoaded]);
 
   const handleSendEmailOtp = async () => {
     try {

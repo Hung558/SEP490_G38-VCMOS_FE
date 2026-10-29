@@ -2,16 +2,21 @@ import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useCollapseMenu } from '@/contexts/routerProvider/collapseMenuContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import { type MenuItem, getMenuByRole } from '@/routerMap/MenuItem';
-import { Layout, Menu, theme, Avatar, Button } from 'antd';
+import { Layout, Menu, theme, Avatar, Button, Popover } from 'antd';
 import { LogoutOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons';
 import { PanelLeftIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { storage } from '@/lib/storage';
+import {
+  EmailVerifyBadge,
+  EmailVerifyNoticeModal,
+} from '@/components/common/EmailVerifyReminder';
 import styles from './mainLayout.module.scss';
 import ROUTER from '@/routerMap/ROUTER';
 import Breadcrumb from '../Breadcrumb/Breadcrumb';
+import MenuUser from '../Header/components/MenuUser';
 
 const LayoutLeftMenuStyle = styled(Menu)`
   background: #ffffff !important;
@@ -97,6 +102,36 @@ const BrandHeader = styled.div`
     font-size: 11px;
     color: #64748b;
     margin: 0;
+  }
+`;
+
+// Right side of the top bar: same "home + account" actions as the homepage header
+const TopBarActions = styled.div`
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .top-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .top-user-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  @media (max-width: 768px) {
+    gap: 8px;
+
+    .top-user-name,
+    .home-label {
+      display: none;
+    }
   }
 `;
 
@@ -204,7 +239,6 @@ const MainLayout = ({ ...rest }: any) => {
               <div className={styles.userInfoRow}>
                 <div className={styles.userProfile}>
                   <Avatar
-                    src={user?.avatar}
                     size={32}
                     icon={<UserOutlined />}
                     style={{
@@ -264,6 +298,36 @@ const MainLayout = ({ ...rest }: any) => {
             }}
           />
           <Breadcrumb />
+
+          <TopBarActions>
+            <EmailVerifyBadge />
+            <Button
+              icon={<HomeOutlined />}
+              onClick={() => navigate(ROUTER.HOME)}
+              aria-label="Trang chủ"
+            >
+              <span className="home-label">Trang chủ</span>
+            </Button>
+            <Popover
+              content={<MenuUser />}
+              trigger="hover"
+              placement="bottomRight"
+            >
+              <div className="top-user">
+                <span className="top-user-name">
+                  {user?.fullName || user?.username || 'User'}
+                </span>
+                <Avatar
+                  size={34}
+                  icon={<UserOutlined />}
+                  style={{
+                    backgroundColor: '#0d9488',
+                    border: '1.5px solid #ccfbf1',
+                  }}
+                />
+              </div>
+            </Popover>
+          </TopBarActions>
         </div>
 
         <Content
@@ -275,6 +339,8 @@ const MainLayout = ({ ...rest }: any) => {
           {children}
         </Content>
       </Layout>
+
+      <EmailVerifyNoticeModal />
     </Layout>
   );
 };

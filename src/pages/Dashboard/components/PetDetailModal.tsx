@@ -1,12 +1,12 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Modal, Tag, Button, Typography, Popconfirm } from 'antd';
+import { Modal, Tag, Button, Typography } from 'antd';
 import {
   EditOutlined,
   CalendarOutlined,
   CopyOutlined,
   CheckOutlined,
-  InboxOutlined,
+  DeleteOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -20,6 +20,7 @@ interface PetDetailModalProps {
   onCancel: () => void;
   pet?: Pet | null;
   onEdit?: (pet: Pet) => void;
+  /** Starts the delete confirmation for this pet */
   onDelete?: (pet: Pet) => void;
   onBookAppointment?: (pet: Pet) => void;
 }
@@ -216,7 +217,7 @@ const PetDetailModal: React.FC<PetDetailModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isArchived = pet.status === 'Archived';
+  const isDeleted = pet.status === 'Deleted';
 
   return (
     <Modal
@@ -242,22 +243,20 @@ const PetDetailModal: React.FC<PetDetailModalProps> = ({
         <Button key="close" onClick={onCancel}>
           Đóng
         </Button>,
-        !isArchived && onDelete && (
-          <Popconfirm
-            key="archive"
-            title="Lưu trữ hồ sơ thú cưng"
-            description="Bạn có chắc chắn muốn lưu trữ hồ sơ thú cưng này không? Thú cưng sẽ chuyển sang mục Lưu trữ."
-            onConfirm={() => onDelete(pet)}
-            okText="Đồng ý lưu trữ"
-            cancelText="Hủy"
-            okButtonProps={{ danger: true }}
+        !isDeleted && onDelete && (
+          <Button
+            key="delete"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => {
+              onCancel();
+              onDelete(pet);
+            }}
           >
-            <Button danger icon={<InboxOutlined />}>
-              Lưu trữ
-            </Button>
-          </Popconfirm>
+            Xóa
+          </Button>
         ),
-        !isArchived && onEdit && (
+        !isDeleted && onEdit && (
           <Button
             key="edit"
             icon={<EditOutlined />}
@@ -299,8 +298,8 @@ const PetDetailModal: React.FC<PetDetailModalProps> = ({
           <div className="hero-meta">
             <div className="hero-title-row">
               <h3>{pet.name}</h3>
-              <Tag color={isArchived ? 'default' : 'cyan'}>
-                {isArchived ? 'Đã lưu trữ' : 'Đang theo dõi'}
+              <Tag color={isDeleted ? 'default' : 'cyan'}>
+                {isDeleted ? 'Đã xóa' : 'Đang theo dõi'}
               </Tag>
             </div>
 

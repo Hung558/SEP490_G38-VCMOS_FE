@@ -28,35 +28,42 @@ const HospitalBannerCard = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow:
-    0 12px 36px -8px rgba(15, 23, 42, 0.2),
-    0 4px 12px rgba(0, 0, 0, 0.08);
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 32px -16px rgba(15, 23, 42, 0.12);
 
-  /* Background Hospital Photography */
+  /* Hospital photo on the right, fading into the white background */
   background-image: url('/images/vcmos_hospital_hero.jpg');
-  background-size: cover;
-  background-position: center right;
+  background-size: auto 100%;
+  background-position: right center;
   background-repeat: no-repeat;
 
-  /* Left-heavy gradient overlay for WCAG AAA text legibility */
   &::before {
     content: '';
     position: absolute;
     inset: 0;
     background: linear-gradient(
       90deg,
-      rgba(15, 23, 42, 0.94) 0%,
-      rgba(15, 23, 42, 0.88) 38%,
-      rgba(15, 23, 42, 0.55) 65%,
-      rgba(15, 23, 42, 0.15) 100%
+      #ffffff 0%,
+      #ffffff 40%,
+      rgba(255, 255, 255, 0.85) 54%,
+      rgba(255, 255, 255, 0.25) 70%,
+      rgba(255, 255, 255, 0) 84%
     );
     z-index: 1;
+  }
 
-    @media (max-width: 900px) {
+  /* Small screens: photo on top, text below it on white */
+  @media (max-width: 900px) {
+    background-size: 100% auto;
+    background-position: top center;
+
+    &::before {
       background: linear-gradient(
         180deg,
-        rgba(15, 23, 42, 0.96) 0%,
-        rgba(15, 23, 42, 0.88) 100%
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0) 150px,
+        #ffffff 230px
       );
     }
   }
@@ -67,8 +74,8 @@ const HospitalBannerCard = styled.div`
     padding: 44px 48px 32px 48px;
     max-width: 720px;
 
-    @media (max-width: 768px) {
-      padding: 32px 24px;
+    @media (max-width: 900px) {
+      padding: 230px 24px 32px;
     }
 
     .breadcrumb-row {
@@ -77,25 +84,25 @@ const HospitalBannerCard = styled.div`
       gap: 8px;
       font-size: 13.5px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.9);
+      color: #475569;
       margin-bottom: 24px;
       letter-spacing: 0.2px;
 
       .home-icon {
-        color: #fbbf24;
+        color: #0d9488;
         font-size: 15px;
       }
 
       .separator {
-        color: rgba(255, 255, 255, 0.5);
+        color: #94a3b8;
       }
 
       .clinic-tag {
-        color: #5eead4;
-        background: rgba(13, 148, 136, 0.25);
+        color: #0f766e;
+        background: #f0fdfa;
         padding: 3px 10px;
         border-radius: 9999px;
-        border: 1px solid rgba(45, 212, 191, 0.3);
+        border: 1px solid #ccfbf1;
       }
     }
 
@@ -103,10 +110,9 @@ const HospitalBannerCard = styled.div`
       font-size: 44px;
       font-weight: 800;
       line-height: 1.2;
-      color: #ffffff;
+      color: #0f172a;
       letter-spacing: -0.025em;
       margin: 0 0 18px 0;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 
       @media (max-width: 768px) {
         font-size: 30px;
@@ -115,7 +121,7 @@ const HospitalBannerCard = styled.div`
 
     p.hospital-subtitle {
       font-size: 17.5px;
-      color: rgba(241, 245, 249, 0.94);
+      color: #475569;
       line-height: 1.6;
       margin: 0 0 32px 0;
       max-width: 600px;
@@ -142,7 +148,7 @@ const HospitalBannerCard = styled.div`
         border-radius: 8px;
         font-weight: 600;
         font-size: 15px;
-        box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+        box-shadow: 0 4px 12px rgba(13, 148, 136, 0.22);
         transition: all 0.2s ease;
 
         &:hover {
@@ -152,36 +158,35 @@ const HospitalBannerCard = styled.div`
         }
       }
 
-      .btn-outline-white {
-        background: rgba(255, 255, 255, 0.12);
-        border: 1.5px solid rgba(255, 255, 255, 0.6);
-        color: #ffffff;
+      .btn-outline-light {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        color: #0f172a;
         height: 46px;
         padding: 0 22px;
         border-radius: 8px;
         font-weight: 600;
         font-size: 14.5px;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
         transition: all 0.2s ease;
 
         &:hover {
-          background: rgba(255, 255, 255, 0.24) !important;
-          border-color: #ffffff !important;
-          color: #ffffff !important;
+          background: #f0fdfa !important;
+          border-color: #0d9488 !important;
+          color: #0f766e !important;
           transform: translateY(-1px);
         }
       }
     }
   }
 
-  /* Sub-Navigation Bar - matches system primary clinical teal */
+  /* Sub-navigation bar: light teal tint over the bottom of the photo */
   .hospital-subnav {
     position: relative;
     z-index: 2;
-    background: #0f766e;
-    background: linear-gradient(90deg, #115e59 0%, #0d9488 50%, #0f766e 100%);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(240, 253, 250, 0.94);
+    border-top: 1px solid #ccfbf1;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     padding: 0 32px;
     display: flex;
     align-items: center;
@@ -205,7 +210,7 @@ const HospitalBannerCard = styled.div`
       }
 
       a.subnav-item {
-        color: #ffffff;
+        color: #134e4a;
         font-size: 13.5px;
         font-weight: 600;
         text-decoration: none;
@@ -214,13 +219,17 @@ const HospitalBannerCard = styled.div`
         gap: 6px;
         transition: all 0.15s ease;
 
+        .anticon {
+          color: #0d9488;
+        }
+
         &:hover {
-          color: #ccfbf1;
+          color: #0d9488;
           transform: translateY(-1px);
         }
 
         &.highlight {
-          color: #fef08a;
+          color: #0f766e;
           font-weight: 700;
         }
       }
@@ -231,16 +240,16 @@ const HospitalBannerCard = styled.div`
       align-items: center;
       gap: 8px;
       font-size: 13px;
-      color: #ffffff;
+      color: #334155;
       font-weight: 500;
 
       .icon {
-        color: #fef08a;
+        color: #0d9488;
         font-size: 15px;
       }
 
       strong {
-        color: #ffffff;
+        color: #0f172a;
         font-weight: 700;
       }
     }
@@ -369,13 +378,13 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
               Đặt lịch hẹn khám ưu tiên
             </Button>
             <Button
-              className="btn-outline-white"
+              className="btn-outline-light"
               onClick={() => scrollToSection('services')}
             >
               Dịch vụ & Bảng giá &rsaquo;
             </Button>
             <Button
-              className="btn-outline-white"
+              className="btn-outline-light"
               onClick={() => scrollToSection('doctors')}
             >
               Đội ngũ Bác sĩ

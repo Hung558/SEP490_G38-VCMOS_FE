@@ -8,7 +8,6 @@ import ForgotPasswordForm from './components/ForgotPasswordForm';
 import VerifyAccountForm from './components/VerifyAccountForm';
 import {
   HomeOutlined,
-  CheckCircleFilled,
   ArrowLeftOutlined,
   PlusCircleFilled,
 } from '@ant-design/icons';
@@ -66,7 +65,9 @@ const PageWrapper = styled.div`
 const UnifiedAuthCard = styled.div`
   width: 100%;
   max-width: 1040px;
-  min-height: 620px;
+  /* Taller than both the login and register forms, so switching tabs
+     never resizes the card or the photo on the left */
+  min-height: 720px;
   background: #ffffff;
   border-radius: 28px;
   box-shadow:
@@ -109,31 +110,6 @@ const HeroShowcasePanel = styled.div`
   }
 `;
 
-const ShowcaseHeader = styled.div`
-  position: relative;
-  margin-bottom: 20px;
-
-  .sparkle-icon {
-    display: inline-flex;
-    color: #0d9488;
-    font-size: 14px;
-    margin-right: 8px;
-  }
-
-  h1 {
-    font-size: 21px;
-    font-weight: 800;
-    line-height: 1.35;
-    color: #0f172a;
-    letter-spacing: -0.02em;
-    margin: 0;
-
-    span.highlight {
-      color: #0d9488;
-    }
-  }
-`;
-
 const DoctorCardWrapper = styled.div`
   position: relative;
   border-radius: 24px;
@@ -156,42 +132,6 @@ const DoctorCardWrapper = styled.div`
 
   &:hover img.doctor-img {
     transform: scale(1.02);
-  }
-`;
-
-const FloatingBadge = styled.div<{ $position: 'left' | 'right' }>`
-  position: absolute;
-  ${props =>
-    props.$position === 'left'
-      ? 'top: 36%; left: 16px;'
-      : 'bottom: 22px; right: 16px;'}
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  padding: 8px 14px;
-  border-radius: 9999px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #0f172a;
-  z-index: 3;
-  animation: floatAnim 4s ease-in-out infinite alternate;
-
-  @keyframes floatAnim {
-    0% {
-      transform: translateY(0px);
-    }
-    100% {
-      transform: translateY(-4px);
-    }
-  }
-
-  .badge-icon {
-    font-size: 16px;
-    color: ${props => (props.$position === 'left' ? '#0d9488' : '#10b981')};
   }
 `;
 
@@ -375,30 +315,12 @@ const LoginRegisterPage: React.FC = () => {
       <UnifiedAuthCard>
         {/* Left Hero Illustration Showcase */}
         <HeroShowcasePanel>
-          <ShowcaseHeader>
-            <h1>
-              <span className="sparkle-icon">✦</span>
-              Chăm Sóc & Bảo Vệ Sức Khỏe Thú Cưng —{' '}
-              <span className="highlight">Đặt Lịch Trực Tuyến Dễ Dàng.</span>
-            </h1>
-          </ShowcaseHeader>
-
           <DoctorCardWrapper>
             <img
               src="/images/auth_doctor_banner.jpg"
               alt="Bác sĩ thú y VCMOS"
               className="doctor-img"
             />
-
-            <FloatingBadge $position="left">
-              <CheckCircleFilled className="badge-icon" />
-              <span>15.000+ Thú cưng được chăm sóc</span>
-            </FloatingBadge>
-
-            <FloatingBadge $position="right">
-              <CheckCircleFilled className="badge-icon" />
-              <span>98% Tỉ lệ hồi phục hoàn hảo</span>
-            </FloatingBadge>
           </DoctorCardWrapper>
         </HeroShowcasePanel>
 

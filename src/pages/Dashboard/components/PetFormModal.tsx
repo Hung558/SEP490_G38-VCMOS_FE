@@ -115,42 +115,28 @@ const ModalContentWrapper = styled.div`
   }
 `;
 
-const POPULAR_SPECIES = [
-  { label: '🐕 Chó (Canine)', value: 'Chó' },
-  { label: '🐈 Mèo (Feline)', value: 'Mèo' },
-  { label: '🐇 Thỏ (Rabbit)', value: 'Thỏ' },
-  { label: '🦜 Chim cảnh (Avian)', value: 'Chim' },
-  { label: '🐹 Chuột Hamster', value: 'Hamster' },
-  { label: '🦎 Bò sát (Reptile)', value: 'Bò sát' },
-  { label: '🐾 Thú cưng khác', value: 'Khác' },
+// "Thú cưng khác" is only a choice in the list: the owner types the real
+// species name in the extra input, and that text is what gets saved
+const OTHER_SPECIES = 'other';
+
+const SPECIES_OPTIONS = [
+  { label: 'Chó', value: 'Chó' },
+  { label: 'Mèo', value: 'Mèo' },
+  { label: 'Thú cưng khác', value: OTHER_SPECIES },
 ];
 
-const BREED_SUGGESTIONS: Record<string, string[]> = {
-  Chó: [
-    'Poodle',
-    'Corgi',
-    'Golden Retriever',
-    'Phốc Sóc (Pomeranian)',
-    'Husky',
-    'Samoyed',
-    'Bulldog Pháp',
-    'Chó Ta / Chó Cỏ',
-    'Chihuahua',
-    'Labrador',
-  ],
-  Mèo: [
-    'Anh lông ngắn (BSH)',
-    'Anh lông dài (BLH)',
-    'Mèo Mướp',
-    'Mèo Ba Tư',
-    'Mèo Xiêm',
-    'Mèo Ragdoll',
-    'Mèo Bengal',
-    'Mèo Munchkin',
-    'Mèo Sphynx',
-  ],
-  Thỏ: ['Thỏ Minilop', 'Thỏ New Zealand', 'Thỏ Lionhead', 'Thỏ Hà Lan'],
-  Hamster: ['Hamster Bear', 'Hamster Winter White', 'Hamster Robo'],
+// Splits a saved species ("Chó", "Dog", "Thỏ"...) into the two form fields
+const toSpeciesFields = (species?: string | null) => {
+  const value = species?.trim() || '';
+  const lower = value.toLowerCase();
+  if (!value) return { species: undefined, speciesOther: '' };
+  if (lower === 'chó' || lower === 'dog') {
+    return { species: 'Chó', speciesOther: '' };
+  }
+  if (lower === 'mèo' || lower === 'cat') {
+    return { species: 'Mèo', speciesOther: '' };
+  }
+  return { species: OTHER_SPECIES, speciesOther: value };
 };
 
 const PetFormModal: React.FC<PetFormModalProps> = ({
@@ -163,7 +149,7 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedSpecies, setSelectedSpecies] = useState<string>('Chó');
+  const speciesChoice = Form.useWatch('species', form);
 
   const isEdit = Boolean(editingPet);
 
@@ -173,20 +159,18 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
       if (editingPet) {
         form.setFieldsValue({
           name: editingPet.name,
-          species: editingPet.species || 'Chó',
+          ...toSpeciesFields(editingPet.species),
           breed: editingPet.breed || '',
           coatColor: editingPet.coatColor || '',
           dob: editingPet.dob ? dayjs(editingPet.dob) : null,
           weight: editingPet.weight ?? null,
           notes: editingPet.notes || '',
         });
-        setSelectedSpecies(editingPet.species || 'Chó');
         setPreviewUrl(editingPet.photoUrl || null);
         setSelectedFile(null);
       } else {
         form.resetFields();
         form.setFieldsValue({ species: 'Chó' });
-        setSelectedSpecies('Chó');
         setSelectedFile(null);
         setPreviewUrl(null);
       }
@@ -236,8 +220,12 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
       const formData = new FormData();
       formData.append('name', values.name.trim());
 
-      if (values.species) {
-        formData.append('species', values.species.trim());
+      const species =
+        values.species === OTHER_SPECIES
+          ? values.speciesOther?.trim()
+          : values.species;
+      if (species) {
+        formData.append('species', species);
       } else if (isEdit) {
         formData.append('species', '');
       }
@@ -304,11 +292,6 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
       setLoading(false);
     }
   };
-
-  const breedOptions = (BREED_SUGGESTIONS[selectedSpecies] || []).map(b => ({
-    label: b,
-    value: b,
-  }));
 
   return (
     <Modal
@@ -430,14 +413,33 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
               <Form.Item
                 label={<Text strong>Loài thú cưng</Text>}
                 name="species"
-                rules={[{ max: 50, message: 'Loài không quá 50 ký tự' }]}
               >
                 <Select
-                  options={POPULAR_SPECIES}
+                  options={SPECIES_OPTIONS}
                   placeholder="Chọn loài thú cưng"
-                  onChange={val => setSelectedSpecies(val)}
+                  allowClear
                 />
               </Form.Item>
+
+              {speciesChoice === OTHER_SPECIES && (
+                <Form.Item
+                  label={<Text strong>Tên loài</Text>}
+                  name="speciesOther"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: 'Vui lòng nhập tên loài thú cưng!',
+                    },
+                    { max: 50, message: 'Tên loài không quá 50 ký tự' },
+                  ]}
+                >
+                  <Input
+                    placeholder="Ví dụ: Thỏ, Hamster, Chim cảnh..."
+                    maxLength={50}
+                  />
+                </Form.Item>
+              )}
             </Col>
           </Row>
 
@@ -448,16 +450,10 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
                 name="breed"
                 rules={[{ max: 50, message: 'Giống không quá 50 ký tự' }]}
               >
-                <Select
-                  showSearch
+                <Input
+                  placeholder="Ví dụ: Poodle, Corgi, Mèo Anh lông ngắn..."
+                  maxLength={50}
                   allowClear
-                  placeholder="Ví dụ: Poodle, Corgi, Anh lông ngắn..."
-                  options={breedOptions}
-                  filterOption={(input, option) =>
-                    (option?.label ?? '')
-                      .toLowerCase()
-                      .includes(input.toLowerCase())
-                  }
                 />
               </Form.Item>
             </Col>

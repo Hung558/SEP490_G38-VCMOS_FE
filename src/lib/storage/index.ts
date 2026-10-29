@@ -2,6 +2,8 @@
 export const STORAGE = {
   TOKEN: 'token',
   USER_INFO: 'user-info',
+  // sessionStorage: user closed the "verify your email" notice in this session
+  EMAIL_NOTICE_DISMISSED: 'email-notice-dismissed',
 } as const;
 
 // Type của các key

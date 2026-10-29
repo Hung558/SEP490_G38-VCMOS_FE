@@ -4,8 +4,6 @@ import AuthService from '../AuthService';
 import {
   apiGetMyProfile,
   apiUpdateMyProfile,
-  apiGoogleLogin,
-  apiCompleteGoogleProfile,
   apiForgotPassword,
   apiResetPassword,
   apiVerifyAccount,
@@ -36,9 +34,6 @@ const getMyProfile = () => api.get(apiGetMyProfile);
 const updateMyProfile = (data: UpdateProfilePayload) =>
   api.put(apiUpdateMyProfile, data);
 
-const googleLogin = (data: any) => api.post(apiGoogleLogin, data);
-const completeGoogleProfile = (data: any) =>
-  api.post(apiCompleteGoogleProfile, data);
 const forgotPassword = (data: any) => api.post(apiForgotPassword, data);
 const resetPassword = (data: any) => api.post(apiResetPassword, data);
 const verifyAccount = (data: any) => api.post(apiVerifyAccount, data);
@@ -58,8 +53,6 @@ const UserService = {
   verifyMyEmail,
   sendChangePasswordOtp,
   changeMyPassword,
-  googleLogin,
-  completeGoogleProfile,
   forgotPassword,
   resetPassword,
   verifyAccount,
