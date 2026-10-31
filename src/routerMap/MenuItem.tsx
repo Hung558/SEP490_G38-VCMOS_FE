@@ -3,7 +3,7 @@ import {
   DashboardOutlined,
   UserOutlined,
   HomeOutlined,
-  SettingOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import ROUTER from './ROUTER';
 
@@ -69,16 +69,16 @@ export const MenuItemAdmin = (): MenuItem[] => {
   return [
     ...MenuItemCommon(),
     {
-      key: '/settings',
-      label: 'Cài đặt hệ thống',
-      icon: <SettingOutlined />,
+      key: ROUTER.ADMIN_USERS,
+      label: 'Quản lý tài khoản',
+      icon: <TeamOutlined />,
     },
   ];
 };
 
 /** Hàm helper: Lấy menu theo role */
 export const getMenuByRole = (role?: string): MenuItem[] => {
-  if (role === 'ADMIN' || role === 'admin') {
+  if (role && role.toLowerCase() === 'admin') {
     return MenuItemAdmin();
   }
   return MenuItemCommon();

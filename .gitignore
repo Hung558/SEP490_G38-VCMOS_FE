@@ -36,3 +36,6 @@ ui/
 
 # Ignore prompt function description updates
 prompt_function-description/update/
+
+# Test artifacts
+tests/screenshots/
