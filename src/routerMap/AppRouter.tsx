@@ -9,6 +9,10 @@ import PublicRouters from '@/pages/SUPPORTPAGES/PublicRouters';
 import ProtectedRoute from '@/pages/SUPPORTPAGES/ProtectedRoute';
 import NotFound from '@/pages/SUPPORTPAGES/NotFound';
 import AdminRoute from '@/pages/SUPPORTPAGES/AdminRoute';
+import {
+  EmailVerifyNoticeModal,
+  EmailVerifyFloatingWidget,
+} from '@/components/common/EmailVerifyReminder';
 
 // Pages
 import HomePage from '@/pages/Home';
@@ -97,7 +101,13 @@ const AppRouter = () => {
     },
   ]);
 
-  return elements;
+  return (
+    <>
+      {elements}
+      <EmailVerifyNoticeModal />
+      <EmailVerifyFloatingWidget />
+    </>
+  );
 };
 
 export default AppRouter;
