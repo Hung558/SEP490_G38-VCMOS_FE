@@ -1,3 +1,4 @@
+import { STORAGE, storage } from '@/lib/storage';
 import { createContext, useContext, useMemo, useState } from 'react';
 
 type IsLoginContextType = {
@@ -12,7 +13,10 @@ export const IsLoginProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [isLogin, setIsLogin] = useState<string | null>(null);
+  const [isLogin, setIsLogin] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return storage.getLocalStorage<string>(STORAGE.TOKEN);
+  });
 
   const value = useMemo(() => ({ isLogin, setIsLogin }), [isLogin]);
 

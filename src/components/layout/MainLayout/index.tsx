@@ -9,10 +9,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { storage } from '@/lib/storage';
-import {
-  EmailVerifyBadge,
-  EmailVerifyNoticeModal,
-} from '@/components/common/EmailVerifyReminder';
+import { EmailVerifyBadge } from '@/components/common/EmailVerifyReminder';
 import styles from './mainLayout.module.scss';
 import ROUTER from '@/routerMap/ROUTER';
 import Breadcrumb from '../Breadcrumb/Breadcrumb';
@@ -339,8 +336,6 @@ const MainLayout = ({ ...rest }: any) => {
           {children}
         </Content>
       </Layout>
-
-      <EmailVerifyNoticeModal />
     </Layout>
   );
 };
