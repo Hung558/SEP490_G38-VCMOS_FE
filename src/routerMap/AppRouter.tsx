@@ -8,12 +8,14 @@ import ROUTER from './ROUTER';
 import PublicRouters from '@/pages/SUPPORTPAGES/PublicRouters';
 import ProtectedRoute from '@/pages/SUPPORTPAGES/ProtectedRoute';
 import NotFound from '@/pages/SUPPORTPAGES/NotFound';
+import AdminRoute from '@/pages/SUPPORTPAGES/AdminRoute';
 
 // Pages
 import HomePage from '@/pages/Home';
 import DashboardPage from '@/pages/Dashboard';
 import ProfilePage from '@/pages/Profile';
 import LoginRegisterPage from '@/pages/ANONYMOUS/Login_Register';
+import AdminUsersPage from '@/pages/AdminUsers';
 
 const AppRouter = () => {
   const elements = useRoutes([
@@ -54,6 +56,19 @@ const AppRouter = () => {
           <LoginRegisterPage />
         </Suspense>
       ),
+    },
+    {
+      element: <AdminRoute />,
+      children: [
+        {
+          path: ROUTER.ADMIN_USERS,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <AdminUsersPage />
+            </Suspense>
+          ),
+        },
+      ],
     },
     {
       element: <ProtectedRoute />,

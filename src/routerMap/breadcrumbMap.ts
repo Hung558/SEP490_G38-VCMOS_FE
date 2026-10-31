@@ -5,4 +5,6 @@ export const breadcrumbMap: Record<string, string> = {
   dashboard: 'Bảng điều khiển',
   profile: 'Thông tin cá nhân',
   settings: 'Cài đặt',
+  admin: 'Quản trị',
+  users: 'Quản lý tài khoản',
 };
