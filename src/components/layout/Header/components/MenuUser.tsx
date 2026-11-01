@@ -2,6 +2,7 @@ import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import { storage } from '@/lib/storage';
 import ROUTER from '@/routerMap/ROUTER';
+import { getRoleLabel } from '@/constants/roles';
 import {
   UserOutlined,
   DashboardOutlined,
@@ -106,6 +107,10 @@ const MenuUser = () => {
               {user?.fullName || 'Người dùng'}
             </div>
             <div className="account-infor-sumary-position">
+              <span style={{ color: '#0d9488', fontWeight: 600 }}>
+                {getRoleLabel(user?.role || user?.systemRole)}
+              </span>
+              {' • '}
               {user?.email || user?.phone || user?.username || 'Thành viên'}
             </div>
           </div>

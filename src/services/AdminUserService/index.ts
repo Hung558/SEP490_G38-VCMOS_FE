@@ -38,7 +38,7 @@ export interface CreateStaffPayload {
 
 export interface UpdateAdminUserPayload {
   fullName: string;
-  phone: string;
+  phone?: string;
   email?: string;
   role?: Exclude<AdminRole, 'PetOwner' | 'Admin'>;
 }

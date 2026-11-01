@@ -189,42 +189,33 @@ const AdminUsersPage = () => {
               Chi tiết
             </Button>
             {user.role !== 'Admin' && (
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setEditingUser(user);
-                  setFormOpen(true);
-                }}
-              >
-                Sửa
-              </Button>
-            )}
-            {user.status !== 'Active' && (
-              <Popconfirm
-                title="Kích hoạt tài khoản?"
-                onConfirm={() => handleStatus(user, 'Active')}
-              >
-                <Button type="link">Mở khóa</Button>
-              </Popconfirm>
-            )}
-            {user.status === 'Active' && (
               <>
-                <Popconfirm
-                  title="Khóa tài khoản này?"
-                  onConfirm={() => handleStatus(user, 'Locked')}
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    setEditingUser(user);
+                    setFormOpen(true);
+                  }}
                 >
-                  <Button danger type="link">
-                    Khóa
-                  </Button>
-                </Popconfirm>
-                <Popconfirm
-                  title="Vô hiệu hóa tài khoản này?"
-                  onConfirm={() => handleStatus(user, 'Inactive')}
-                >
-                  <Button danger type="link">
-                    Vô hiệu hóa
-                  </Button>
-                </Popconfirm>
+                  Sửa
+                </Button>
+                {user.status !== 'Active' ? (
+                  <Popconfirm
+                    title="Kích hoạt tài khoản?"
+                    onConfirm={() => handleStatus(user, 'Active')}
+                  >
+                    <Button type="link">Mở khóa</Button>
+                  </Popconfirm>
+                ) : (
+                  <Popconfirm
+                    title="Khóa tài khoản này?"
+                    onConfirm={() => handleStatus(user, 'Locked')}
+                  >
+                    <Button danger type="link">
+                      Khóa
+                    </Button>
+                  </Popconfirm>
+                )}
               </>
             )}
           </Space>

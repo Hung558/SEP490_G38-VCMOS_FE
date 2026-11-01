@@ -4,6 +4,7 @@ import { UserOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
+import { getRoleLabel } from '@/constants/roles';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import MenuUser from '@/components/layout/Header/components/MenuUser';
@@ -282,9 +283,27 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
               placement="bottomRight"
             >
               <div className="user-profile">
-                <span className="username">
-                  {user?.fullName || user?.username}
-                </span>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    lineHeight: 1.25,
+                  }}
+                >
+                  <span className="username">
+                    {user?.fullName || user?.username}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '11.5px',
+                      color: '#0d9488',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {getRoleLabel(user?.role || user?.systemRole)}
+                  </span>
+                </div>
                 <Avatar
                   size={34}
                   icon={<UserOutlined />}

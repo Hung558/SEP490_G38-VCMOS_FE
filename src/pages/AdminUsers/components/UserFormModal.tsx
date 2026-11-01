@@ -17,6 +17,7 @@ const roleLabels: Record<string, string> = {
   Receptionist: 'Lễ tân',
   Veterinarian: 'Bác sĩ thú y',
   Groomer: 'Groomer',
+  PetOwner: 'Chủ nuôi',
 };
 
 interface Props {
@@ -37,6 +38,8 @@ const UserFormModal = ({
   onSubmit,
 }: Props) => {
   const [form] = Form.useForm();
+  const isEditing = Boolean(editingUser);
+  const isPetOwner = editingUser?.role === 'PetOwner';
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +56,21 @@ const UserFormModal = ({
     }
   }, [editingUser, form, open]);
 
+  const handleFinish = (values: any) => {
+    if (editingUser) {
+      const payload: UpdateAdminUserPayload = {
+        fullName: values.fullName?.trim(),
+        phone: editingUser.phone,
+        email: editingUser.email || undefined,
+      };
+      if (!isPetOwner && values.role) {
+        payload.role = values.role;
+      }
+      return onSubmit(payload);
+    }
+    return onSubmit(values);
+  };
+
   return (
     <Modal
       open={open}
@@ -64,7 +82,7 @@ const UserFormModal = ({
       onOk={() => form.submit()}
       destroyOnHidden
     >
-      <Form form={form} layout="vertical" onFinish={onSubmit}>
+      <Form form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item
           name="fullName"
           label="Họ và tên"
@@ -83,14 +101,14 @@ const UserFormModal = ({
             },
           ]}
         >
-          <Input />
+          <Input disabled={isEditing} />
         </Form.Item>
         <Form.Item
           name="email"
           label="Email"
           rules={[{ type: 'email', message: 'Email không đúng định dạng' }]}
         >
-          <Input type="email" />
+          <Input type="email" disabled={isEditing} />
         </Form.Item>
         <Form.Item
           name="role"
@@ -98,10 +116,15 @@ const UserFormModal = ({
           rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
         >
           <Select
-            options={staffRoles.map(role => ({
-              value: role,
-              label: roleLabels[role],
-            }))}
+            disabled={isPetOwner}
+            options={
+              isPetOwner
+                ? [{ value: 'PetOwner', label: roleLabels.PetOwner }]
+                : staffRoles.map(role => ({
+                    value: role,
+                    label: roleLabels[role],
+                  }))
+            }
           />
         </Form.Item>
         {!editingUser && (
