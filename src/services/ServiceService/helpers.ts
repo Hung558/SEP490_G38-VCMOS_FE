@@ -215,3 +215,44 @@ export const extractApiError = (
 
   return { message, fieldErrors };
 };
+
+export const getCategoryInclusions = (category: string): string[] => {
+  switch (category) {
+    case 'Examination':
+      return [
+        'Khám sàng lọc toàn diện các hệ cơ quan',
+        'Đo thân nhiệt, nghe tim phổi & huyết áp',
+        'Lập bệnh án SOAP điện tử và đơn thuốc',
+      ];
+    case 'Vaccination':
+      return [
+        'Vaccine bảo quản chuẩn chuỗi lạnh GSP',
+        'Tẩy giun đường ruột & nhỏ gáy ngừa ve rận',
+        'Tự động đồng bộ lịch nhắc tiêm chủng',
+      ];
+    case 'Grooming':
+      return [
+        'Tắm sấy khử mùi & dưỡng lông thảo dược',
+        'Vệ sinh tai, vắt tuyến hôi & cắt dũa móng',
+        'Cắt tỉa tạo kiểu lông theo yêu cầu chủ nuôi',
+      ];
+    case 'Paraclinical':
+      return [
+        'Siêu âm Doppler màu / X-quang kỹ thuật số',
+        'Phân tích chỉ số máu & sinh hóa toàn phần',
+        'Kết quả lưu trữ trực tiếp vào hồ sơ bệnh án',
+      ];
+    case 'Inpatient':
+      return [
+        'Lồng lưu trú vô trùng phân theo kích thước',
+        'Nhật ký lâm sàng & dinh dưỡng hàng ngày',
+        'Bác sĩ trực theo dõi sinh hiệu liên tục 24/24',
+      ];
+    default:
+      return [
+        'Quy trình y khoa tiêu chuẩn cao',
+        'Đội ngũ chuyên môn giàu kinh nghiệm',
+        'Đồng bộ dữ liệu hồ sơ khám bệnh điện tử',
+      ];
+  }
+};

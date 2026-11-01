@@ -195,3 +195,17 @@ test('extractApiError falls back when the error has no response', () => {
     fieldErrors: {},
   });
 });
+
+test('getCategoryInclusions returns default benefit highlights for each category', async () => {
+  const helpers = await import('../src/services/ServiceService/helpers.ts');
+  const { getCategoryInclusions, SERVICE_CATEGORIES } = helpers;
+
+  for (const cat of SERVICE_CATEGORIES) {
+    const list = getCategoryInclusions(cat);
+    assert.equal(Array.isArray(list), true);
+    assert.equal(list.length >= 3, true);
+  }
+  const fallback = getCategoryInclusions('Unknown');
+  assert.equal(Array.isArray(fallback), true);
+  assert.equal(fallback.length >= 3, true);
+});
