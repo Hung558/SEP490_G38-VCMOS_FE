@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { storage } from '@/lib/storage';
 import { EmailVerifyBadge } from '@/components/common/EmailVerifyReminder';
+import { getRoleLabel } from '@/constants/roles';
 import styles from './mainLayout.module.scss';
 import ROUTER from '@/routerMap/ROUTER';
 import Breadcrumb from '../Breadcrumb/Breadcrumb';
@@ -116,15 +117,29 @@ const TopBarActions = styled.div`
     cursor: pointer;
   }
 
+  .top-user-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.25;
+  }
+
   .top-user-name {
     font-size: 14px;
     font-weight: 600;
     color: #0f172a;
   }
 
+  .top-user-role {
+    font-size: 11.5px;
+    color: #0d9488;
+    font-weight: 600;
+  }
+
   @media (max-width: 768px) {
     gap: 8px;
 
+    .top-user-meta,
     .top-user-name,
     .home-label {
       display: none;
@@ -241,11 +256,17 @@ const MainLayout = ({ ...rest }: any) => {
                     style={{
                       border: '1px solid #e2e8f0',
                       backgroundColor: '#0d9488',
+                      flexShrink: 0,
                     }}
                   />
-                  <span className={styles.userName}>
-                    {user?.fullName || user?.username || 'User'}
-                  </span>
+                  <div className={styles.userMeta}>
+                    <span className={styles.userName}>
+                      {user?.fullName || user?.username || 'User'}
+                    </span>
+                    <span className={styles.userRole}>
+                      {getRoleLabel(user?.role || user?.systemRole)}
+                    </span>
+                  </div>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -311,9 +332,14 @@ const MainLayout = ({ ...rest }: any) => {
               placement="bottomRight"
             >
               <div className="top-user">
-                <span className="top-user-name">
-                  {user?.fullName || user?.username || 'User'}
-                </span>
+                <div className="top-user-meta">
+                  <span className="top-user-name">
+                    {user?.fullName || user?.username || 'User'}
+                  </span>
+                  <span className="top-user-role">
+                    {getRoleLabel(user?.role || user?.systemRole)}
+                  </span>
+                </div>
                 <Avatar
                   size={34}
                   icon={<UserOutlined />}

@@ -17,6 +17,7 @@ import { PanelLeftIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Breadcrumb from '../Breadcrumb/Breadcrumb';
 import MenuUser from './components/MenuUser';
+import { getRoleLabel } from '@/constants/roles';
 
 const { Header } = Layout;
 const HeaderTop = ({ ...rest }) => {
@@ -147,12 +148,12 @@ const HeaderTop = ({ ...rest }) => {
                       className="account-infor-sumary-position"
                       style={{
                         textAlign: 'end',
-                        color: '#64748b',
+                        color: '#0d9488',
                         fontWeight: 600,
                         fontSize: '12px',
                       }}
                     >
-                      {user?.username}
+                      {getRoleLabel(user?.role || user?.systemRole)}
                     </div>
                   </div>
                   <Avatar
