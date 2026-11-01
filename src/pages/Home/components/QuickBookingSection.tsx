@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import ServiceService from '@/services/ServiceService';
 import styled from 'styled-components';
 import { Button, Input, Select, Steps } from 'antd';
 import {
@@ -407,6 +408,21 @@ const availableServices = [
   },
 ];
 
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case 'Examination':
+      return <MedicineBoxOutlined />;
+    case 'Vaccination':
+      return <CheckCircleOutlined />;
+    case 'Grooming':
+      return <ScissorOutlined />;
+    case 'Paraclinical':
+      return <FileSearchOutlined />;
+    default:
+      return <SafetyCertificateOutlined />;
+  }
+};
+
 const staffList = [
   {
     value: 'any',
@@ -435,6 +451,42 @@ const QuickBookingSection: React.FC = () => {
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([
     'exam',
   ]);
+  const [activeServices, setActiveServices] = useState<
+    Array<{
+      id: string;
+      title: string;
+      duration: number;
+      price: number;
+      icon: React.ReactNode;
+    }>
+  >(availableServices);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchServices = async () => {
+      try {
+        const res = await ServiceService.listServices({ status: 'Active' });
+        const list = res?.services || (res as any)?.data?.services || [];
+        if (isMounted && Array.isArray(list) && list.length > 0) {
+          const mapped = list.map(s => ({
+            id: s._id,
+            title: s.name,
+            duration: s.defaultDuration || 30,
+            price: s.basePrice || 0,
+            icon: getCategoryIcon(s.category),
+          }));
+          setActiveServices(mapped);
+          setSelectedServiceIds([mapped[0].id]);
+        }
+      } catch (err) {
+        console.warn('Fallback to default available services:', err);
+      }
+    };
+    fetchServices();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const [selectedStaff, setSelectedStaff] = useState('any');
   const [selectedSlot, setSelectedSlot] = useState('09:30 Sáng');
   const [bookingNote, setBookingNote] = useState('');
@@ -450,7 +502,7 @@ const QuickBookingSection: React.FC = () => {
     );
   };
 
-  const selectedServices = availableServices.filter(s =>
+  const selectedServices = activeServices.filter(s =>
     selectedServiceIds.includes(s.id)
   );
   const totalDuration = selectedServices.reduce(
@@ -615,7 +667,7 @@ const QuickBookingSection: React.FC = () => {
                   2. Chọn dịch vụ (chọn 1 hoặc nhiều):
                 </div>
                 <div className="service-card-select">
-                  {availableServices.map(srv => {
+                  {activeServices.map(srv => {
                     const isSelected = selectedServiceIds.includes(srv.id);
                     return (
                       <div

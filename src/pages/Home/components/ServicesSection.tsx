@@ -1,4 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import ServiceService, {
+  type Service,
+  serviceCategoryLabels,
+  formatServicePrice,
+  getCategoryInclusions,
+} from '@/services/ServiceService';
 import styled from 'styled-components';
 import { Input } from 'antd';
 import {
@@ -379,6 +385,23 @@ const servicesCatalog = [
   },
 ];
 
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case 'Examination':
+      return <MedicineBoxOutlined />;
+    case 'Vaccination':
+      return <CheckCircleOutlined />;
+    case 'Grooming':
+      return <ScissorOutlined />;
+    case 'Paraclinical':
+      return <FileSearchOutlined />;
+    case 'Inpatient':
+      return <HeartOutlined />;
+    default:
+      return <MedicineBoxOutlined />;
+  }
+};
+
 const categoryTabs = [
   { key: 'ALL', label: 'Tất cả dịch vụ' },
   { key: 'Examination', label: 'Khám bệnh' },
@@ -394,6 +417,53 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
   const { isLogin } = useIsLogin();
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [apiServices, setApiServices] = useState<Service[]>([]);
+  const [_loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchServices = async () => {
+      try {
+        const res = await ServiceService.listServices({ status: 'Active' });
+        const list = res?.services || (res as any)?.data?.services || [];
+        if (isMounted && Array.isArray(list) && list.length > 0) {
+          setApiServices(list);
+        }
+      } catch (err) {
+        console.warn(
+          'Fallback to catalog: could not load dynamic services',
+          err
+        );
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchServices();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const displayedCatalog = useMemo(() => {
+    if (apiServices.length > 0) {
+      return apiServices.map(item => ({
+        id: item._id,
+        title: item.name,
+        category: item.category,
+        categoryLabel: serviceCategoryLabels[item.category] || item.category,
+        duration: item.defaultDuration
+          ? `${item.defaultDuration} phút`
+          : 'Theo dõi 24/24',
+        basePrice: formatServicePrice(item.basePrice),
+        icon: getCategoryIcon(item.category),
+        desc:
+          item.description ||
+          'Dịch vụ y khoa chăm sóc sức khỏe toàn diện cho thú cưng.',
+        inclusions: getCategoryInclusions(item.category),
+      }));
+    }
+    return servicesCatalog;
+  }, [apiServices]);
 
   const handleSelectService = (title?: string) => {
     if (!isLogin) {
@@ -404,7 +474,7 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
     }
   };
 
-  const filteredServices = servicesCatalog.filter(service => {
+  const filteredServices = displayedCatalog.filter(service => {
     const matchCategory =
       selectedCategory === 'ALL' || service.category === selectedCategory;
     const matchSearch =
