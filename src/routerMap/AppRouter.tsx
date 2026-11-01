@@ -20,6 +20,7 @@ import DashboardPage from '@/pages/Dashboard';
 import ProfilePage from '@/pages/Profile';
 import LoginRegisterPage from '@/pages/ANONYMOUS/Login_Register';
 import AdminUsersPage from '@/pages/AdminUsers';
+import AdminServicesPage from '@/pages/AdminServices';
 
 const AppRouter = () => {
   const elements = useRoutes([
@@ -69,6 +70,14 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <AdminUsersPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: ROUTER.ADMIN_SERVICES,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <AdminServicesPage />
             </Suspense>
           ),
         },

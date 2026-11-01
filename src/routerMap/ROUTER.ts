@@ -7,6 +7,7 @@ const ROUTER = {
   DASHBOARD: '/dashboard',
   PROFILE: '/profile',
   ADMIN_USERS: '/admin/users',
+  ADMIN_SERVICES: '/admin/services',
   NOT_FOUND: '*',
 };
 
