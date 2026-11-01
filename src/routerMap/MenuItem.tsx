@@ -4,6 +4,7 @@ import {
   UserOutlined,
   HomeOutlined,
   TeamOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import ROUTER from './ROUTER';
 
@@ -42,6 +43,14 @@ export const MenuItemBreadcrumbs = () => {
       label: 'Thông tin cá nhân',
       key: ROUTER.PROFILE,
     },
+    {
+      label: 'Quản lý tài khoản',
+      key: ROUTER.ADMIN_USERS,
+    },
+    {
+      label: 'Quản lý dịch vụ',
+      key: ROUTER.ADMIN_SERVICES,
+    },
   ];
 };
 
@@ -72,6 +81,11 @@ export const MenuItemAdmin = (): MenuItem[] => {
       key: ROUTER.ADMIN_USERS,
       label: 'Quản lý tài khoản',
       icon: <TeamOutlined />,
+    },
+    {
+      key: ROUTER.ADMIN_SERVICES,
+      label: 'Quản lý dịch vụ',
+      icon: <AppstoreOutlined />,
     },
   ];
 };

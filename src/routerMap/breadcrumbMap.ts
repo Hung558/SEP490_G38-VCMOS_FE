@@ -7,4 +7,5 @@ export const breadcrumbMap: Record<string, string> = {
   settings: 'Cài đặt',
   admin: 'Quản trị',
   users: 'Quản lý tài khoản',
+  services: 'Quản lý dịch vụ',
 };
