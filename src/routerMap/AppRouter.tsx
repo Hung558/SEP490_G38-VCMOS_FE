@@ -22,6 +22,7 @@ import ProfilePage from '@/pages/Profile';
 import LoginRegisterPage from '@/pages/ANONYMOUS/Login_Register';
 import AdminUsersPage from '@/pages/AdminUsers';
 import AdminServicesPage from '@/pages/AdminServices';
+import AdminProductsPage from '@/pages/AdminProducts';
 import PetProfilePage from '@/pages/PetProfile';
 
 const AppRouter = () => {
@@ -80,6 +81,14 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <AdminServicesPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: ROUTER.ADMIN_PRODUCTS,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <AdminProductsPage />
             </Suspense>
           ),
         },

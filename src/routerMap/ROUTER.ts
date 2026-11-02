@@ -10,6 +10,7 @@ const ROUTER = {
   PET_PROFILE: '/pets/:petId',
   ADMIN_USERS: '/admin/users',
   ADMIN_SERVICES: '/admin/services',
+  ADMIN_PRODUCTS: '/admin/products',
   NOT_FOUND: '*',
 };
 

@@ -5,6 +5,7 @@ import {
   HomeOutlined,
   TeamOutlined,
   AppstoreOutlined,
+  ShoppingOutlined,
 } from '@ant-design/icons';
 import ROUTER from './ROUTER';
 import { getRoleGroup } from '@/constants/roles';
@@ -51,6 +52,10 @@ export const MenuItemBreadcrumbs = () => {
     {
       label: 'Quản lý dịch vụ',
       key: ROUTER.ADMIN_SERVICES,
+    },
+    {
+      label: 'Quản lý sản phẩm',
+      key: ROUTER.ADMIN_PRODUCTS,
     },
   ];
 };
@@ -103,6 +108,11 @@ export const MenuItemAdmin = (): MenuItem[] => {
       key: ROUTER.ADMIN_SERVICES,
       label: 'Quản lý dịch vụ',
       icon: <AppstoreOutlined />,
+    },
+    {
+      key: ROUTER.ADMIN_PRODUCTS,
+      label: 'Quản lý sản phẩm',
+      icon: <ShoppingOutlined />,
     },
   ];
 };
