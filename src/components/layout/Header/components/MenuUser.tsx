@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
-import { storage } from '@/lib/storage';
+import { useLogout } from '@/hooks/Common/useLogout';
 import ROUTER from '@/routerMap/ROUTER';
 import { getRoleLabel } from '@/constants/roles';
 import {
@@ -73,8 +73,9 @@ export const StyleMenuAccount = styled.div`
 `;
 
 const MenuUser = () => {
-  const { isLogin, setIsLogin } = useIsLogin();
-  const { user, setUser } = useAuth();
+  const { isLogin } = useIsLogin();
+  const { user } = useAuth();
+  const logout = useLogout();
   const [activeKey, setActiveKey] = useState<string>('');
 
   const { pathname } = window.location;
@@ -85,10 +86,7 @@ const MenuUser = () => {
 
   const handleLogout = async () => {
     if (isLogin) {
-      storage.clearLocalStorage();
-      setIsLogin('');
-      setUser(null);
-      window.location.href = '/';
+      await logout();
     }
   };
 

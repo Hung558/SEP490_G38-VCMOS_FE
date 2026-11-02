@@ -15,7 +15,8 @@ export interface RegisterPayload {
 
 const login = (data: LoginPayload) => api.post(apiLogin, data);
 const register = (data: RegisterPayload) => api.post(apiRegister, data);
-const logout = () => api.post(apiLogout);
+// Short timeout: signing out must not hang for the default 60s when the BE is down
+const logout = () => api.post(apiLogout, undefined, { timeout: 5000 });
 
 const AuthService = {
   login,

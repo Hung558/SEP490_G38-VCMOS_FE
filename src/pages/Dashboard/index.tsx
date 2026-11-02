@@ -29,7 +29,7 @@ import {
   CheckOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/contexts/routerProvider/authContext';
-import { useNavigate } from 'react-router-dom';
+import { generatePath, useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import { toast } from 'sonner';
 import AiAssessmentSection from './components/AiAssessmentSection';
@@ -352,6 +352,9 @@ const DashboardPage: React.FC = () => {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  const openPetProfile = (pet: Pet) =>
+    navigate(generatePath(ROUTER.PET_PROFILE, { petId: pet._id }));
+
   // Called by DeletePetModal once the owner has typed the pet's name
   const handleDeletePet = async (pet: Pet) => {
     try {
@@ -462,10 +465,8 @@ const DashboardPage: React.FC = () => {
                 fontSize: 14,
                 cursor: 'pointer',
               }}
-              onClick={() => {
-                setSelectedPet(record);
-                setIsPetDetailModalOpen(true);
-              }}
+              onClick={() => openPetProfile(record)}
+              title="Mở trang hồ sơ thú cưng"
             >
               🐾 {record.name}
             </div>
@@ -607,19 +608,21 @@ const DashboardPage: React.FC = () => {
             />
           )}
 
-          <Button
-            size="small"
-            type="primary"
-            style={{ background: '#0d9488' }}
-            icon={<CalendarOutlined />}
-            onClick={() => {
-              navigate(ROUTER.HOME + '#quick-booking');
-              toast.info(`Đặt lịch khám cho bé ${record.name}`);
-            }}
-            title="Đặt lịch khám"
-          >
-            Đặt lịch
-          </Button>
+          {record.status === 'Active' && (
+            <Button
+              size="small"
+              type="primary"
+              style={{ background: '#0d9488' }}
+              icon={<CalendarOutlined />}
+              onClick={() => {
+                navigate(ROUTER.HOME + '#quick-booking');
+                toast.info(`Đặt lịch khám cho bé ${record.name}`);
+              }}
+              title="Đặt lịch khám"
+            >
+              Đặt lịch
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -1100,6 +1103,7 @@ const DashboardPage: React.FC = () => {
           navigate(ROUTER.HOME + '#quick-booking');
           toast.info(`Đặt lịch khám cho bé ${pet.name}`);
         }}
+        onOpenProfile={openPetProfile}
       />
 
       {/* Pet Delete Confirmation (type the pet's name) */}

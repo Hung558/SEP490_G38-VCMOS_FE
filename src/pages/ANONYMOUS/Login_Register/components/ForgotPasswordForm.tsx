@@ -15,6 +15,13 @@ import { Form, Input } from 'antd';
 import styled from 'styled-components';
 import { toast } from 'sonner';
 import UserService from '@/services/UserService';
+import {
+  MSG_PASSWORD_TOO_LONG,
+  PASSWORD_MAX_LENGTH,
+  checkPasswordRules,
+  isStrongPassword,
+  passwordPolicyValidator,
+} from '@/constants/password';
 
 const FormCard = styled.div`
   background: transparent;
@@ -445,10 +452,13 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
     }
   };
 
-  // Password rules validation
-  const hasMinLen = newPassword.length >= 8;
-  const hasNum = /\d/.test(newPassword);
-  const hasUpper = /[A-Z]/.test(newPassword);
+  // Password rules validation (MSG06). A special character is not required,
+  // it only raises the strength meter.
+  const {
+    minLength: hasMinLen,
+    digit: hasNum,
+    uppercase: hasUpper,
+  } = checkPasswordRules(newPassword);
   const hasSpecial = /[@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPassword);
 
   const getStrengthScore = () => {
@@ -664,7 +674,8 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
                 name="password"
                 rules={[
                   { required: true, message: 'Vui lòng nhập mật khẩu mới!' },
-                  { min: 8, message: 'Tối thiểu 8 ký tự!' },
+                  { validator: passwordPolicyValidator },
+                  { max: PASSWORD_MAX_LENGTH, message: MSG_PASSWORD_TOO_LONG },
                 ]}
               >
                 <Input.Password
@@ -785,7 +796,10 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
                 />
               </CustomFormItem>
 
-              <PrimarySubmitBtn type="submit" disabled={strengthScore < 3}>
+              <PrimarySubmitBtn
+                type="submit"
+                disabled={!isStrongPassword(newPassword)}
+              >
                 Cập nhật mật khẩu & Đăng nhập &rarr;
               </PrimarySubmitBtn>
 

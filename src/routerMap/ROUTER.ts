@@ -6,6 +6,8 @@ const ROUTER = {
   FORGOT_PASSWORD: '/forgot-password',
   DASHBOARD: '/dashboard',
   PROFILE: '/profile',
+  // Build the real path with generatePath(ROUTER.PET_PROFILE, { petId })
+  PET_PROFILE: '/pets/:petId',
   ADMIN_USERS: '/admin/users',
   ADMIN_SERVICES: '/admin/services',
   NOT_FOUND: '*',

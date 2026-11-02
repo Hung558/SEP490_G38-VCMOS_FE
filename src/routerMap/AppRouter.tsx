@@ -21,6 +21,7 @@ import ProfilePage from '@/pages/Profile';
 import LoginRegisterPage from '@/pages/ANONYMOUS/Login_Register';
 import AdminUsersPage from '@/pages/AdminUsers';
 import AdminServicesPage from '@/pages/AdminServices';
+import PetProfilePage from '@/pages/PetProfile';
 
 const AppRouter = () => {
   const elements = useRoutes([
@@ -99,6 +100,14 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <ProfilePage />
+            </Suspense>
+          ),
+        },
+        {
+          path: ROUTER.PET_PROFILE,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <PetProfilePage />
             </Suspense>
           ),
         },

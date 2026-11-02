@@ -8,6 +8,11 @@ import {
 } from '@ant-design/icons';
 import { Form, Input } from 'antd';
 import UserService from '@/services/UserService';
+import {
+  MSG_PASSWORD_TOO_LONG,
+  PASSWORD_MAX_LENGTH,
+  passwordPolicyValidator,
+} from '@/constants/password';
 import styled from 'styled-components';
 import { toast } from 'sonner';
 
@@ -261,14 +266,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
               name="password"
               rules={[
                 { required: true, message: 'Vui lòng nhập mật khẩu!' },
-                { min: 8, message: 'Mật khẩu tối thiểu 8 ký tự!' },
-                { max: 72, message: 'Mật khẩu tối đa 72 ký tự!' },
+                { validator: passwordPolicyValidator },
+                { max: PASSWORD_MAX_LENGTH, message: MSG_PASSWORD_TOO_LONG },
               ]}
             >
               <Input.Password
                 size="large"
                 prefix={<LockOutlined />}
-                placeholder="Tối thiểu 8 ký tự"
+                placeholder="Ít nhất 8 ký tự, 1 chữ hoa và 1 chữ số"
               />
             </CustomFormItem>
           </div>

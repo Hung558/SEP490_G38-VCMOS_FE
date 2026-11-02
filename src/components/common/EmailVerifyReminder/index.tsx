@@ -70,11 +70,15 @@ export const EmailVerifyBadge = () => {
   );
 };
 
+// Stays under the antd modal layer (z-index 1000) so it never covers the
+// buttons of an open modal
+const FLOATING_WIDGET_Z_INDEX = 999;
+
 const FloatingCornerContainer = styled.div`
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 1050;
+  z-index: ${FLOATING_WIDGET_Z_INDEX};
   display: flex;
   align-items: center;
   gap: 12px;
@@ -139,7 +143,7 @@ const CollapsedPill = styled.div`
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 1050;
+  z-index: ${FLOATING_WIDGET_Z_INDEX};
   display: flex;
   align-items: center;
   gap: 8px;
