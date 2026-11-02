@@ -1,6 +1,7 @@
 export * from './debouncer';
 export * from './useAuth';
 export * from './useFetch';
+export * from './useLogout';
 export * from './useMobile';
 export * from './useModal';
 export * from './useTable';

@@ -3,7 +3,28 @@ import type { AxiosInstance } from 'axios';
 import { toast } from 'sonner';
 
 import { STORAGE, storage } from '@/lib/storage';
+import ROUTER from '@/routerMap/ROUTER';
 import axios from 'axios';
+
+// A wrong password on the login form also answers 401, and a logout with an
+// expired token must not bounce to the login page: neither means the session
+// of a signed-in user has just expired
+const SESSION_CHECK_SKIPPED = ['/auth/login', '/auth/logout'];
+let isRedirectingToLogin = false;
+
+const handleExpiredSession = () => {
+  isRedirectingToLogin = true;
+  storage.deleteLocalStorage(STORAGE.TOKEN);
+  storage.deleteLocalStorage(STORAGE.USER_INFO);
+  // The next login should show the "verify your email" notice again
+  storage.deleteSessionStorage(STORAGE.EMAIL_NOTICE_DISMISSED);
+  toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+  // Give the toast a moment on screen before the full page reload
+  setTimeout(() => {
+    window.location.href = ROUTER.LOGIN;
+  }, 1500);
+};
+
 export const setupInterceptors = (instance: AxiosInstance) => {
   // Request Interceptor
   instance.interceptors.request.use(
@@ -33,25 +54,21 @@ export const setupInterceptors = (instance: AxiosInstance) => {
         return response;
       }
 
-      const { errorCode, errorMessage, isError } = response.data;
-
-      if (isError && errorCode !== '200') {
-        // ✅ Nếu lỗi 401 → xử lý logout
-        if (errorCode === '401') {
-          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-          localStorage.removeItem('accessToken');
-          window.location.href = '/login'; // Không dùng navigate ở đây
-        } else {
-          toast.error(`Lỗi ${errorCode}: ${errorMessage}`);
-        }
-
-        return Promise.reject({ errorCode, errorMessage });
-      }
-
       return response.data;
     },
 
     error => {
+      // The BE answers 401 when the token is missing, invalid or expired
+      const url: string = error?.config?.url || '';
+      if (
+        error?.response?.status === 401 &&
+        !isRedirectingToLogin &&
+        storage.getLocalStorage(STORAGE.TOKEN) &&
+        !SESSION_CHECK_SKIPPED.some(path => url.includes(path))
+      ) {
+        handleExpiredSession();
+      }
+
       // Don't show a generic toast here — every call site already catches
       // and shows its own specific, translated message (e.g. LoginForm,
       // RegisterForm, ForgotPasswordForm all read `error.response.data.error`

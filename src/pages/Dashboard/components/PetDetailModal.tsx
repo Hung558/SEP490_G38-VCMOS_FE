@@ -8,6 +8,7 @@ import {
   CheckOutlined,
   DeleteOutlined,
   WarningOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
@@ -23,6 +24,8 @@ interface PetDetailModalProps {
   /** Starts the delete confirmation for this pet */
   onDelete?: (pet: Pet) => void;
   onBookAppointment?: (pet: Pet) => void;
+  /** Opens the full pet profile page (SCR-08) */
+  onOpenProfile?: (pet: Pet) => void;
 }
 
 const DetailWrapper = styled.div`
@@ -205,6 +208,7 @@ const PetDetailModal: React.FC<PetDetailModalProps> = ({
   onEdit,
   onDelete,
   onBookAppointment,
+  onOpenProfile,
 }) => {
   const [copied, setCopied] = React.useState(false);
 
@@ -243,6 +247,18 @@ const PetDetailModal: React.FC<PetDetailModalProps> = ({
         <Button key="close" onClick={onCancel}>
           Đóng
         </Button>,
+        onOpenProfile && (
+          <Button
+            key="profile"
+            icon={<IdcardOutlined />}
+            onClick={() => {
+              onCancel();
+              onOpenProfile(pet);
+            }}
+          >
+            Xem hồ sơ đầy đủ
+          </Button>
+        ),
         !isDeleted && onDelete && (
           <Button
             key="delete"
@@ -268,7 +284,7 @@ const PetDetailModal: React.FC<PetDetailModalProps> = ({
             Chỉnh sửa
           </Button>
         ),
-        onBookAppointment && (
+        !isDeleted && onBookAppointment && (
           <Button
             key="book"
             type="primary"

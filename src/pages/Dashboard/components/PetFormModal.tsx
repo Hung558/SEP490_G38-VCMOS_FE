@@ -23,6 +23,15 @@ import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import PetService from '@/services/PetService';
 import type { Pet } from '@/types';
+import {
+  PET_NAME_MAX_LENGTH,
+  PET_NOTES_MAX_LENGTH,
+  PET_PHOTO_TYPES,
+  MSG_PET_WEIGHT,
+  MSG_INVALID_PHOTO,
+  isValidPetWeight,
+  isValidPetPhoto,
+} from '@/constants/pet';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -188,15 +197,8 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
 
   // Handle local photo selection
   const handlePhotoSelect = (file: File) => {
-    const isLt5M = file.size / 1024 / 1024 <= 5;
-    if (!isLt5M) {
-      toast.error('Kích thước ảnh không được vượt quá 5MB!');
-      return false;
-    }
-
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Chỉ chấp nhận tệp định dạng JPG, PNG hoặc WebP!');
+    if (!isValidPetPhoto(file)) {
+      toast.error(MSG_INVALID_PHOTO);
       return false;
     }
 
@@ -206,9 +208,11 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
     return false; // Prevent automatic upload by AntD
   };
 
-  const handleRemovePhoto = () => {
+  // The BE can replace a pet's photo but cannot delete it, so this only drops
+  // the newly picked file and goes back to the photo already saved (if any)
+  const handleDiscardNewPhoto = () => {
     setSelectedFile(null);
-    setPreviewUrl(null);
+    setPreviewUrl(editingPet?.photoUrl || null);
   };
 
   // Submit form handler
@@ -360,7 +364,7 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
               }}
             >
               <Upload
-                accept="image/jpeg,image/png,image/webp"
+                accept={PET_PHOTO_TYPES.join(',')}
                 showUploadList={false}
                 beforeUpload={handlePhotoSelect}
               >
@@ -369,19 +373,19 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
                 </Button>
               </Upload>
 
-              {previewUrl && (
+              {selectedFile && (
                 <Button
                   danger
                   type="text"
                   icon={<DeleteOutlined />}
-                  onClick={handleRemovePhoto}
+                  onClick={handleDiscardNewPhoto}
                 >
-                  Xóa ảnh
+                  {editingPet?.photoUrl ? 'Giữ ảnh cũ' : 'Xóa ảnh'}
                 </Button>
               )}
             </div>
             <div className="upload-hint">
-              Hỗ trợ định dạng JPG, PNG hoặc WebP. Dung lượng tệp tối đa 5MB.
+              Hỗ trợ định dạng JPG hoặc PNG. Dung lượng tệp tối đa 5MB.
             </div>
           </div>
         </div>
@@ -395,16 +399,20 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
                 label={<Text strong>Tên thú cưng</Text>}
                 name="name"
                 rules={[
-                  { required: true, message: 'Vui lòng nhập tên thú cưng!' },
                   {
-                    max: 100,
-                    message: 'Tên thú cưng không được quá 100 ký tự!',
+                    required: true,
+                    whitespace: true,
+                    message: 'Vui lòng nhập tên thú cưng!',
+                  },
+                  {
+                    max: PET_NAME_MAX_LENGTH,
+                    message: `Tên thú cưng không được quá ${PET_NAME_MAX_LENGTH} ký tự!`,
                   },
                 ]}
               >
                 <Input
                   placeholder="Ví dụ: Milo, Bé Miu, Cún Đốm..."
-                  maxLength={100}
+                  maxLength={PET_NAME_MAX_LENGTH}
                 />
               </Form.Item>
             </Col>
@@ -496,13 +504,21 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
               <Form.Item
                 label={<Text strong>Cân nặng hiện tại (kg)</Text>}
                 name="weight"
-                tooltip="Thể trọng trong khoảng từ 0.1 đến 500 kg"
+                tooltip="Thể trọng trong khoảng từ 0.1 đến 100 kg"
+                // No min/max on the input: antd would silently clamp an
+                // out-of-range value instead of telling the owner what is wrong
+                rules={[
+                  {
+                    validator: (_, value) =>
+                      isValidPetWeight(value)
+                        ? Promise.resolve()
+                        : Promise.reject(new Error(MSG_PET_WEIGHT)),
+                  },
+                ]}
               >
                 <InputNumber
                   style={{ width: '100%' }}
                   placeholder="Ví dụ: 4.5"
-                  min={0}
-                  max={500}
                   step={0.1}
                   precision={1}
                   addonAfter="kg"
@@ -519,14 +535,17 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
             label={<Text strong>Ghi chú dị ứng / Tiền sử bệnh lý</Text>}
             name="notes"
             rules={[
-              { max: 1000, message: 'Ghi chú không được quá 1000 ký tự' },
+              {
+                max: PET_NOTES_MAX_LENGTH,
+                message: `Ghi chú không được quá ${PET_NOTES_MAX_LENGTH} ký tự`,
+              },
             ]}
             tooltip="Ghi chú về dị ứng thuốc/thức ăn, tiền sử phẫu thuật, các mốc tiêm phòng"
           >
             <TextArea
               rows={3}
               placeholder="Ví dụ: Dị ứng hải sản; tiền sử viêm dạ dày ruột cấp; đã tiêm phòng dại mũi 1..."
-              maxLength={1000}
+              maxLength={PET_NOTES_MAX_LENGTH}
               showCount
             />
           </Form.Item>

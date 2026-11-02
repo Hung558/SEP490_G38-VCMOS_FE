@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useCollapseMenu } from '@/contexts/routerProvider/collapseMenuContext';
-import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
+import { useLogout } from '@/hooks/Common/useLogout';
 import { type MenuItem, getMenuByRole } from '@/routerMap/MenuItem';
 import { Layout, Menu, theme, Avatar, Button, Popover } from 'antd';
 import { LogoutOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons';
@@ -8,7 +8,6 @@ import { PanelLeftIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { storage } from '@/lib/storage';
 import { EmailVerifyBadge } from '@/components/common/EmailVerifyReminder';
 import { getRoleLabel } from '@/constants/roles';
 import styles from './mainLayout.module.scss';
@@ -157,15 +156,8 @@ const MainLayout = ({ ...rest }: any) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedKey, setSelectedKey] = useState<string[]>([location.pathname]);
-  const { setIsLogin } = useIsLogin();
-  const { user, setUser } = useAuth();
-
-  const handleLogout = () => {
-    storage.clearLocalStorage();
-    setIsLogin('');
-    setUser(null);
-    window.location.href = ROUTER.HOME;
-  };
+  const { user } = useAuth();
+  const handleLogout = useLogout();
 
   const {
     token: { colorBgContainer },

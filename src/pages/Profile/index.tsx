@@ -39,6 +39,12 @@ import UserService from '@/services/UserService';
 import PetService from '@/services/PetService';
 import type { Pet } from '@/types';
 import {
+  MSG_PASSWORD_TOO_LONG,
+  PASSWORD_MAX_LENGTH,
+  checkPasswordRules,
+  passwordPolicyValidator,
+} from '@/constants/password';
+import {
   calculatePetAge,
   getSpeciesEmoji,
 } from '../Dashboard/components/PetDetailModal';
@@ -632,10 +638,12 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  // Password strength calculation
-  const hasMinLen = newPasswordVal.length >= 8;
-  const hasNum = /\d/.test(newPasswordVal);
-  const hasUpper = /[A-Z]/.test(newPasswordVal);
+  // Password strength calculation (MSG06 rules + an optional special character)
+  const {
+    minLength: hasMinLen,
+    digit: hasNum,
+    uppercase: hasUpper,
+  } = checkPasswordRules(newPasswordVal);
   const hasSpecial = /[@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPasswordVal);
 
   const getStrengthScore = () => {
@@ -1414,7 +1422,8 @@ const ProfilePage: React.FC = () => {
                 dependencies={['currentPassword']}
                 rules={[
                   { required: true, message: 'Vui lòng nhập mật khẩu mới' },
-                  { min: 8, message: 'Mật khẩu phải có tối thiểu 8 ký tự' },
+                  { validator: passwordPolicyValidator },
+                  { max: PASSWORD_MAX_LENGTH, message: MSG_PASSWORD_TOO_LONG },
                   ({ getFieldValue }) => ({
                     validator(_, value) {
                       if (
@@ -1432,7 +1441,7 @@ const ProfilePage: React.FC = () => {
               >
                 <Input.Password
                   size="large"
-                  placeholder="Nhập mật khẩu mới (tối thiểu 8 ký tự)"
+                  placeholder="Ít nhất 8 ký tự, 1 chữ hoa và 1 chữ số"
                   prefix={<LockOutlined style={{ color: '#64748b' }} />}
                   iconRender={visible =>
                     visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
