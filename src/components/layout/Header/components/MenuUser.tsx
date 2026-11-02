@@ -2,6 +2,7 @@ import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import { useLogout } from '@/hooks/Common/useLogout';
 import ROUTER from '@/routerMap/ROUTER';
+import { getLandingLabel, getLandingPath } from '@/routerMap/roleAccess';
 import { getRoleLabel } from '@/constants/roles';
 import {
   UserOutlined,
@@ -76,6 +77,8 @@ const MenuUser = () => {
   const { isLogin } = useIsLogin();
   const { user } = useAuth();
   const logout = useLogout();
+  const role = user?.role || user?.systemRole;
+  const landingPath = getLandingPath(role);
   const [activeKey, setActiveKey] = useState<string>('');
 
   const { pathname } = window.location;
@@ -116,15 +119,20 @@ const MenuUser = () => {
       ),
     },
     { type: 'divider' },
-    {
-      key: ROUTER.DASHBOARD,
-      label: (
-        <Link className="btn-function" to={ROUTER.DASHBOARD}>
-          <DashboardOutlined style={{ fontSize: '16px' }} />
-          <span>Bảng điều khiển</span>
-        </Link>
-      ),
-    },
+    // Staff land on their profile page, which already has its own item below
+    ...(landingPath !== ROUTER.PROFILE
+      ? [
+          {
+            key: landingPath,
+            label: (
+              <Link className="btn-function" to={landingPath}>
+                <DashboardOutlined style={{ fontSize: '16px' }} />
+                <span>{getLandingLabel(role)}</span>
+              </Link>
+            ),
+          },
+        ]
+      : []),
     {
       key: ROUTER.PROFILE,
       label: (

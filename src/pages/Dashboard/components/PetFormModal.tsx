@@ -319,7 +319,7 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
         </div>
       }
       width={680}
-      destroyOnClose
+      destroyOnHidden
       footer={[
         <Button key="cancel" onClick={onCancel} disabled={loading}>
           Hủy bỏ

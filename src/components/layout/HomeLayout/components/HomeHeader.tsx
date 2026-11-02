@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import { getRoleLabel } from '@/constants/roles';
+import { getLandingLabel, getLandingPath } from '@/routerMap/roleAccess';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import MenuUser from '@/components/layout/Header/components/MenuUser';
@@ -264,7 +265,11 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
         >
           Hồ sơ điều trị
         </a>
-        {isLogin && <Link to={ROUTER.DASHBOARD}>Bảng điều khiển</Link>}
+        {isLogin && (
+          <Link to={getLandingPath(user?.role || user?.systemRole)}>
+            {getLandingLabel(user?.role || user?.systemRole)}
+          </Link>
+        )}
       </div>
 
       <div className="right-section">
