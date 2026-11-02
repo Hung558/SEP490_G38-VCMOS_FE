@@ -9,6 +9,7 @@ import PublicRouters from '@/pages/SUPPORTPAGES/PublicRouters';
 import ProtectedRoute from '@/pages/SUPPORTPAGES/ProtectedRoute';
 import NotFound from '@/pages/SUPPORTPAGES/NotFound';
 import AdminRoute from '@/pages/SUPPORTPAGES/AdminRoute';
+import RoleRoute from '@/pages/SUPPORTPAGES/RoleRoute';
 import {
   EmailVerifyNoticeModal,
   EmailVerifyFloatingWidget,
@@ -85,7 +86,9 @@ const AppRouter = () => {
       ],
     },
     {
-      element: <ProtectedRoute />,
+      // Pet owner pages: staff and Admin own no pets here (GET /pets only
+      // returns the signed-in user's pets), so they go to their landing page
+      element: <RoleRoute allow={['owner']} />,
       children: [
         {
           path: ROUTER.DASHBOARD,
@@ -96,18 +99,23 @@ const AppRouter = () => {
           ),
         },
         {
-          path: ROUTER.PROFILE,
-          element: (
-            <Suspense fallback={<SpinCustom spinning={true} />}>
-              <ProfilePage />
-            </Suspense>
-          ),
-        },
-        {
           path: ROUTER.PET_PROFILE,
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <PetProfilePage />
+            </Suspense>
+          ),
+        },
+      ],
+    },
+    {
+      element: <ProtectedRoute />,
+      children: [
+        {
+          path: ROUTER.PROFILE,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <ProfilePage />
             </Suspense>
           ),
         },

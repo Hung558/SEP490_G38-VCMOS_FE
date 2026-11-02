@@ -9,7 +9,7 @@ import { Form, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import UserService from '@/services/UserService';
 import styled from 'styled-components';
-import ROUTER from '@/routerMap/ROUTER';
+import { getLandingPath } from '@/routerMap/roleAccess';
 import { toast } from 'sonner';
 
 const FormContainer = styled.div`
@@ -216,7 +216,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
     setUser(loginInfo);
 
     toast.success('Đăng nhập thành công!');
-    navigate(ROUTER.DASHBOARD);
+    navigate(getLandingPath(loginInfo.role));
   };
 
   const onSubmit = async (formData: {

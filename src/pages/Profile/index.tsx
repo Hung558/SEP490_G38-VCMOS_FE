@@ -11,11 +11,8 @@ import {
   Modal,
   Form,
   Input,
-  Timeline,
-  Table,
   Alert,
-  Segmented,
-  Empty,
+  Grid,
 } from 'antd';
 import {
   UserOutlined,
@@ -25,42 +22,44 @@ import {
   IdcardOutlined,
   CheckCircleOutlined,
   SafetyCertificateOutlined,
-  FileTextOutlined,
   KeyOutlined,
   LockOutlined,
   WarningOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
   ReloadOutlined,
-  PlusOutlined,
-  CalendarOutlined,
 } from '@ant-design/icons';
 import UserService from '@/services/UserService';
-import PetService from '@/services/PetService';
-import type { Pet } from '@/types';
 import {
   MSG_PASSWORD_TOO_LONG,
   PASSWORD_MAX_LENGTH,
   checkPasswordRules,
   passwordPolicyValidator,
 } from '@/constants/password';
-import {
-  calculatePetAge,
-  getSpeciesEmoji,
-} from '../Dashboard/components/PetDetailModal';
+import { getRoleGroup, getRoleLabel } from '@/constants/roles';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useLocation, useNavigate } from 'react-router-dom';
-import ROUTER from '@/routerMap/ROUTER';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import { STORAGE, storage } from '@/lib/storage';
+import {
+  getAccountStatus,
+  getProfileSubtitle,
+} from './components/profileContent';
+import OwnerPetsSection from './components/OwnerPetsSection';
+import AdminOverviewSection from './components/AdminOverviewSection';
+import StaffWorkSection from './components/StaffWorkSection';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const ProfileWrapper = styled.div`
   padding: 32px 24px;
   max-width: 1080px;
   margin: 0 auto;
+
+  @media (max-width: 600px) {
+    padding: 20px 12px;
+  }
 `;
 
 const ProfileCard = styled(Card)`
@@ -72,6 +71,10 @@ const ProfileCard = styled(Card)`
 
   .ant-card-body {
     padding: 32px;
+
+    @media (max-width: 600px) {
+      padding: 20px 16px;
+    }
   }
 
   .ant-descriptions-view {
@@ -167,220 +170,17 @@ const SecondaryActionBtn = styled(Button)`
   }
 `;
 
-// Pet Profile Card & Timeline
-const PetProfileBox = styled.div`
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 24px;
-  margin-bottom: 24px;
-
-  .pet-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #f1f5f9;
-
-    .pet-identity {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-
-      .pet-avatar {
-        width: 60px;
-        height: 60px;
-        border-radius: 12px;
-        background: #f0fdfa;
-        color: #0d9488;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 26px;
-        border: 1.5px solid #ccfbf1;
-      }
-
-      .pet-details {
-        h4 {
-          margin: 0 0 2px 0;
-          font-size: 18px;
-          font-weight: 800;
-          color: #0f172a;
-        }
-        span {
-          font-size: 13px;
-          color: #64748b;
-        }
-      }
-    }
-
-    .badge-wrap {
-      display: flex;
-      gap: 8px;
-    }
-  }
-
-  .pet-metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 24px;
-
-    @media (max-width: 640px) {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .metric {
-      .label {
-        font-size: 11.5px;
-        color: #64748b;
-        margin-bottom: 2px;
-      }
-      .val {
-        font-size: 14px;
-        font-weight: 700;
-        color: #0f172a;
-      }
-    }
-  }
-
-  .timeline-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px;
-
-    h4 {
-      margin: 0;
-      font-size: 15px;
-      font-weight: 750;
-      color: #0f172a;
-    }
-  }
-`;
-
-const MilestoneCard = styled.div`
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 8px;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: #0d9488;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-  }
-
-  .m-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-
-    .m-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: #0f172a;
-    }
-
-    .m-status {
-      font-size: 11.5px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: #dcfce7;
-      color: #15803d;
-    }
-  }
-
-  .m-body {
-    font-size: 13px;
-    color: #475569;
-    margin-bottom: 12px;
-  }
-
-  .m-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 10px;
-    border-top: 1px dashed #f1f5f9;
-    font-size: 12.5px;
-
-    .actions {
-      display: flex;
-      gap: 10px;
-
-      .btn-m-action {
-        background: transparent;
-        border: 1px solid #cbd5e1;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        color: #334155;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        transition: all 0.15s;
-
-        &:hover {
-          border-color: #0d9488;
-          color: #0d9488;
-        }
-
-        &.primary {
-          background: #f0fdfa;
-          border-color: #ccfbf1;
-          color: #0f766e;
-        }
-      }
-    }
-  }
-`;
-
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setUser } = useAuth();
+  const screens = Grid.useBreakpoint();
   const [profile, setProfile] = useState<any>(user);
   const [profileLoaded, setProfileLoaded] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
-  const [isSoapModalOpen, setIsSoapModalOpen] = useState<boolean>(false);
-  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [form] = Form.useForm();
-
-  // Pets state
-  const [userPets, setUserPets] = useState<Pet[]>([]);
-  const [selectedPetId, setSelectedPetId] = useState<string>('');
-  const [petsLoading, setPetsLoading] = useState<boolean>(false);
-
-  const fetchPets = () => {
-    setPetsLoading(true);
-    PetService.listPets({ status: 'Active' })
-      .then(res => {
-        const items = res.items || [];
-        setUserPets(items);
-        if (items.length > 0) {
-          setSelectedPetId(items[0]._id);
-        }
-      })
-      .catch(err => {
-        console.error('Fetch pets error:', err);
-      })
-      .finally(() => {
-        setPetsLoading(false);
-      });
-  };
 
   // Email verification state
   const [isVerifyEmailModalOpen, setIsVerifyEmailModalOpen] =
@@ -423,6 +223,16 @@ const ProfilePage: React.FC = () => {
     return () => clearInterval(timer);
   }, [changePasswordCountdown]);
 
+  // These two modals unmount their forms while hidden (destroyOnHidden), so the
+  // forms are reset once the modal is open, never before
+  useEffect(() => {
+    if (isVerifyEmailModalOpen) verifyForm.resetFields();
+  }, [isVerifyEmailModalOpen, verifyForm]);
+
+  useEffect(() => {
+    if (isChangePasswordModalOpen) changePasswordForm.resetFields();
+  }, [isChangePasswordModalOpen, changePasswordForm]);
+
   const fetchProfile = () => {
     setLoading(true);
     UserService.getMyProfile()
@@ -448,12 +258,8 @@ const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     fetchProfile();
-    fetchPets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const currentPet =
-    userPets.find(p => p._id === selectedPetId) || userPets[0] || null;
 
   const openEditModal = () => {
     form.setFieldsValue({
@@ -504,7 +310,6 @@ const ProfilePage: React.FC = () => {
       openEditModal();
       return;
     }
-    verifyForm.resetFields();
     setVerifyDevToken(null);
     setIsVerifyEmailModalOpen(true);
     await handleSendEmailOtp();
@@ -585,7 +390,6 @@ const ProfilePage: React.FC = () => {
   };
 
   const openChangePasswordModal = () => {
-    changePasswordForm.resetFields();
     setNewPasswordVal('');
     setChangePasswordDevToken(null);
     setIsChangePasswordModalOpen(true);
@@ -663,14 +467,22 @@ const ProfilePage: React.FC = () => {
     return 'Mạnh';
   };
 
+  const role = profile?.role || user?.role || user?.systemRole;
+  const roleGroup = getRoleGroup(role);
+  const accountStatus = getAccountStatus(profile?.status);
+  const isPhone = !screens.sm;
+
   return (
     <ProfileWrapper>
       <Title
         level={3}
-        style={{ marginBottom: 24, color: '#0f172a', fontWeight: 800 }}
+        style={{ marginBottom: 4, color: '#0f172a', fontWeight: 800 }}
       >
-        Hồ Sơ Chủ Nuôi & Bệnh Án Thú Cưng
+        Thông tin tài khoản
       </Title>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
+        {getProfileSubtitle(role)}
+      </Text>
 
       {/* User Information Card */}
       <ProfileCard>
@@ -691,30 +503,39 @@ const ProfilePage: React.FC = () => {
                   }}
                 />
                 <div className="meta">
-                  <h3>{profile?.fullName || 'Nguyen Van A'}</h3>
+                  <h3>{profile?.fullName || 'Chưa cập nhật'}</h3>
                   <p>
-                    {profile?.email || 'owner@vcmos.com'} ·{' '}
-                    {profile?.phone || '0901000001'}
+                    {[profile?.email, profile?.phone]
+                      .filter(Boolean)
+                      .join(' · ') || 'Chưa cập nhật'}
                   </p>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Tag
-                      color="cyan"
-                      style={{ borderRadius: 6, fontWeight: 600 }}
-                    >
-                      Mã: {profile?.code || 'USR-000001'}
-                    </Tag>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {profile?.code && (
+                      <Tag
+                        color="cyan"
+                        style={{ borderRadius: 6, fontWeight: 600 }}
+                      >
+                        Mã: {profile.code}
+                      </Tag>
+                    )}
                     <Tag
                       color="teal"
                       style={{ borderRadius: 6, fontWeight: 600 }}
                     >
-                      {profile?.role || 'PetOwner'}
+                      {getRoleLabel(role)}
                     </Tag>
                     <Tag
-                      color="green"
-                      icon={<CheckCircleOutlined />}
+                      color={accountStatus.color}
+                      icon={
+                        profile?.status === 'Locked' ? (
+                          <LockOutlined />
+                        ) : profile?.status === 'Active' ? (
+                          <CheckCircleOutlined />
+                        ) : undefined
+                      }
                       style={{ borderRadius: 6 }}
                     >
-                      Active
+                      {accountStatus.label}
                     </Tag>
                   </div>
                 </div>
@@ -739,21 +560,30 @@ const ProfilePage: React.FC = () => {
               </div>
             </ProfileHeader>
 
+            {/* On phones the label goes above the value: side by side, the
+                140px label column left the values cut off */}
             <Descriptions
               bordered
               size="middle"
+              layout={isPhone ? 'vertical' : 'horizontal'}
               column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
-              labelStyle={{
-                fontWeight: 600,
-                color: '#475569',
-                width: '18%',
-                minWidth: '140px',
-                whiteSpace: 'nowrap',
-              }}
-              contentStyle={{
-                color: '#0f172a',
-                width: '32%',
-              }}
+              styles={
+                isPhone
+                  ? { label: { fontWeight: 600, color: '#475569' } }
+                  : {
+                      label: {
+                        fontWeight: 600,
+                        color: '#475569',
+                        width: '18%',
+                        minWidth: '140px',
+                        whiteSpace: 'nowrap',
+                      },
+                      content: {
+                        color: '#0f172a',
+                        width: '32%',
+                      },
+                    }
+              }
             >
               <Descriptions.Item label="Mã thành viên">
                 <Tag
@@ -770,7 +600,7 @@ const ProfilePage: React.FC = () => {
                   }}
                 >
                   <IdcardOutlined />
-                  {profile?.code || 'USR-000001'}
+                  {profile?.code || 'Chưa cập nhật'}
                 </Tag>
               </Descriptions.Item>
 
@@ -782,7 +612,7 @@ const ProfilePage: React.FC = () => {
                     color: '#0f172a',
                   }}
                 >
-                  {profile?.fullName || 'Nguyen Van A'}
+                  {profile?.fullName || 'Chưa cập nhật'}
                 </span>
               </Descriptions.Item>
 
@@ -798,7 +628,7 @@ const ProfilePage: React.FC = () => {
                   <PhoneOutlined
                     style={{ color: '#0d9488', fontSize: '15px' }}
                   />
-                  <span>{profile?.phone || '0901000001'}</span>
+                  <span>{profile?.phone || 'Chưa cập nhật'}</span>
                 </div>
               </Descriptions.Item>
 
@@ -873,260 +703,25 @@ const ProfilePage: React.FC = () => {
                   )}
                 </div>
               </Descriptions.Item>
+
+              <Descriptions.Item label="Vai trò">
+                {getRoleLabel(role)}
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Ngày tham gia">
+                {profile?.createdAt
+                  ? dayjs(profile.createdAt).format('DD/MM/YYYY')
+                  : 'Chưa cập nhật'}
+              </Descriptions.Item>
             </Descriptions>
           </>
         )}
       </ProfileCard>
 
-      {/* Pet Profile & Unified Medical Timeline */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16,
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
-        <Title
-          level={4}
-          style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}
-        >
-          Hồ Sơ Thú Cưng & Dòng Thời Gian Bệnh Án Điện Tử
-        </Title>
-        <Button
-          type="primary"
-          style={{ background: '#0d9488', borderColor: '#0d9488' }}
-          icon={<PlusOutlined />}
-          onClick={() => navigate(ROUTER.DASHBOARD)}
-        >
-          Quản lý thú cưng tại Dashboard
-        </Button>
-      </div>
-
-      {userPets.length === 0 ? (
-        <Card
-          style={{
-            borderRadius: 16,
-            textAlign: 'center',
-            padding: '36px 20px',
-            border: '1px solid #e2e8f0',
-            marginBottom: 32,
-          }}
-        >
-          <Empty
-            description={
-              <div>
-                <div
-                  style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}
-                >
-                  Bạn chưa có hồ sơ thú cưng nào
-                </div>
-                <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-                  Tạo hồ sơ thú cưng để theo dõi bệnh án điện tử SOAP/EMR và
-                  lịch sử tiêm phòng
-                </div>
-              </div>
-            }
-          >
-            <Button
-              type="primary"
-              style={{
-                background: '#0d9488',
-                borderColor: '#0d9488',
-                marginTop: 16,
-              }}
-              icon={<PlusOutlined />}
-              onClick={() => navigate(ROUTER.DASHBOARD)}
-            >
-              + Đăng ký thú cưng tại Dashboard
-            </Button>
-          </Empty>
-        </Card>
-      ) : (
-        <Spin spinning={petsLoading}>
-          <PetProfileBox>
-            {userPets.length > 1 && (
-              <div
-                style={{
-                  padding: '16px 24px',
-                  borderBottom: '1px solid #f1f5f9',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span
-                  style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}
-                >
-                  Chọn thú cưng:
-                </span>
-                <Segmented
-                  value={selectedPetId}
-                  onChange={val => setSelectedPetId(val as string)}
-                  options={userPets.map(p => ({
-                    label: `🐾 ${p.name} (${p.species || 'Thú cưng'})`,
-                    value: p._id,
-                  }))}
-                />
-              </div>
-            )}
-
-            <div className="pet-top">
-              <div className="pet-identity">
-                {currentPet?.photoUrl ? (
-                  <img
-                    src={currentPet.photoUrl}
-                    alt={currentPet.name}
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 12,
-                      objectFit: 'cover',
-                      border: '2px solid #0d9488',
-                    }}
-                  />
-                ) : (
-                  <div className="pet-avatar">
-                    {getSpeciesEmoji(currentPet?.species)}
-                  </div>
-                )}
-                <div className="pet-details">
-                  <h4>
-                    Bé {currentPet?.name} · Mã {currentPet?.code}
-                  </h4>
-                  <span>
-                    {currentPet?.species || 'Thú cưng'}
-                    {currentPet?.breed ? ` · ${currentPet.breed}` : ''}
-                    {currentPet?.dob
-                      ? ` · Ngày sinh: ${dayjs(currentPet.dob).format('DD/MM/YYYY')} (${calculatePetAge(currentPet.dob)})`
-                      : ''}
-                  </span>
-                </div>
-              </div>
-              <div className="badge-wrap">
-                {currentPet?.notes && (
-                  <Tag color="magenta">⚠️ {currentPet.notes}</Tag>
-                )}
-                <Tag color="cyan">Đang theo dõi sức khỏe</Tag>
-              </div>
-            </div>
-
-            <div className="pet-metrics-grid">
-              <div className="metric">
-                <div className="label">Thể trọng hiện tại</div>
-                <div className="val">
-                  {currentPet?.weight !== null &&
-                  currentPet?.weight !== undefined
-                    ? `${currentPet.weight} kg`
-                    : 'Chưa cập nhật'}
-                </div>
-              </div>
-              <div className="metric">
-                <div className="label">Màu lông</div>
-                <div className="val">
-                  {currentPet?.coatColor || 'Chưa cập nhật'}
-                </div>
-              </div>
-              <div className="metric">
-                <div className="label">Bác sĩ phụ trách</div>
-                <div className="val">
-                  {(currentPet as any)?.assignedDoctor || 'Chưa phân công'}
-                </div>
-              </div>
-              <div className="metric">
-                <div className="label">Lần khám gần nhất</div>
-                <div className="val">
-                  {(currentPet as any)?.lastVisitDate
-                    ? dayjs((currentPet as any).lastVisitDate).format(
-                        'DD/MM/YYYY'
-                      )
-                    : 'Chưa có lượt khám'}
-                </div>
-              </div>
-            </div>
-
-            <div className="timeline-header">
-              <h4>Dòng thời gian y khoa hợp nhất (Unified EMR Timeline)</h4>
-              <span style={{ fontSize: 13, color: '#64748b' }}>
-                Hợp nhất Khám - Grooming - Nội trú - Hoá đơn
-              </span>
-            </div>
-
-            {(currentPet as any)?.medicalRecords &&
-            (currentPet as any).medicalRecords.length > 0 ? (
-              <Timeline
-                items={((currentPet as any).medicalRecords as any[]).map(
-                  (rec: any, idx: number) => ({
-                    color: rec.color || '#0d9488',
-                    children: (
-                      <MilestoneCard key={idx}>
-                        <div className="m-header">
-                          <div className="m-title">{rec.title}</div>
-                          <span className="m-status">
-                            {rec.status || 'Đã hoàn tất (Done)'}
-                          </span>
-                        </div>
-                        <div className="m-body">
-                          Thời gian: <strong>{rec.date}</strong> · Bác sĩ:{' '}
-                          <strong>{rec.doctor}</strong>
-                          <br />
-                          {rec.diagnosis}
-                        </div>
-                      </MilestoneCard>
-                    ),
-                  })
-                )}
-              />
-            ) : (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '36px 16px',
-                  background: '#f8fafc',
-                  borderRadius: 12,
-                  border: '1px dashed #cbd5e1',
-                  margin: '16px 0',
-                }}
-              >
-                <FileTextOutlined
-                  style={{ fontSize: 36, color: '#94a3b8', marginBottom: 10 }}
-                />
-                <div
-                  style={{ fontSize: 14.5, fontWeight: 700, color: '#0f172a' }}
-                >
-                  Bé {currentPet?.name} chưa có bệnh án điện tử SOAP hoặc lịch
-                  sử khám
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: '#64748b',
-                    marginTop: 4,
-                    marginBottom: 16,
-                    maxWidth: 420,
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                  }}
-                >
-                  Khi bé đến khám, toàn bộ chẩn đoán SOAP, đơn thuốc, lịch tiêm
-                  phòng và lịch sử chăm sóc sẽ được lưu trữ tự động tại đây.
-                </div>
-                <Button
-                  type="primary"
-                  style={{ background: '#0d9488', borderColor: '#0d9488' }}
-                  icon={<CalendarOutlined />}
-                  onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
-                >
-                  + Đặt lịch khám cho bé {currentPet?.name}
-                </Button>
-              </div>
-            )}
-          </PetProfileBox>
-        </Spin>
-      )}
+      {/* Role-specific part: the owner's pets, the admin overview or the staff work */}
+      {roleGroup === 'owner' && <OwnerPetsSection />}
+      {roleGroup === 'admin' && <AdminOverviewSection />}
+      {roleGroup === 'staff' && <StaffWorkSection role={role} />}
 
       {/* Edit Profile Modal */}
       <Modal
@@ -1134,6 +729,8 @@ const ProfilePage: React.FC = () => {
         open={isEditModalOpen}
         onCancel={() => setIsEditModalOpen(false)}
         footer={null}
+        // Mounted up front so openEditModal can fill the form before it opens
+        forceRender
       >
         <Form form={form} layout="vertical" onFinish={handleUpdateProfile}>
           <Form.Item
@@ -1191,7 +788,7 @@ const ProfilePage: React.FC = () => {
         onCancel={() => setIsVerifyEmailModalOpen(false)}
         footer={null}
         width={480}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ padding: '8px 0' }}>
           <p style={{ color: '#64748b', fontSize: 13.5, marginBottom: 16 }}>
@@ -1319,7 +916,7 @@ const ProfilePage: React.FC = () => {
         onCancel={() => setIsChangePasswordModalOpen(false)}
         footer={null}
         width={520}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ padding: '8px 0' }}>
           {!profile?.email ? (
@@ -1665,203 +1262,6 @@ const ProfilePage: React.FC = () => {
               </Button>
             </Form>
           )}
-        </div>
-      </Modal>
-
-      {/* View SOAP Medical Record Modal */}
-      <Modal
-        title="Bệnh Án Điện Tử SOAP Chuẩn Y Khoa"
-        open={isSoapModalOpen}
-        onCancel={() => setIsSoapModalOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsSoapModalOpen(false)}>
-            Đóng
-          </Button>,
-          <Button
-            key="print"
-            type="primary"
-            style={{ background: '#0d9488' }}
-            onClick={() => toast.success('Đang tạo tệp PDF bệnh án điện tử...')}
-          >
-            Xuất file PDF bệnh án
-          </Button>,
-        ]}
-        width={700}
-      >
-        <div style={{ padding: '8px 0', fontSize: 13.5 }}>
-          <div
-            style={{
-              background: '#f8fafc',
-              padding: 14,
-              borderRadius: 8,
-              marginBottom: 16,
-            }}
-          >
-            <div>
-              Bệnh nhân:{' '}
-              <strong>
-                Bé {currentPet?.name || 'Thú cưng'} (
-                {currentPet?.species || 'Thú cưng'}
-                {currentPet?.breed ? ` · ${currentPet.breed}` : ''}
-                {currentPet?.weight ? ` · ${currentPet.weight} kg` : ''})
-              </strong>{' '}
-              · Chủ nuôi:{' '}
-              <strong>
-                {profile?.fullName || user?.fullName || 'Khách hàng'}
-              </strong>
-            </div>
-            <div>
-              Bác sĩ khám: <strong>BS. Trần Thị B</strong> · Ngày khám:{' '}
-              <strong>25/10/2026</strong>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 800, color: '#0d9488' }}>
-              S - SUBJECTIVE (Triệu chứng cơ năng theo lời chủ báo):
-            </div>
-            <div style={{ color: '#334155', marginTop: 4 }}>
-              Chủ báo bé bỏ ăn 2 ngày nay, nôn nhẹ dịch bọt trắng buổi sáng, uể
-              oải, ít vận động so với ngày thường.
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 800, color: '#0d9488' }}>
-              O - OBJECTIVE (Dấu hiệu thực thể qua thăm khám lâm sàng):
-            </div>
-            <div style={{ color: '#334155', marginTop: 4 }}>
-              Nhiệt độ 39.5°C, niêm mạc nhạt nhẹ, nhịp thở 28 lần/phút, bụng mềm
-              không chướng căng. Xét nghiệm máu: Bạch cầu tăng nhẹ.
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 800, color: '#0d9488' }}>
-              A - ASSESSMENT (Chẩn đoán xác định):
-            </div>
-            <div style={{ color: '#334155', marginTop: 4 }}>
-              Viêm dạ dày ruột cấp tính (Acute Gastroenteritis).
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 800, color: '#0d9488' }}>
-              P - PLAN (Phác đồ điều trị & Đơn thuốc kê toa):
-            </div>
-            <div style={{ color: '#334155', marginTop: 4 }}>
-              Nhập viện theo dõi Chuồng C-01, truyền dịch cân bằng điện giải,
-              dùng kháng sinh Amoxicillin 250mg trong 5 ngày.
-            </div>
-          </div>
-
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>
-              Đơn thuốc chỉ định:
-            </div>
-            <Table
-              size="small"
-              pagination={false}
-              columns={[
-                { title: 'Thuốc / Sản phẩm', dataIndex: 'name', key: 'name' },
-                { title: 'Liều lượng', dataIndex: 'dose', key: 'dose' },
-                { title: 'Tần suất', dataIndex: 'freq', key: 'freq' },
-                { title: 'Số lượng', dataIndex: 'qty', key: 'qty' },
-              ]}
-              dataSource={[
-                {
-                  key: '1',
-                  name: 'Amoxicillin 250mg',
-                  dose: '1 viên',
-                  freq: '2 lần/ngày (sau ăn)',
-                  qty: '10 viên',
-                },
-              ]}
-            />
-          </div>
-        </div>
-      </Modal>
-
-      {/* View Invoice Modal */}
-      <Modal
-        title="Hoá Đơn Dịch Vụ Khám & Điều Trị"
-        open={isInvoiceModalOpen}
-        onCancel={() => setIsInvoiceModalOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsInvoiceModalOpen(false)}>
-            Đóng
-          </Button>,
-          <Button
-            key="download"
-            type="primary"
-            style={{ background: '#0d9488' }}
-            onClick={() => toast.success('Đã tải hóa đơn điện tử (PDF)')}
-          >
-            Tải hoá đơn PDF
-          </Button>,
-        ]}
-        width={650}
-      >
-        <div style={{ padding: '8px 0', fontSize: 13.5 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginBottom: 14,
-            }}
-          >
-            <div>
-              Mã hoá đơn: <strong>#INV-20261025-01</strong>
-              <br />
-              Thú cưng: <strong>Bé {currentPet?.name || 'Thú cưng'}</strong> (
-              {currentPet?.code || 'Chưa cấp mã'})
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              Ngày xuất: <strong>25/10/2026</strong>
-              <br />
-              Trạng thái: <Tag color="green">Đã thanh toán (Paid)</Tag>
-            </div>
-          </div>
-
-          <Table
-            size="small"
-            pagination={false}
-            columns={[
-              { title: 'Khoản mục', dataIndex: 'item', key: 'item' },
-              { title: 'Đơn giá', dataIndex: 'price', key: 'price' },
-              { title: 'SL', dataIndex: 'qty', key: 'qty' },
-              { title: 'Thành tiền', dataIndex: 'total', key: 'total' },
-            ]}
-            dataSource={[
-              {
-                key: '1',
-                item: 'Khám lâm sàng tổng quát',
-                price: '150.000đ',
-                qty: 1,
-                total: '150.000đ',
-              },
-              {
-                key: '2',
-                item: 'Thuốc Amoxicillin 250mg (vỉ)',
-                price: '5.000đ',
-                qty: 10,
-                total: '50.000đ',
-              },
-            ]}
-          />
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginTop: 18,
-              fontSize: 15,
-              fontWeight: 800,
-            }}
-          >
-            <span>Phương thức: Tiền mặt (Cash) / VNPay QR</span>
-            <span style={{ color: '#0d9488' }}>Tổng cộng: 200.000đ</span>
-          </div>
         </div>
       </Modal>
     </ProfileWrapper>

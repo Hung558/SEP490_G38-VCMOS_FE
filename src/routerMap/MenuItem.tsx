@@ -7,6 +7,7 @@ import {
   AppstoreOutlined,
 } from '@ant-design/icons';
 import ROUTER from './ROUTER';
+import { getRoleGroup } from '@/constants/roles';
 
 export interface MenuItem {
   key: string;
@@ -74,9 +75,25 @@ export const MenuItemCommon = (): MenuItem[] => {
   ];
 };
 
+// Clinic staff and Admin own no pets, so they get no pet-owner dashboard (SCR-07)
+export const MenuItemStaff = (): MenuItem[] => {
+  return [
+    {
+      key: ROUTER.HOME,
+      label: 'Trang chủ',
+      icon: <HomeOutlined />,
+    },
+    {
+      key: ROUTER.PROFILE,
+      label: 'Thông tin tài khoản',
+      icon: <UserOutlined />,
+    },
+  ];
+};
+
 export const MenuItemAdmin = (): MenuItem[] => {
   return [
-    ...MenuItemCommon(),
+    ...MenuItemStaff(),
     {
       key: ROUTER.ADMIN_USERS,
       label: 'Quản lý tài khoản',
@@ -92,9 +109,9 @@ export const MenuItemAdmin = (): MenuItem[] => {
 
 /** Hàm helper: Lấy menu theo role */
 export const getMenuByRole = (role?: string): MenuItem[] => {
-  if (role && role.toLowerCase() === 'admin') {
-    return MenuItemAdmin();
-  }
+  const group = getRoleGroup(role);
+  if (group === 'admin') return MenuItemAdmin();
+  if (group === 'staff') return MenuItemStaff();
   return MenuItemCommon();
 };
 
