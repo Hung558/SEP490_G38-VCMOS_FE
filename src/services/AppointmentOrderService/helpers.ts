@@ -1,0 +1,199 @@
+import type {
+  AppointmentStatus,
+  CreateOnlineBookingPayload,
+  ListMyOnlineBookingsParams,
+} from '@/types';
+
+export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
+  'Booked',
+  'CheckedIn',
+  'InProgress',
+  'WaitOwner',
+  'Done',
+  'Cancelled',
+  'Overdue',
+] as const;
+
+export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
+  Booked: 'Đã đặt',
+  CheckedIn: 'Đã tiếp nhận',
+  InProgress: 'Đang thực hiện',
+  WaitOwner: 'Chờ chủ đón',
+  Done: 'Hoàn tất',
+  Cancelled: 'Đã hủy',
+  Overdue: 'Quá hạn',
+};
+
+export const APPOINTMENT_STATUS_COLORS: Record<AppointmentStatus, string> = {
+  Booked: 'blue',
+  CheckedIn: 'cyan',
+  InProgress: 'orange',
+  WaitOwner: 'purple',
+  Done: 'green',
+  Cancelled: 'red',
+  Overdue: 'default',
+};
+
+export const getAppointmentStatusLabel = (status?: string): string => {
+  if (!status) return 'Không xác định';
+  return APPOINTMENT_STATUS_LABELS[status as AppointmentStatus] || status;
+};
+
+export const getAppointmentStatusColor = (status?: string): string => {
+  if (!status) return 'default';
+  return APPOINTMENT_STATUS_COLORS[status as AppointmentStatus] || 'default';
+};
+
+/** Lấy ngày hiện tại theo giờ Việt Nam (Asia/Ho_Chi_Minh) dạng YYYY-MM-DD */
+export const getVietnamTodayString = (): string => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+};
+
+/** Validate ngày đặt lịch: đúng định dạng YYYY-MM-DD, là ngày thật và không ở quá khứ */
+export const validateBookingDate = (date?: string): string | undefined => {
+  if (!date || typeof date !== 'string' || !date.trim()) {
+    return 'Ngày hẹn là bắt buộc';
+  }
+  const trimmed = date.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return 'Ngày phải đúng định dạng YYYY-MM-DD và hợp lệ';
+  }
+
+  const [year, month, day] = trimmed.split('-').map(Number);
+  const dateObj = new Date(Date.UTC(year, month - 1, day));
+  if (
+    dateObj.getUTCFullYear() !== year ||
+    dateObj.getUTCMonth() !== month - 1 ||
+    dateObj.getUTCDate() !== day
+  ) {
+    return 'Ngày phải đúng định dạng YYYY-MM-DD và hợp lệ';
+  }
+
+  const todayStr = getVietnamTodayString();
+  if (trimmed < todayStr) {
+    return 'Ngày hẹn không được ở trong quá khứ';
+  }
+
+  return undefined;
+};
+
+/** Validate ghi chú đặt lịch: chuỗi, tối đa 500 ký tự */
+export const validateBookingNote = (note?: unknown): string | undefined => {
+  if (note === undefined || note === null || note === '') {
+    return undefined;
+  }
+  if (typeof note !== 'string') {
+    return 'Ghi chú phải là chuỗi';
+  }
+  if (note.trim().length > 500) {
+    return 'Ghi chú tối đa 500 ký tự';
+  }
+  return undefined;
+};
+
+/** Validate petId: bắt buộc là chuỗi hex MongoId 24 ký tự */
+export const validateBookingPetId = (petId?: string): string | undefined => {
+  if (!petId || typeof petId !== 'string' || !petId.trim()) {
+    return 'Vui lòng chọn thú cưng';
+  }
+  const trimmed = petId.trim();
+  if (!/^[0-9a-fA-F]{24}$/.test(trimmed)) {
+    return 'petId không hợp lệ';
+  }
+  return undefined;
+};
+
+/** Build payload gửi lên POST /api/appointment-orders/online */
+export const buildBookingPayload = (
+  raw: CreateOnlineBookingPayload
+): CreateOnlineBookingPayload => {
+  const payload: CreateOnlineBookingPayload = {
+    petId: (raw.petId || '').trim(),
+    date: (raw.date || '').trim(),
+  };
+
+  const trimmedNote = (raw.note || '').trim();
+  if (trimmedNote) {
+    payload.note = trimmedNote;
+  }
+
+  return payload;
+};
+
+/** Build query params cho GET /api/appointment-orders/me */
+export const buildBookingFilterQuery = (
+  params?: ListMyOnlineBookingsParams
+): Record<string, string | number> => {
+  if (!params) return {};
+  const query: Record<string, string | number> = {};
+
+  if (params.status && APPOINTMENT_STATUSES.includes(params.status)) {
+    query.status = params.status;
+  }
+  if (params.from && typeof params.from === 'string' && params.from.trim()) {
+    query.from = params.from.trim();
+  }
+  if (params.to && typeof params.to === 'string' && params.to.trim()) {
+    query.to = params.to.trim();
+  }
+  if (typeof params.page === 'number' && params.page >= 1) {
+    query.page = Math.floor(params.page);
+  }
+  if (
+    typeof params.limit === 'number' &&
+    params.limit >= 1 &&
+    params.limit <= 100
+  ) {
+    query.limit = Math.floor(params.limit);
+  }
+
+  return query;
+};
+
+interface ApiErrorShape {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+      errors?: Array<{ field?: string; message?: string }>;
+    };
+  };
+  message?: string;
+}
+
+/** Trích xuất message và fieldErrors từ backend error response */
+export const extractApiError = (
+  error: unknown,
+  fallbackMessage = 'Đã có lỗi xảy ra'
+): {
+  message: string;
+  fieldErrors: Record<string, string>;
+  status?: number;
+} => {
+  const candidate = error as ApiErrorShape | undefined;
+  const status = candidate?.response?.status;
+  const data = candidate?.response?.data;
+  const message = data?.message || candidate?.message || fallbackMessage;
+  const fieldErrors: Record<string, string> = {};
+
+  if (Array.isArray(data?.errors)) {
+    for (const item of data.errors) {
+      if (item?.field && item?.message) {
+        fieldErrors[item.field] = item.message;
+      }
+    }
+  }
+
+  return { message, fieldErrors, status };
+};

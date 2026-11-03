@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import styled from 'styled-components';
 import {
   Card,
@@ -10,10 +16,12 @@ import {
   Space,
   Button,
   Modal,
-  Steps,
   Segmented,
   Avatar,
   Tooltip,
+  DatePicker,
+  Select,
+  Alert,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -28,6 +36,14 @@ import {
   CopyOutlined,
   CheckOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import AppointmentOrderService, {
+  getAppointmentStatusLabel,
+  getAppointmentStatusColor,
+  extractApiError,
+} from '@/services/AppointmentOrderService';
+import type { OnlineAppointment, AppointmentStatus } from '@/types';
+import AppointmentDetailModal from './components/AppointmentDetailModal';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { generatePath, useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
@@ -264,32 +280,6 @@ const SectionCard = styled(Card)`
   }
 `;
 
-const StatusStepperBox = styled.div`
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 16px;
-
-  .stepper-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    font-size: 13px;
-    strong {
-      color: #0f172a;
-    }
-    span {
-      color: #64748b;
-    }
-  }
-
-  .ant-steps-item-title {
-    font-size: 12.5px !important;
-    font-weight: 600;
-  }
-`;
-
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -304,15 +294,127 @@ const DashboardPage: React.FC = () => {
   const [limit, setLimit] = useState(10);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // Dynamic appointments and inpatient data (not hardcoded mock data)
-  const [appointments] = useState<any[]>([]);
+  // Dynamic appointments and inpatient data
   const [inpatientStay] = useState<any | null>(null);
 
-  const activeAppointments = appointments.filter(
-    a => a.status !== 'Done' && a.status !== 'Cancelled'
+  const [appointments, setAppointments] = useState<OnlineAppointment[]>([]);
+  const [appointmentsTotal, setAppointmentsTotal] = useState(0);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(
+    null
   );
-  const activeAppointment = activeAppointments[0] || null;
-  const completedAppointments = appointments.filter(a => a.status === 'Done');
+
+  const [appointmentPage, setAppointmentPage] = useState(1);
+  const [appointmentLimit, setAppointmentLimit] = useState(10);
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState<
+    AppointmentStatus | undefined
+  >(undefined);
+  const [appointmentFromDate, setAppointmentFromDate] = useState<
+    string | undefined
+  >(undefined);
+  const [appointmentToDate, setAppointmentToDate] = useState<
+    string | undefined
+  >(undefined);
+
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<
+    string | null
+  >(null);
+  const [isAppointmentDetailOpen, setIsAppointmentDetailOpen] = useState(false);
+
+  // All pets cached for petId -> Pet name mapping
+  const [allPets, setAllPets] = useState<Pet[]>([]);
+  useEffect(() => {
+    PetService.listPets({ status: 'All', page: 1, limit: 100 })
+      .then(res => {
+        if (res?.items) setAllPets(res.items);
+      })
+      .catch(() => {});
+  }, []);
+
+  const petsMap = useMemo(() => {
+    const map = new Map<string, Pet>();
+    for (const p of allPets) map.set(p._id, p);
+    for (const p of pets) map.set(p._id, p);
+    return map;
+  }, [allPets, pets]);
+
+  const appointmentAbortCtrlRef = useRef<AbortController | null>(null);
+  const appointmentReqSeqRef = useRef(0);
+
+  const fetchAppointments = useCallback(async () => {
+    // Abort previous in-flight request if any to prevent race condition
+    if (appointmentAbortCtrlRef.current) {
+      appointmentAbortCtrlRef.current.abort();
+    }
+    const abortCtrl = new AbortController();
+    appointmentAbortCtrlRef.current = abortCtrl;
+
+    const reqSeq = ++appointmentReqSeqRef.current;
+    setAppointmentsLoading(true);
+    setAppointmentsError(null);
+
+    try {
+      const res = await AppointmentOrderService.listMyOnlineBookings(
+        {
+          status: appointmentStatusFilter,
+          from: appointmentFromDate,
+          to: appointmentToDate,
+          page: appointmentPage,
+          limit: appointmentLimit,
+        },
+        { signal: abortCtrl.signal }
+      );
+
+      // Only update state if this is still the newest request and not aborted
+      if (
+        reqSeq === appointmentReqSeqRef.current &&
+        !abortCtrl.signal.aborted
+      ) {
+        setAppointments(res?.data || []);
+        setAppointmentsTotal(res?.pagination?.total || 0);
+      }
+    } catch (err: unknown) {
+      // Ignore aborted or stale requests
+      if (
+        abortCtrl.signal.aborted ||
+        reqSeq !== appointmentReqSeqRef.current ||
+        (err as any)?.name === 'CanceledError' ||
+        (err as any)?.name === 'AbortError' ||
+        (err as any)?.code === 'ERR_CANCELED'
+      ) {
+        return;
+      }
+
+      const { message } = extractApiError(
+        err,
+        'Không thể tải danh sách lịch hẹn khám.'
+      );
+      setAppointmentsError(message);
+      toast.error(message);
+    } finally {
+      if (
+        reqSeq === appointmentReqSeqRef.current &&
+        !abortCtrl.signal.aborted
+      ) {
+        setAppointmentsLoading(false);
+      }
+    }
+  }, [
+    appointmentStatusFilter,
+    appointmentFromDate,
+    appointmentToDate,
+    appointmentPage,
+    appointmentLimit,
+  ]);
+
+  useEffect(() => {
+    fetchAppointments();
+    return () => {
+      if (appointmentAbortCtrlRef.current) {
+        appointmentAbortCtrlRef.current.abort();
+      }
+    };
+  }, [fetchAppointments]);
 
   // Modal controllers
   const [isPetFormModalOpen, setIsPetFormModalOpen] = useState(false);
@@ -369,55 +471,88 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  // Appointments adhering to SRS Order Lifecycle
+  // Appointments table columns
   const appointmentColumns = [
     {
       title: 'Mã lượt hẹn',
       dataIndex: 'code',
       key: 'code',
       render: (code: string) => (
-        <strong style={{ color: '#0d9488' }}>{code}</strong>
+        <strong style={{ color: '#0d9488', letterSpacing: 0.5 }}>{code}</strong>
       ),
     },
     {
-      title: 'Thú cưng & Giống',
-      dataIndex: 'petName',
-      key: 'petName',
-      render: (text: string, record: any) => (
-        <div>
-          <div style={{ fontWeight: 600, color: '#0f172a' }}>{text}</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>{record.breed}</div>
-        </div>
-      ),
-    },
-    {
-      title: 'Dịch vụ chỉ định',
-      dataIndex: 'service',
-      key: 'service',
-    },
-    {
-      title: 'Bác sĩ / Nhân sự',
-      dataIndex: 'doctor',
-      key: 'doctor',
-    },
-    {
-      title: 'Thời gian khám',
-      dataIndex: 'datetime',
-      key: 'datetime',
-    },
-    {
-      title: 'Trạng thái chu trình',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        let color = 'default';
-        if (status === 'Booked') color = 'blue';
-        if (status === 'CheckedIn') color = 'cyan';
-        if (status === 'InProgress (Đang khám)') color = 'orange';
-        if (status === 'WaitOwner (Chờ chủ đón)') color = 'purple';
-        if (status === 'Done') color = 'green';
-        return <Tag color={color}>{status}</Tag>;
+      title: 'Thú cưng',
+      dataIndex: 'petId',
+      key: 'petId',
+      render: (petId: string) => {
+        const p = petsMap.get(petId);
+        if (p) {
+          return (
+            <div>
+              <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                Bé {p.name}
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>
+                {p.species || 'Thú cưng'} {p.breed ? `· ${p.breed}` : ''}
+              </div>
+            </div>
+          );
+        }
+        return (
+          <Text type="secondary">
+            Thú cưng ({petId ? petId.slice(-6) : '—'})
+          </Text>
+        );
       },
+    },
+    {
+      title: 'Ngày hẹn khám',
+      dataIndex: 'date',
+      key: 'date',
+      render: (date: string) => (
+        <span>{date ? dayjs(date).format('DD/MM/YYYY') : '—'}</span>
+      ),
+    },
+    {
+      title: 'Ghi chú',
+      dataIndex: 'note',
+      key: 'note',
+      ellipsis: true,
+      render: (note?: string) => (
+        <Tooltip title={note || undefined}>
+          <span>{note || <Text type="secondary">—</Text>}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'derivedStatus',
+      key: 'derivedStatus',
+      render: (derivedStatus: AppointmentStatus) => (
+        <Tag color={getAppointmentStatusColor(derivedStatus)}>
+          {getAppointmentStatusLabel(derivedStatus)}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Hành động',
+      key: 'action',
+      align: 'center' as const,
+      render: (_: unknown, record: OnlineAppointment) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          style={{ color: '#0d9488', fontWeight: 600 }}
+          onClick={() => {
+            setSelectedAppointmentId(record._id);
+            setIsAppointmentDetailOpen(true);
+          }}
+        >
+          Chi tiết
+        </Button>
+      ),
     },
   ];
 
@@ -730,16 +865,16 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <StatCard>
             <div className="stat-header">
-              <span className="label">Lịch hẹn đang xử lý</span>
+              <span className="label">Lịch hẹn trực tuyến</span>
               <div className="icon-box blue">
                 <CalendarOutlined />
               </div>
             </div>
-            <div className="num">{activeAppointments.length}</div>
+            <div className="num">{appointmentsTotal}</div>
             <div className="sub">
-              {activeAppointments.length > 0
-                ? `${activeAppointments.length} lượt hẹn đang tiến hành`
-                : 'Không có lịch hẹn đang xử lý'}
+              {appointmentsTotal > 0
+                ? `${appointmentsTotal} lượt hẹn trên hệ thống`
+                : 'Chưa có lịch hẹn trực tuyến'}
             </div>
           </StatCard>
         </Col>
@@ -764,72 +899,151 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <StatCard>
             <div className="stat-header">
-              <span className="label">Hồ sơ hoàn tất</span>
+              <span className="label">Lịch hiển thị hiện tại</span>
               <div className="icon-box green">
                 <CheckCircleOutlined />
               </div>
             </div>
-            <div className="num">{completedAppointments.length}</div>
+            <div className="num">{appointments.length}</div>
             <div className="sub">
-              {completedAppointments.length > 0
-                ? `${completedAppointments.length} bệnh án SOAP đã lưu trữ`
-                : 'Chưa có bệnh án SOAP'}
+              {appointments.length > 0
+                ? `${appointments.length} lượt hẹn theo trang lọc`
+                : 'Không có dữ liệu trang này'}
             </div>
           </StatCard>
         </Col>
       </Row>
 
-      {/* Live Order Stepper Preview (SRS Lifecycle) - Only shown if there is an active appointment */}
-      {activeAppointment && (
-        <StatusStepperBox>
-          <div className="stepper-header">
-            <div>
-              <strong>
-                Chu trình lượt hẹn trực tiếp mã #{activeAppointment.code}:
-              </strong>{' '}
-              {activeAppointment.petName}({activeAppointment.service})
-            </div>
-            <span>Bác sĩ phụ trách: {activeAppointment.doctor}</span>
-          </div>
-          <Steps
-            size="small"
-            current={activeAppointment.stepIndex || 0}
-            items={[
-              { title: 'Đã đặt (Booked)' },
-              { title: 'Đã tiếp nhận (Checked In)' },
-              { title: 'Đang thực hiện (In Progress)' },
-              { title: 'Chờ chủ đón (Wait Owner)' },
-              { title: 'Hoàn tất (Done)' },
-            ]}
-          />
-        </StatusStepperBox>
-      )}
-
-      {/* Upcoming Appointments Table */}
+      {/* Online Appointments Table */}
       <SectionCard
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span>Danh Sách Lịch Hẹn & Tiến Trình Khám Lâm Sàng</span>
-            <Tag color={appointments.length > 0 ? 'cyan' : 'default'}>
-              {appointments.length} lượt hẹn
+            <span>📅 Danh Sách Lịch Hẹn Khám Trực Tuyến</span>
+            <Tag color={appointmentsTotal > 0 ? 'cyan' : 'default'}>
+              {appointmentsTotal} lượt hẹn
             </Tag>
           </div>
         }
         extra={
-          <Button
-            type="primary"
-            style={{ background: '#0d9488', borderColor: '#0d9488' }}
-            icon={<CalendarOutlined />}
-            onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
-          >
-            + Đặt lịch khám
-          </Button>
+          <Space wrap>
+            <Button
+              icon={<ReloadOutlined spin={appointmentsLoading} />}
+              onClick={fetchAppointments}
+              title="Làm mới danh sách lịch hẹn"
+            />
+            <Button
+              type="primary"
+              style={{ background: '#0d9488', borderColor: '#0d9488' }}
+              icon={<CalendarOutlined />}
+              onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
+            >
+              + Đặt lịch khám
+            </Button>
+          </Space>
         }
       >
+        {appointmentsError && (
+          <Alert
+            type="error"
+            showIcon
+            message="Không thể tải danh sách lịch hẹn"
+            description={appointmentsError}
+            action={
+              <Button size="small" onClick={fetchAppointments}>
+                Thử lại
+              </Button>
+            }
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        {/* Filter bar */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            flexWrap: 'wrap',
+            marginBottom: 16,
+            alignItems: 'center',
+          }}
+        >
+          <Select
+            allowClear
+            placeholder="Lọc theo trạng thái"
+            style={{ minWidth: 200 }}
+            value={appointmentStatusFilter}
+            onChange={val => {
+              setAppointmentStatusFilter(val || undefined);
+              setAppointmentPage(1);
+            }}
+            options={[
+              { label: 'Tất cả trạng thái', value: '' },
+              { label: 'Đã đặt (Booked)', value: 'Booked' },
+              { label: 'Đã tiếp nhận (CheckedIn)', value: 'CheckedIn' },
+              { label: 'Đang thực hiện (InProgress)', value: 'InProgress' },
+              { label: 'Chờ chủ đón (WaitOwner)', value: 'WaitOwner' },
+              { label: 'Hoàn tất (Done)', value: 'Done' },
+              { label: 'Đã hủy (Cancelled)', value: 'Cancelled' },
+              { label: 'Quá hạn (Overdue)', value: 'Overdue' },
+            ]}
+          />
+
+          <DatePicker.RangePicker
+            format="DD/MM/YYYY"
+            placeholder={['Từ ngày', 'Đến ngày']}
+            value={
+              appointmentFromDate && appointmentToDate
+                ? [dayjs(appointmentFromDate), dayjs(appointmentToDate)]
+                : null
+            }
+            onChange={dates => {
+              if (dates && dates[0] && dates[1]) {
+                setAppointmentFromDate(dates[0].format('YYYY-MM-DD'));
+                setAppointmentToDate(dates[1].format('YYYY-MM-DD'));
+              } else {
+                setAppointmentFromDate(undefined);
+                setAppointmentToDate(undefined);
+              }
+              setAppointmentPage(1);
+            }}
+          />
+
+          {(appointmentStatusFilter ||
+            appointmentFromDate ||
+            appointmentToDate) && (
+            <Button
+              type="link"
+              size="small"
+              style={{ color: '#64748b' }}
+              onClick={() => {
+                setAppointmentStatusFilter(undefined);
+                setAppointmentFromDate(undefined);
+                setAppointmentToDate(undefined);
+                setAppointmentPage(1);
+              }}
+            >
+              Xóa bộ lọc
+            </Button>
+          )}
+        </div>
+
         <Table
+          rowKey="_id"
           columns={appointmentColumns}
           dataSource={appointments}
-          pagination={false}
+          loading={appointmentsLoading}
+          pagination={{
+            current: appointmentPage,
+            pageSize: appointmentLimit,
+            total: appointmentsTotal,
+            showSizeChanger: true,
+            pageSizeOptions: ['5', '10', '20', '50'],
+            onChange: (p, ps) => {
+              setAppointmentPage(p);
+              setAppointmentLimit(ps);
+            },
+            showTotal: total => `Tổng số ${total} lượt hẹn`,
+          }}
           size="middle"
           locale={{
             emptyText: (
@@ -840,7 +1054,11 @@ const DashboardPage: React.FC = () => {
                 <div
                   style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}
                 >
-                  Chưa có lịch hẹn khám nào
+                  {appointmentStatusFilter ||
+                  appointmentFromDate ||
+                  appointmentToDate
+                    ? 'Không tìm thấy lịch hẹn phù hợp với bộ lọc'
+                    : 'Chưa có lịch hẹn khám trực tuyến nào'}
                 </div>
                 <div
                   style={{
@@ -850,18 +1068,37 @@ const DashboardPage: React.FC = () => {
                     marginBottom: 14,
                   }}
                 >
-                  Đặt lịch khám, tiêm phòng hoặc spa làm đẹp cho thú cưng dễ
-                  dàng trực tuyến
+                  {appointmentStatusFilter ||
+                  appointmentFromDate ||
+                  appointmentToDate
+                    ? 'Hãy thử thay đổi hoặc xóa bộ lọc trạng thái và khoảng ngày'
+                    : 'Đăng ký ngày hẹn và ghi chú triệu chứng cho thú cưng dễ dàng trực tuyến'}
                 </div>
-                <Button
-                  type="primary"
-                  size="small"
-                  style={{ background: '#0d9488' }}
-                  icon={<CalendarOutlined />}
-                  onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
-                >
-                  + Đặt lịch khám ngay
-                </Button>
+                {appointmentStatusFilter ||
+                appointmentFromDate ||
+                appointmentToDate ? (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setAppointmentStatusFilter(undefined);
+                      setAppointmentFromDate(undefined);
+                      setAppointmentToDate(undefined);
+                      setAppointmentPage(1);
+                    }}
+                  >
+                    Xóa bộ lọc
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    size="small"
+                    style={{ background: '#0d9488' }}
+                    icon={<CalendarOutlined />}
+                    onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
+                  >
+                    + Đặt lịch khám ngay
+                  </Button>
+                )}
               </div>
             ),
           }}
@@ -1111,6 +1348,17 @@ const DashboardPage: React.FC = () => {
         pet={petToDelete}
         onCancel={() => setPetToDelete(null)}
         onConfirm={handleDeletePet}
+      />
+
+      {/* Online Appointment Detail Modal */}
+      <AppointmentDetailModal
+        open={isAppointmentDetailOpen}
+        appointmentId={selectedAppointmentId}
+        onClose={() => {
+          setIsAppointmentDetailOpen(false);
+          setSelectedAppointmentId(null);
+        }}
+        petsMap={petsMap}
       />
     </DashboardWrapper>
   );
