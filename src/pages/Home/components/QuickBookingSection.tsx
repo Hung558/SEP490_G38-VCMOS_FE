@@ -1,21 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import ServiceService from '@/services/ServiceService';
 import styled from 'styled-components';
-import { Button, Input, Select, Steps } from 'antd';
+import { Button, Input, Select, Steps, DatePicker, Alert, Spin } from 'antd';
 import {
   CheckCircleOutlined,
   PhoneOutlined,
-  ClockCircleOutlined,
+  CalendarOutlined,
   SafetyCertificateOutlined,
-  ScissorOutlined,
-  MedicineBoxOutlined,
-  FileSearchOutlined,
+  UserOutlined,
   RightOutlined,
   LeftOutlined,
-  UserOutlined,
+  PlusOutlined,
+  CopyOutlined,
+  InfoCircleOutlined,
+  CheckOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
+import dayjs, { type Dayjs } from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
+import { useAuth } from '@/contexts/routerProvider/authContext';
+import { normalizeRole } from '@/constants/roles';
+import PetService from '@/services/PetService';
+import AppointmentOrderService, {
+  extractApiError,
+  validateBookingDate,
+  validateBookingNote,
+  validateBookingPetId,
+  getVietnamTodayString,
+} from '@/services/AppointmentOrderService';
+import type { Pet, OnlineAppointment } from '@/types';
+import ROUTER from '@/routerMap/ROUTER';
 
 const SectionWrapper = styled.section`
   max-width: 1240px;
@@ -45,22 +61,22 @@ const GuestNotice = styled.div`
   background: #f0fdfa;
   border: 1px solid #ccfbf1;
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   margin-bottom: 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13px;
+  font-size: 13.5px;
   color: #0f766e;
 
   .btn-guest-login {
     background: #0d9488;
     color: #ffffff;
     border: none;
-    padding: 5px 12px;
+    padding: 6px 14px;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
     flex-shrink: 0;
@@ -205,7 +221,7 @@ const FormWrap = styled.div`
   }
 
   .step-content {
-    min-height: 280px;
+    min-height: 260px;
   }
 
   .section-label {
@@ -215,60 +231,11 @@ const FormWrap = styled.div`
     margin-bottom: 8px;
   }
 
-  .service-card-select {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
-
-    .srv-item {
-      padding: 12px 16px;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 10px;
-      background: #ffffff;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: all 0.15s;
-
-      &:hover {
-        border-color: #cbd5e1;
-      }
-
-      &.selected {
-        border-color: #0d9488;
-        background: #f0fdfa;
-      }
-
-      .left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-
-        .icon {
-          color: #0d9488;
-          font-size: 18px;
-        }
-
-        .name {
-          font-size: 14px;
-          font-weight: 600;
-          color: #0f172a;
-        }
-
-        .duration {
-          font-size: 12px;
-          color: #64748b;
-        }
-      }
-
-      .price {
-        font-size: 14px;
-        font-weight: 700;
-        color: #0d9488;
-      }
-    }
+  .field-error {
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 4px;
+    margin-bottom: 12px;
   }
 
   .summary-box {
@@ -282,57 +249,30 @@ const FormWrap = styled.div`
       display: flex;
       justify-content: space-between;
       font-size: 13.5px;
-      padding: 6px 0;
+      padding: 8px 0;
       border-bottom: 1px dashed #f1f5f9;
       color: #334155;
 
-      &.total {
+      span.label {
+        color: #64748b;
+      }
+
+      strong {
+        color: #0f172a;
+      }
+
+      &.highlight {
         border-bottom: none;
         border-top: 1.5px solid #e2e8f0;
         margin-top: 8px;
         padding-top: 12px;
-        font-size: 15px;
-        font-weight: 800;
+        font-size: 14px;
+        font-weight: 700;
         color: #0f172a;
 
-        .price-final {
+        .status-badge {
           color: #0d9488;
         }
-      }
-    }
-  }
-
-  .slots-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-bottom: 20px;
-
-    @media (max-width: 600px) {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .slot-btn {
-      padding: 8px 4px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      background: #ffffff;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: #334155;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s;
-
-      &.active {
-        background: #0d9488;
-        border-color: #0d9488;
-        color: #ffffff;
-      }
-
-      &:hover:not(.active) {
-        border-color: #0d9488;
-        color: #0d9488;
       }
     }
   }
@@ -366,182 +306,324 @@ const FormWrap = styled.div`
   }
 `;
 
-const timeSlots = [
-  '08:30 Sáng',
-  '09:30 Sáng',
-  '10:30 Sáng',
-  '11:15 Trưa',
-  '14:00 Chiều',
-  '15:30 Chiều',
-  '17:00 Chiều',
-  '18:30 Tối',
-];
+const SuccessCard = styled.div`
+  text-align: center;
+  padding: 16px 8px;
 
-const availableServices = [
-  {
-    id: 'exam',
-    title: 'Khám lâm sàng tổng quát & Bệnh án SOAP',
-    duration: 30,
-    price: 150000,
-    icon: <MedicineBoxOutlined />,
-  },
-  {
-    id: 'vaccine',
-    title: 'Tiêm chủng Vaccine đa giá & Sổ giun',
-    duration: 20,
-    price: 180000,
-    icon: <CheckCircleOutlined />,
-  },
-  {
-    id: 'grooming',
-    title: 'Grooming Spa & Cắt tỉa lông thẩm mỹ',
-    duration: 60,
-    price: 250000,
-    icon: <ScissorOutlined />,
-  },
-  {
-    id: 'imaging',
-    title: 'Chẩn đoán hình ảnh: Siêu âm Doppler & X-Quang',
-    duration: 30,
-    price: 300000,
-    icon: <FileSearchOutlined />,
-  },
-];
-
-const getCategoryIcon = (category: string) => {
-  switch (category) {
-    case 'Examination':
-      return <MedicineBoxOutlined />;
-    case 'Vaccination':
-      return <CheckCircleOutlined />;
-    case 'Grooming':
-      return <ScissorOutlined />;
-    case 'Paraclinical':
-      return <FileSearchOutlined />;
-    default:
-      return <SafetyCertificateOutlined />;
+  .success-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #ecfdf5;
+    color: #059669;
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
   }
-};
 
-const staffList = [
-  {
-    value: 'any',
-    label: 'Bất kỳ bác sĩ / kỹ thuật viên trực ca (Khuyên dùng)',
-  },
-  {
-    value: 'vet_b',
-    label: 'BS. CKI Trần Mai Anh (Trưởng khoa Nội & Siêu âm Doppler)',
-  },
-  {
-    value: 'vet_nam',
-    label:
-      'ThS. BS. Nguyễn Hoàng Nam (Chuyên khoa Ngoại & Chấn thương chỉnh hình)',
-  },
-  {
-    value: 'groomer_d',
-    label:
-      'Chuyên viên Lê Thu Trang (Trưởng nhóm Grooming Spa & Trị liệu da lông)',
-  },
-];
+  h3 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 6px;
+  }
+
+  p.subtext {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 20px;
+  }
+
+  .appointment-code-box {
+    background: #f0fdfa;
+    border: 1.5px dashed #0d9488;
+    border-radius: 10px;
+    padding: 16px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 24px;
+    min-width: 280px;
+
+    .code-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #0f766e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .code-val {
+      font-size: 24px;
+      font-weight: 850;
+      color: #0d9488;
+      letter-spacing: 1px;
+    }
+  }
+
+  .detail-summary {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    text-align: left;
+    font-size: 13.5px;
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      color: #334155;
+    }
+  }
+
+  .actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+`;
 
 const QuickBookingSection: React.FC = () => {
+  const navigate = useNavigate();
   const { isLogin } = useIsLogin();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [selectedPet, setSelectedPet] = useState('milo');
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([
-    'exam',
-  ]);
-  const [activeServices, setActiveServices] = useState<
-    Array<{
-      id: string;
-      title: string;
-      duration: number;
-      price: number;
-      icon: React.ReactNode;
-    }>
-  >(availableServices);
+  const { user } = useAuth();
 
+  const userRole = normalizeRole(user?.role);
+  const isOwner = userRole === 'PetOwner';
+
+  // Wizard step: 0 = Thú cưng, 1 = Ngày & Ghi chú, 2 = Xác nhận
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // Form states
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [petsLoading, setPetsLoading] = useState(false);
+  const [petsError, setPetsError] = useState<string | null>(null);
+
+  const [selectedPetId, setSelectedPetId] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
+  const [bookingNote, setBookingNote] = useState('');
+
+  // Validation / Error states
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Success state
+  const [createdAppointment, setCreatedAppointment] =
+    useState<OnlineAppointment | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  // Load active pets for logged-in PetOwner
   useEffect(() => {
     let isMounted = true;
-    const fetchServices = async () => {
+    if (!isLogin || !isOwner) {
+      setPets([]);
+      setSelectedPetId('');
+      return;
+    }
+
+    const loadPets = async () => {
       try {
-        const res = await ServiceService.listServices({ status: 'Active' });
-        const list = res?.services || (res as any)?.data?.services || [];
-        if (isMounted && Array.isArray(list) && list.length > 0) {
-          const mapped = list.map(s => ({
-            id: s._id,
-            title: s.name,
-            duration: s.defaultDuration || 30,
-            price: s.basePrice || 0,
-            icon: getCategoryIcon(s.category),
-          }));
-          setActiveServices(mapped);
-          setSelectedServiceIds([mapped[0].id]);
+        setPetsLoading(true);
+        setPetsError(null);
+        const res = await PetService.listPets({
+          status: 'Active',
+          page: 1,
+          limit: 100,
+        });
+        if (isMounted) {
+          const items = res?.items || [];
+          setPets(items);
+          if (items.length > 0) {
+            setSelectedPetId(prev => prev || items[0]._id);
+          }
         }
-      } catch (err) {
-        console.warn('Fallback to default available services:', err);
+      } catch (err: unknown) {
+        if (isMounted) {
+          setPetsError('Không thể tải danh sách thú cưng. Vui lòng thử lại.');
+        }
+      } finally {
+        if (isMounted) {
+          setPetsLoading(false);
+        }
       }
     };
-    fetchServices();
+
+    loadPets();
     return () => {
       isMounted = false;
     };
-  }, []);
-  const [selectedStaff, setSelectedStaff] = useState('any');
-  const [selectedSlot, setSelectedSlot] = useState('09:30 Sáng');
-  const [bookingNote, setBookingNote] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  }, [isLogin, isOwner]);
 
-  const toggleService = (id: string) => {
-    setSelectedServiceIds(prev =>
-      prev.includes(id)
-        ? prev.length > 1
-          ? prev.filter(item => item !== id)
-          : prev
-        : [...prev, id]
-    );
+  // Disable past dates according to Vietnam date semantics
+  const disabledDate = (current: Dayjs) => {
+    if (!current) return false;
+    const todayStr = getVietnamTodayString();
+    return current.isBefore(dayjs(todayStr), 'day');
   };
 
-  const selectedServices = activeServices.filter(s =>
-    selectedServiceIds.includes(s.id)
-  );
-  const totalDuration = selectedServices.reduce(
-    (sum, s) => sum + s.duration,
-    0
-  );
-  const totalFee = selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const selectedPet = pets.find(p => p._id === selectedPetId);
 
+  // Wizard navigation
   const handleNext = () => {
-    if (!isLogin && currentStep === 0) {
-      toast.info(
-        'Vui lòng đăng nhập để đồng bộ lịch hẹn với hồ sơ thú cưng của bạn!'
-      );
+    setServerError(null);
+
+    // Guest gate
+    if (!isLogin) {
+      toast.info('Vui lòng đăng nhập tài khoản chủ nuôi để đặt lịch hẹn!');
       window.dispatchEvent(new CustomEvent('open-vcmos-login'));
       return;
     }
-    setCurrentStep(prev => prev + 1);
+
+    if (!isOwner) {
+      toast.error(
+        'Chức năng đặt lịch online chỉ dành cho tài khoản Khách hàng (Chủ nuôi).'
+      );
+      return;
+    }
+
+    if (currentStep === 0) {
+      if (petsError) {
+        toast.error(
+          'Không thể tải danh sách thú cưng. Vui lòng bấm Thử lại hoặc làm mới trang.'
+        );
+        return;
+      }
+      if (pets.length === 0) {
+        toast.info(
+          'Bạn chưa có hồ sơ thú cưng nào. Vui lòng thêm thú cưng trong Dashboard trước khi đặt lịch.'
+        );
+        setFieldErrors(prev => ({
+          ...prev,
+          petId:
+            'Vui lòng thêm hồ sơ thú cưng trong Dashboard trước khi tiếp tục',
+        }));
+        return;
+      }
+      const petErr = validateBookingPetId(selectedPetId);
+      if (petErr) {
+        setFieldErrors(prev => ({ ...prev, petId: petErr }));
+        return;
+      }
+      setFieldErrors(prev => ({ ...prev, petId: '' }));
+      setCurrentStep(1);
+    } else if (currentStep === 1) {
+      const dateStr = selectedDate
+        ? selectedDate.format('YYYY-MM-DD')
+        : undefined;
+      const dateErr = validateBookingDate(dateStr);
+      const noteErr = validateBookingNote(bookingNote);
+
+      if (dateErr || noteErr) {
+        setFieldErrors(prev => ({
+          ...prev,
+          ...(dateErr ? { date: dateErr } : { date: '' }),
+          ...(noteErr ? { note: noteErr } : { note: '' }),
+        }));
+        return;
+      }
+      setFieldErrors({});
+      setCurrentStep(2);
+    }
   };
 
   const handlePrev = () => {
-    setCurrentStep(prev => prev - 1);
+    setServerError(null);
+    setCurrentStep(prev => Math.max(0, prev - 1));
   };
 
-  const handleSubmitBooking = () => {
+  // Submit online booking
+  const handleSubmitBooking = async () => {
+    if (submitting) return;
+
     if (!isLogin) {
-      toast.info(
-        'Vui lòng đăng nhập tài khoản chủ nuôi để hoàn tất đặt lịch hẹn!'
-      );
+      toast.info('Vui lòng đăng nhập tài khoản chủ nuôi để đặt lịch hẹn!');
       window.dispatchEvent(new CustomEvent('open-vcmos-login'));
       return;
     }
+
+    if (!isOwner) {
+      toast.error('Tài khoản hiện tại không có quyền đặt lịch hẹn online.');
+      return;
+    }
+
+    const dateStr = selectedDate ? selectedDate.format('YYYY-MM-DD') : '';
+    const petErr = validateBookingPetId(selectedPetId);
+    const dateErr = validateBookingDate(dateStr);
+    const noteErr = validateBookingNote(bookingNote);
+
+    if (petErr || dateErr || noteErr) {
+      setFieldErrors({
+        ...(petErr ? { petId: petErr } : {}),
+        ...(dateErr ? { date: dateErr } : {}),
+        ...(noteErr ? { note: noteErr } : {}),
+      });
+      return;
+    }
+
     setSubmitting(true);
-    setTimeout(() => {
+    setServerError(null);
+
+    try {
+      const res = await AppointmentOrderService.createOnlineBooking({
+        petId: selectedPetId,
+        date: dateStr,
+        note: bookingNote,
+      });
+
+      if (res?.data) {
+        setCreatedAppointment(res.data);
+        toast.success(res.message || 'Đặt lịch khám thành công!');
+      }
+    } catch (error: unknown) {
+      const {
+        message,
+        fieldErrors: serverFieldErrors,
+        status,
+      } = extractApiError(error, 'Không thể đặt lịch hẹn. Vui lòng thử lại.');
+
+      if (status === 409) {
+        setServerError('Thú cưng này đã có lịch trong ngày đã chọn.');
+        toast.error('Thú cưng này đã có lịch trong ngày đã chọn.');
+      } else if (status === 403) {
+        setServerError('Tài khoản hiện tại không có quyền đặt lịch.');
+        toast.error('Tài khoản hiện tại không có quyền đặt lịch.');
+      } else if (status === 404) {
+        setServerError(message || 'Không tìm thấy thú cưng.');
+        toast.error(message || 'Không tìm thấy thú cưng.');
+      } else {
+        setServerError(message);
+        setFieldErrors(serverFieldErrors);
+        toast.error(message);
+      }
+    } finally {
       setSubmitting(false);
-      toast.success(
-        'Đặt lịch hẹn thành công! Phòng khám VCMOS đã ghi nhận lượt hẹn của bạn.'
-      );
-      setCurrentStep(0);
-    }, 700);
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    toast.success(`Đã sao chép mã số: ${code}`);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleResetForm = () => {
+    setCreatedAppointment(null);
+    setCurrentStep(0);
+    setSelectedDate(null);
+    setBookingNote('');
+    setFieldErrors({});
+    setServerError(null);
+    if (pets.length > 0) {
+      setSelectedPetId(pets[0]._id);
+    }
   };
 
   return (
@@ -550,36 +632,37 @@ const QuickBookingSection: React.FC = () => {
         {/* Left Information */}
         <LeftInfo>
           <span className="booking-pill">
-            <SafetyCertificateOutlined /> Quy Trình Đặt Hẹn 4 Bước
+            <SafetyCertificateOutlined /> Đặt Lịch Hẹn Trực Tuyến
           </span>
-          <h2>Đặt Lịch Dịch Vụ & Khám Bệnh Trực Tuyến</h2>
+          <h2>Đăng Ký Khám Cho Thú Cưng Nhanh Chóng</h2>
           <p className="desc">
-            Chủ động chọn thời gian, bác sĩ phụ trách và dịch vụ liên tiếp cho
-            bé cưng. Lịch hẹn được hệ thống xếp hàng tự động, không lo chờ đợi.
+            Chủ động chọn ngày khám phù hợp và để lại thông tin triệu chứng cho
+            bác sĩ trước khi đến phòng khám. Lịch hẹn được hệ thống tiếp nhận
+            ngay sau khi đăng ký.
           </p>
 
           <ul className="benefits-list">
             <li>
               <div className="icon-box">
-                <CheckCircleOutlined />
+                <CalendarOutlined />
               </div>
               <div className="text">
-                <strong>Xếp slot liên tiếp tự động</strong>
+                <strong>Đặt lịch theo ngày thuận tiện</strong>
                 <span>
-                  Hệ thống tự động tính toán thời gian nối tiếp giữa các dịch vụ
-                  khám và spa.
+                  Chọn ngày khám linh hoạt từ hôm nay trở đi theo múi giờ Việt
+                  Nam, dễ dàng sắp xếp lịch trình.
                 </span>
               </div>
             </li>
             <li>
               <div className="icon-box">
-                <ClockCircleOutlined />
+                <CheckCircleOutlined />
               </div>
               <div className="text">
-                <strong>Chủ động chọn bác sĩ trực ca</strong>
+                <strong>Đồng bộ trực tiếp với hồ sơ thú cưng</strong>
                 <span>
-                  Lịch hẹn lập tức chuyển sang trạng thái đã đặt mà không cần
-                  chờ duyệt thủ công.
+                  Lịch hẹn tự động liên kết với hồ sơ thú cưng trên tài khoản
+                  chủ nuôi để tiện theo dõi.
                 </span>
               </div>
             </li>
@@ -588,10 +671,10 @@ const QuickBookingSection: React.FC = () => {
                 <SafetyCertificateOutlined />
               </div>
               <div className="text">
-                <strong>Lưu trữ bệnh án điện tử SOAP</strong>
+                <strong>Tiếp nhận chu đáo tại phòng khám</strong>
                 <span>
-                  Mọi kết quả và lịch sử khám chữa bệnh lưu trữ trọn đời trên hồ
-                  sơ của bé.
+                  Mã lượt hẹn tự động được cấp ngay khi đặt thành công, giảm
+                  thiểu thời gian chờ làm thủ tục.
                 </span>
               </div>
             </li>
@@ -602,14 +685,15 @@ const QuickBookingSection: React.FC = () => {
               <PhoneOutlined />
             </div>
             <div className="info">
-              <div className="label">Hotline tiếp nhận & cấp cứu 24/7</div>
+              <div className="label">Hotline tiếp nhận & tư vấn 24/7</div>
               <div className="phone-num">0902.099.905</div>
             </div>
           </div>
         </LeftInfo>
 
-        {/* Right Form Wrap - 4-step wizard */}
+        {/* Right Form Wrap */}
         <FormWrap>
+          {/* Guest or non-owner notices */}
           {!isLogin && (
             <GuestNotice>
               <span>Bạn đang thao tác với tư cách Khách.</span>
@@ -625,204 +709,428 @@ const QuickBookingSection: React.FC = () => {
             </GuestNotice>
           )}
 
-          <Steps
-            className="wizard-steps"
-            size="small"
-            current={currentStep}
-            items={[
-              { title: '1. Thú cưng' },
-              { title: '2. Ngày & Bác sĩ' },
-              { title: '3. Ghi chú' },
-              { title: '4. Xác nhận' },
-            ]}
-          />
+          {isLogin && !isOwner && (
+            <Alert
+              type="warning"
+              showIcon
+              message="Chỉ dành cho chủ nuôi"
+              description="Chức năng đặt lịch online hiện chỉ hỗ trợ tài khoản Khách hàng (Chủ nuôi). Tài khoản nội bộ phòng khám vui lòng thao tác trên phần mềm quản lý."
+              style={{ marginBottom: 20 }}
+            />
+          )}
 
-          <div className="step-content">
-            {/* Step 1: Pet & Services */}
-            {currentStep === 0 && (
-              <div>
-                <div className="section-label">1. Chọn thú cưng của bạn:</div>
-                <Select
-                  value={selectedPet}
-                  onChange={setSelectedPet}
-                  style={{ width: '100%', marginBottom: 20 }}
-                  size="large"
-                  options={[
-                    {
-                      value: 'milo',
-                      label: 'Bé Milo · Chó Poodle (5.2 kg · 3 tuổi)',
-                    },
-                    {
-                      value: 'miu',
-                      label: 'Bé Miu · Mèo Anh lông ngắn (4.0 kg · 2 tuổi)',
-                    },
-                    {
-                      value: 'walkin',
-                      label: '+ Khách mới / Thêm hồ sơ thú cưng khác',
-                    },
-                  ]}
-                />
+          {/* Success View */}
+          {createdAppointment ? (
+            <SuccessCard>
+              <div className="success-icon">
+                <CheckCircleOutlined />
+              </div>
+              <h3>Đặt Lịch Hẹn Thành Công!</h3>
+              <p className="subtext">
+                Phòng khám VCMOS đã tiếp nhận lịch hẹn của bạn. Vui lòng lưu lại
+                mã lượt hẹn để làm thủ tục tiếp nhận.
+              </p>
 
-                <div className="section-label">
-                  2. Chọn dịch vụ (chọn 1 hoặc nhiều):
+              <div className="appointment-code-box">
+                <span className="code-label">Mã lượt hẹn trực tuyến</span>
+                <span className="code-val">{createdAppointment.code}</span>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={copiedCode ? <CheckOutlined /> : <CopyOutlined />}
+                  onClick={() => handleCopyCode(createdAppointment.code)}
+                >
+                  {copiedCode ? 'Đã sao chép' : 'Sao chép mã'}
+                </Button>
+              </div>
+
+              <div className="detail-summary">
+                <div className="row">
+                  <span style={{ color: '#64748b' }}>Thú cưng:</span>
+                  <strong>{selectedPet?.name || 'Thú cưng'}</strong>
                 </div>
-                <div className="service-card-select">
-                  {activeServices.map(srv => {
-                    const isSelected = selectedServiceIds.includes(srv.id);
-                    return (
+                <div className="row">
+                  <span style={{ color: '#64748b' }}>Ngày hẹn:</span>
+                  <strong>
+                    {dayjs(createdAppointment.date).format('DD/MM/YYYY')}
+                  </strong>
+                </div>
+                <div className="row">
+                  <span style={{ color: '#64748b' }}>Trạng thái:</span>
+                  <strong style={{ color: '#0d9488' }}>Đã đặt (Booked)</strong>
+                </div>
+                {createdAppointment.note && (
+                  <div className="row">
+                    <span style={{ color: '#64748b' }}>Ghi chú:</span>
+                    <span>{createdAppointment.note}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="actions">
+                <Button
+                  type="primary"
+                  style={{ background: '#0d9488', borderColor: '#0d9488' }}
+                  onClick={() => navigate(ROUTER.DASHBOARD)}
+                >
+                  Xem trong Dashboard
+                </Button>
+                <Button onClick={handleResetForm}>Đặt thêm lịch khác</Button>
+              </div>
+            </SuccessCard>
+          ) : (
+            <>
+              <Steps
+                className="wizard-steps"
+                size="small"
+                current={currentStep}
+                items={[
+                  { title: '1. Thú cưng' },
+                  { title: '2. Ngày & Ghi chú' },
+                  { title: '3. Xác nhận' },
+                ]}
+              />
+
+              {serverError && (
+                <Alert
+                  type="error"
+                  showIcon
+                  message={serverError}
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+
+              <div className="step-content">
+                {/* Step 0: Pet Selection */}
+                {currentStep === 0 && (
+                  <div>
+                    <div className="section-label">
+                      1. Chọn thú cưng của bạn:
+                    </div>
+
+                    {!isLogin ? (
                       <div
-                        key={srv.id}
-                        className={`srv-item ${isSelected ? 'selected' : ''}`}
-                        onClick={() => toggleService(srv.id)}
+                        style={{
+                          padding: '32px 16px',
+                          textAlign: 'center',
+                          background: '#ffffff',
+                          borderRadius: 8,
+                          border: '1px dashed #cbd5e1',
+                        }}
                       >
-                        <div className="left">
-                          <div className="icon">{srv.icon}</div>
-                          <div>
-                            <div className="name">{srv.title}</div>
-                            <div className="duration">
-                              <ClockCircleOutlined /> Ước tính: {srv.duration}{' '}
-                              phút
-                            </div>
-                          </div>
+                        <UserOutlined
+                          style={{
+                            fontSize: 32,
+                            color: '#0d9488',
+                            marginBottom: 10,
+                          }}
+                        />
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            color: '#0f172a',
+                            marginBottom: 6,
+                          }}
+                        >
+                          Vui lòng đăng nhập để xem danh sách thú cưng
                         </div>
-                        <div className="price">
-                          {srv.price.toLocaleString('vi-VN')}đ
+                        <p
+                          style={{
+                            color: '#64748b',
+                            fontSize: 13,
+                            marginBottom: 16,
+                          }}
+                        >
+                          Đăng nhập giúp hệ thống liên kết lịch hẹn với đúng hồ
+                          sơ của bé.
+                        </p>
+                        <Button
+                          type="primary"
+                          style={{ background: '#0d9488' }}
+                          onClick={() =>
+                            window.dispatchEvent(
+                              new CustomEvent('open-vcmos-login')
+                            )
+                          }
+                        >
+                          Đăng nhập ngay
+                        </Button>
+                      </div>
+                    ) : petsLoading ? (
+                      <div
+                        style={{
+                          padding: '40px 0',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <Spin />
+                        <div
+                          style={{
+                            marginTop: 8,
+                            color: '#64748b',
+                            fontSize: 13,
+                          }}
+                        >
+                          Đang tải danh sách thú cưng...
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                    ) : petsError ? (
+                      <Alert
+                        type="error"
+                        showIcon
+                        message={petsError}
+                        action={
+                          <Button
+                            size="small"
+                            icon={<ReloadOutlined />}
+                            onClick={() => {
+                              setPetsLoading(true);
+                              PetService.listPets({
+                                status: 'Active',
+                                page: 1,
+                                limit: 100,
+                              })
+                                .then(res => {
+                                  setPets(res?.items || []);
+                                  if (res?.items?.length) {
+                                    setSelectedPetId(res.items[0]._id);
+                                  }
+                                  setPetsError(null);
+                                })
+                                .catch(() => {
+                                  setPetsError('Không thể tải lại danh sách.');
+                                })
+                                .finally(() => setPetsLoading(false));
+                            }}
+                          >
+                            Thử lại
+                          </Button>
+                        }
+                      />
+                    ) : pets.length === 0 ? (
+                      <div
+                        style={{
+                          padding: '32px 16px',
+                          textAlign: 'center',
+                          background: '#ffffff',
+                          borderRadius: 8,
+                          border: '1px dashed #cbd5e1',
+                        }}
+                      >
+                        <InfoCircleOutlined
+                          style={{
+                            fontSize: 32,
+                            color: '#f59e0b',
+                            marginBottom: 10,
+                          }}
+                        />
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            marginBottom: 6,
+                          }}
+                        >
+                          Bạn chưa có hồ sơ thú cưng nào
+                        </div>
+                        <p
+                          style={{
+                            color: '#64748b',
+                            fontSize: 13,
+                            marginBottom: 16,
+                          }}
+                        >
+                          Vui lòng tạo ít nhất một hồ sơ thú cưng trước khi đặt
+                          lịch khám trực tuyến.
+                        </p>
+                        <Button
+                          type="primary"
+                          icon={<PlusOutlined />}
+                          style={{ background: '#0d9488' }}
+                          onClick={() => navigate(ROUTER.DASHBOARD)}
+                        >
+                          Thêm thú cưng trong Dashboard
+                        </Button>
+                        {fieldErrors.petId && (
+                          <div
+                            className="field-error"
+                            style={{ marginTop: 12 }}
+                          >
+                            {fieldErrors.petId}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <Select
+                          value={selectedPetId || undefined}
+                          onChange={val => {
+                            setSelectedPetId(val);
+                            setFieldErrors(prev => ({ ...prev, petId: '' }));
+                          }}
+                          placeholder="Chọn thú cưng cần đặt lịch"
+                          style={{ width: '100%', marginBottom: 8 }}
+                          size="large"
+                          status={fieldErrors.petId ? 'error' : undefined}
+                          options={pets.map(p => ({
+                            value: p._id,
+                            label: `Bé ${p.name} · ${p.species || 'Thú cưng'} (${p.breed || 'Chưa rõ giống'}${p.weight ? ` · ${p.weight} kg` : ''})`,
+                          }))}
+                        />
+                        {fieldErrors.petId && (
+                          <div className="field-error">{fieldErrors.petId}</div>
+                        )}
 
-            {/* Step 2: Date & Staff */}
-            {currentStep === 1 && (
-              <div>
-                <div className="section-label">
-                  1. Bác sĩ hoặc Chuyên viên mong muốn:
-                </div>
-                <Select
-                  value={selectedStaff}
-                  onChange={setSelectedStaff}
-                  style={{ width: '100%', marginBottom: 20 }}
-                  size="large"
-                  options={staffList}
-                />
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            marginTop: 8,
+                          }}
+                        >
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<PlusOutlined />}
+                            style={{ color: '#0d9488', padding: 0 }}
+                            onClick={() => navigate(ROUTER.DASHBOARD)}
+                          >
+                            + Thêm hồ sơ thú cưng khác
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
-                <div className="section-label">
-                  2. Chọn khung giờ tiếp nhận hôm nay:
-                </div>
-                <div className="slots-row">
-                  {timeSlots.map(slot => (
-                    <button
-                      key={slot}
-                      type="button"
-                      className={`slot-btn ${selectedSlot === slot ? 'active' : ''}`}
-                      onClick={() => setSelectedSlot(slot)}
-                    >
-                      {slot}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Booking Note */}
-            {currentStep === 2 && (
-              <div>
-                <div className="section-label">
-                  Ghi chú triệu chứng hoặc lưu ý chăm sóc (tối đa 500 ký tự):
-                </div>
-                <Input.TextArea
-                  rows={5}
-                  value={bookingNote}
-                  onChange={e => setBookingNote(e.target.value)}
-                  placeholder="Ví dụ: Bé có tiền sử dị ứng hải sản, sáng nay nôn nhẹ và mệt mỏi. Cần bác sĩ kiểm tra tiêu hoá..."
-                  maxLength={500}
-                  showCount
-                  style={{ marginBottom: 20 }}
-                />
-              </div>
-            )}
-
-            {/* Step 4: Summary & Confirm */}
-            {currentStep === 3 && (
-              <div>
-                <div className="section-label">Tóm tắt thông tin đặt hẹn:</div>
-                <div className="summary-box">
-                  <div className="sum-row">
-                    <span>Thú cưng:</span>
-                    <strong>
-                      {selectedPet === 'milo'
-                        ? 'Bé Milo (Chó Poodle · 5.2 kg)'
-                        : 'Bé Miu (Mèo Anh)'}
-                    </strong>
-                  </div>
-                  <div className="sum-row">
-                    <span>Thời gian hẹn:</span>
-                    <strong>Hôm nay, {selectedSlot}</strong>
-                  </div>
-                  <div className="sum-row">
-                    <span>Bác sĩ phụ trách:</span>
-                    <strong>
-                      {staffList.find(s => s.value === selectedStaff)?.label}
-                    </strong>
-                  </div>
-                  <div className="sum-row">
-                    <span>Tổng thời lượng:</span>
-                    <strong>{totalDuration} phút liên tiếp</strong>
-                  </div>
-                  {bookingNote && (
-                    <div className="sum-row">
-                      <span>Ghi chú:</span>
-                      <span>{bookingNote}</span>
+                {/* Step 1: Date & Note */}
+                {currentStep === 1 && (
+                  <div>
+                    <div className="section-label">
+                      1. Chọn ngày hẹn khám (từ hôm nay trở đi):
                     </div>
-                  )}
-                  <div className="sum-row total">
-                    <span>Tổng chi phí ước tính:</span>
-                    <span className="price-final">
-                      {totalFee.toLocaleString('vi-VN')}đ
-                    </span>
+                    <DatePicker
+                      value={selectedDate}
+                      onChange={val => {
+                        setSelectedDate(val);
+                        setFieldErrors(prev => ({ ...prev, date: '' }));
+                        setServerError(null);
+                      }}
+                      disabledDate={disabledDate}
+                      format="DD/MM/YYYY"
+                      placeholder="Chọn ngày hẹn khám"
+                      style={{ width: '100%', marginBottom: 8 }}
+                      size="large"
+                      status={fieldErrors.date ? 'error' : undefined}
+                    />
+                    {fieldErrors.date && (
+                      <div className="field-error">{fieldErrors.date}</div>
+                    )}
+
+                    <div className="section-label" style={{ marginTop: 16 }}>
+                      2. Ghi chú triệu chứng hoặc lưu ý chăm sóc (tối đa 500 ký
+                      tự):
+                    </div>
+                    <Input.TextArea
+                      rows={5}
+                      value={bookingNote}
+                      onChange={e => {
+                        setBookingNote(e.target.value);
+                        setFieldErrors(prev => ({ ...prev, note: '' }));
+                      }}
+                      placeholder="Ví dụ: Bé có biểu hiện biếng ăn, sốt nhẹ 2 ngày nay. Cần kiểm tra tổng quát..."
+                      maxLength={500}
+                      showCount
+                      status={fieldErrors.note ? 'error' : undefined}
+                      style={{ marginBottom: 8 }}
+                    />
+                    {fieldErrors.note && (
+                      <div className="field-error">{fieldErrors.note}</div>
+                    )}
                   </div>
-                </div>
+                )}
+
+                {/* Step 2: Summary & Confirmation */}
+                {currentStep === 2 && (
+                  <div>
+                    <div className="section-label">
+                      Xác nhận thông tin đặt hẹn:
+                    </div>
+                    <div className="summary-box">
+                      <div className="sum-row">
+                        <span className="label">Thú cưng:</span>
+                        <strong>
+                          Bé {selectedPet?.name} (
+                          {selectedPet?.species || 'Thú cưng'} -{' '}
+                          {selectedPet?.breed || 'Giống chung'})
+                        </strong>
+                      </div>
+                      <div className="sum-row">
+                        <span className="label">Ngày hẹn khám:</span>
+                        <strong>
+                          {selectedDate
+                            ? selectedDate.format('DD/MM/YYYY')
+                            : 'Chưa chọn'}
+                        </strong>
+                      </div>
+                      <div className="sum-row">
+                        <span className="label">Ghi chú cho phòng khám:</span>
+                        <span>{bookingNote.trim() || 'Không có ghi chú'}</span>
+                      </div>
+                      <div className="sum-row highlight">
+                        <span className="label">Trạng thái khởi tạo:</span>
+                        <span className="status-badge">Đã đặt (Booked)</span>
+                      </div>
+                    </div>
+
+                    <Alert
+                      type="info"
+                      showIcon
+                      message="Lưu ý tiếp nhận"
+                      description="Sau khi xác nhận, lịch hẹn sẽ được tạo trên hệ thống VCMOS. Nhân viên lễ tân sẽ kiểm tra và tiếp nhận bé theo đúng ngày bạn đã chọn."
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Stepper Footer Controls */}
-          <div className="wizard-footer">
-            {currentStep > 0 ? (
-              <Button
-                className="btn-step"
-                icon={<LeftOutlined />}
-                onClick={handlePrev}
-              >
-                Quay lại
-              </Button>
-            ) : (
-              <div />
-            )}
+              {/* Wizard Footer Controls */}
+              <div className="wizard-footer">
+                {currentStep > 0 ? (
+                  <Button
+                    className="btn-step"
+                    icon={<LeftOutlined />}
+                    onClick={handlePrev}
+                    disabled={submitting}
+                  >
+                    Quay lại
+                  </Button>
+                ) : (
+                  <div />
+                )}
 
-            {currentStep < 3 ? (
-              <Button
-                type="primary"
-                className="btn-step btn-next"
-                onClick={handleNext}
-              >
-                Tiếp tục <RightOutlined />
-              </Button>
-            ) : (
-              <Button
-                type="primary"
-                className="btn-step btn-submit"
-                loading={submitting}
-                onClick={handleSubmitBooking}
-                icon={<CheckCircleOutlined />}
-              >
-                Xác nhận đặt lịch hẹn
-              </Button>
-            )}
-          </div>
+                {currentStep < 2 ? (
+                  <Button
+                    type="primary"
+                    className="btn-step btn-next"
+                    onClick={handleNext}
+                    disabled={petsLoading}
+                  >
+                    Tiếp tục <RightOutlined />
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    className="btn-step btn-submit"
+                    loading={submitting}
+                    onClick={handleSubmitBooking}
+                    icon={<CheckCircleOutlined />}
+                  >
+                    Xác nhận đặt lịch hẹn
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </FormWrap>
       </BookingCard>
     </SectionWrapper>
