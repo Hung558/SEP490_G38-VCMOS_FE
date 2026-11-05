@@ -25,7 +25,7 @@ const DefaultAction = () => {
     } catch (e) {
       console.error('Lỗi parse USER:', e);
     }
-  }, []);
+  }, [setIsLogin, setUser]);
   return <></>;
 };
 

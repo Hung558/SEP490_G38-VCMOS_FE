@@ -2,6 +2,9 @@ import type {
   AppointmentStatus,
   CreateOnlineBookingPayload,
   ListMyOnlineBookingsParams,
+  ListStaffAppointmentsParams,
+  PopulatedOwnerRef,
+  PopulatedPetRef,
 } from '@/types';
 
 export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
@@ -161,12 +164,104 @@ export const buildBookingFilterQuery = (
   return query;
 };
 
+/** Build query params cho GET /api/appointment-orders (dành cho Admin / Receptionist) */
+export const buildStaffAppointmentFilterQuery = (
+  params?: ListStaffAppointmentsParams
+): Record<string, string | number | boolean> => {
+  if (!params) return {};
+  const query: Record<string, string | number | boolean> = {};
+
+  if (params.status && APPOINTMENT_STATUSES.includes(params.status)) {
+    query.status = params.status;
+  }
+  if (typeof params.isOnline === 'boolean') {
+    query.isOnline = params.isOnline;
+  }
+  if (
+    params.ownerId &&
+    typeof params.ownerId === 'string' &&
+    /^[0-9a-fA-F]{24}$/.test(params.ownerId.trim())
+  ) {
+    query.ownerId = params.ownerId.trim();
+  }
+  if (
+    params.petId &&
+    typeof params.petId === 'string' &&
+    /^[0-9a-fA-F]{24}$/.test(params.petId.trim())
+  ) {
+    query.petId = params.petId.trim();
+  }
+  if (params.code && typeof params.code === 'string') {
+    const trimmedCode = params.code.trim().toUpperCase();
+    if (/^APT-[A-Z0-9]{6}$/.test(trimmedCode)) {
+      query.code = trimmedCode;
+    }
+  }
+  if (params.from && typeof params.from === 'string' && params.from.trim()) {
+    query.from = params.from.trim();
+  }
+  if (params.to && typeof params.to === 'string' && params.to.trim()) {
+    query.to = params.to.trim();
+  }
+  if (typeof params.page === 'number' && params.page >= 1) {
+    query.page = Math.floor(params.page);
+  }
+  if (
+    typeof params.limit === 'number' &&
+    params.limit >= 1 &&
+    params.limit <= 100
+  ) {
+    query.limit = Math.floor(params.limit);
+  }
+
+  return query;
+};
+
+/** Lấy tên thú cưng an toàn từ petId (dạng object hoặc string) */
+export const getAppointmentPetName = (
+  pet?: PopulatedPetRef | string | null
+): string => {
+  if (!pet) return 'Chưa rõ';
+  if (typeof pet === 'object' && pet !== null && 'name' in pet) {
+    return pet.name || 'Chưa rõ';
+  }
+  if (typeof pet === 'string') {
+    return pet;
+  }
+  return 'Chưa rõ';
+};
+
+/** Lấy tên chủ nuôi an toàn từ ownerId (dạng object hoặc string) */
+export const getAppointmentOwnerName = (
+  owner?: PopulatedOwnerRef | string | null
+): string => {
+  if (!owner) return 'Chưa rõ';
+  if (typeof owner === 'object' && owner !== null && 'fullName' in owner) {
+    return owner.fullName || 'Chưa rõ';
+  }
+  if (typeof owner === 'string') {
+    return owner;
+  }
+  return 'Chưa rõ';
+};
+
+/** Lấy số điện thoại chủ nuôi an toàn từ ownerId (dạng object hoặc string) */
+export const getAppointmentOwnerPhone = (
+  owner?: PopulatedOwnerRef | string | null
+): string => {
+  if (!owner) return '-';
+  if (typeof owner === 'object' && owner !== null && 'phone' in owner) {
+    return owner.phone || '-';
+  }
+  return '-';
+};
+
 interface ApiErrorShape {
   response?: {
     status?: number;
     data?: {
       message?: string;
-      errors?: Array<{ field?: string; message?: string }>;
+      errors?: Array<string | { field?: string; message?: string }>;
     };
   };
   message?: string;
@@ -189,8 +284,14 @@ export const extractApiError = (
 
   if (Array.isArray(data?.errors)) {
     for (const item of data.errors) {
-      if (item?.field && item?.message) {
-        fieldErrors[item.field] = item.message;
+      if (typeof item === 'string') {
+        fieldErrors.general = item;
+      } else if (item && typeof item === 'object') {
+        if (item.field && item.message) {
+          fieldErrors[item.field] = item.message;
+        } else if (item.message) {
+          fieldErrors.general = item.message;
+        }
       }
     }
   }

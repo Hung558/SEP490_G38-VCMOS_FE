@@ -56,3 +56,51 @@ export interface ListMyOnlineBookingsResponse {
 export interface OnlineBookingDetailResponse {
   data: OnlineAppointment;
 }
+
+export interface PopulatedPetRef {
+  _id: string;
+  name: string;
+}
+
+export interface PopulatedOwnerRef {
+  _id: string;
+  fullName: string;
+  phone: string;
+}
+
+export interface StaffAppointment {
+  _id: string;
+  code: string;
+  petId: PopulatedPetRef | string;
+  ownerId: PopulatedOwnerRef | string;
+  date: string; // YYYY-MM-DD
+  note?: string | null;
+  isOnline: boolean;
+  derivedStatus: AppointmentStatus;
+  checkedInAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  __v?: number;
+}
+
+export interface ListStaffAppointmentsParams {
+  status?: AppointmentStatus;
+  isOnline?: boolean;
+  ownerId?: string;
+  petId?: string;
+  code?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ListStaffAppointmentsResponse {
+  data: StaffAppointment[];
+  pagination: AppointmentPagination;
+}
+
+export interface CheckInAppointmentResponse {
+  message: string;
+  data: StaffAppointment;
+}

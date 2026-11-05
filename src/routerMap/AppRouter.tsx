@@ -25,6 +25,7 @@ import AdminServicesPage from '@/pages/AdminServices';
 import AdminProductsPage from '@/pages/AdminProducts';
 import PetProfilePage from '@/pages/PetProfile';
 import CagesPage from '@/pages/Cages';
+import AppointmentReceptionPage from '@/pages/AppointmentReception';
 
 const AppRouter = () => {
   const elements = useRoutes([
@@ -96,7 +97,7 @@ const AppRouter = () => {
       ],
     },
     {
-      // Cage management: Admin and Receptionist can read; only Admin can create/edit
+      // Cage & Appointment management: Admin and Receptionist can access
       element: <RoleRoute allowRoles={['Admin', 'Receptionist']} />,
       children: [
         {
@@ -107,8 +108,17 @@ const AppRouter = () => {
             </Suspense>
           ),
         },
+        {
+          path: ROUTER.CLINIC_APPOINTMENTS,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <AppointmentReceptionPage />
+            </Suspense>
+          ),
+        },
       ],
     },
+
     {
       // Pet owner pages: staff and Admin own no pets here (GET /pets only
       // returns the signed-in user's pets), so they go to their landing page

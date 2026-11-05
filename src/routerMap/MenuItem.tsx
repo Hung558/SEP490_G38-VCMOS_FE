@@ -7,7 +7,9 @@ import {
   AppstoreOutlined,
   ShoppingOutlined,
   BuildOutlined,
+  ScheduleOutlined,
 } from '@ant-design/icons';
+
 import ROUTER from './ROUTER';
 import { getRoleGroup, normalizeRole } from '@/constants/roles';
 
@@ -32,6 +34,10 @@ export const ListTitleRouter = () => {
     {
       key: ROUTER.CAGES,
       label: 'Quản lý chuồng',
+    },
+    {
+      key: ROUTER.CLINIC_APPOINTMENTS,
+      label: 'Tiếp nhận lịch hẹn',
     },
   ];
 };
@@ -65,6 +71,10 @@ export const MenuItemBreadcrumbs = () => {
     {
       label: 'Quản lý chuồng',
       key: ROUTER.CAGES,
+    },
+    {
+      label: 'Tiếp nhận lịch hẹn',
+      key: ROUTER.CLINIC_APPOINTMENTS,
     },
   ];
 };
@@ -105,10 +115,15 @@ export const MenuItemStaff = (): MenuItem[] => {
   ];
 };
 
-// Receptionist can access Cages in addition to common staff items
+// Receptionist can access Appointments and Cages in addition to common staff items
 export const MenuItemReceptionist = (): MenuItem[] => {
   return [
     ...MenuItemStaff(),
+    {
+      key: ROUTER.CLINIC_APPOINTMENTS,
+      label: 'Tiếp nhận lịch hẹn',
+      icon: <ScheduleOutlined />,
+    },
     {
       key: ROUTER.CAGES,
       label: 'Quản lý chuồng',
@@ -134,6 +149,11 @@ export const MenuItemAdmin = (): MenuItem[] => {
       key: ROUTER.ADMIN_PRODUCTS,
       label: 'Quản lý sản phẩm',
       icon: <ShoppingOutlined />,
+    },
+    {
+      key: ROUTER.CLINIC_APPOINTMENTS,
+      label: 'Tiếp nhận lịch hẹn',
+      icon: <ScheduleOutlined />,
     },
     {
       key: ROUTER.CAGES,
