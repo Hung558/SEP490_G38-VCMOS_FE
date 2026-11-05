@@ -1,11 +1,24 @@
 import api from '../01_axios';
-import { apiOnlineBooking, apiMyBookings, apiMyBookingDetail } from './urls';
-import { buildBookingPayload, buildBookingFilterQuery } from './helpers';
+import {
+  apiOnlineBooking,
+  apiMyBookings,
+  apiMyBookingDetail,
+  apiStaffAppointments,
+  apiCheckInAppointment,
+} from './urls';
+import {
+  buildBookingPayload,
+  buildBookingFilterQuery,
+  buildStaffAppointmentFilterQuery,
+} from './helpers';
 import type {
+  CheckInAppointmentResponse,
   CreateOnlineBookingPayload,
   CreateOnlineBookingResponse,
   ListMyOnlineBookingsParams,
   ListMyOnlineBookingsResponse,
+  ListStaffAppointmentsParams,
+  ListStaffAppointmentsResponse,
   OnlineBookingDetailResponse,
 } from '@/types';
 
@@ -48,10 +61,38 @@ const getMyOnlineBookingById = (
   });
 };
 
+/**
+ * Lấy danh sách toàn bộ lịch hẹn (dành cho Admin / Receptionist)
+ * GET /api/appointment-orders
+ */
+const listStaffAppointments = (
+  params?: ListStaffAppointmentsParams,
+  options?: { signal?: AbortSignal }
+): Promise<ListStaffAppointmentsResponse> => {
+  const query = buildStaffAppointmentFilterQuery(params);
+  return api.get(apiStaffAppointments, {
+    params: query,
+    signal: options?.signal,
+  });
+};
+
+/**
+ * Tiếp nhận / check-in lịch hẹn (dành riêng cho Receptionist, Booked -> CheckedIn)
+ * PATCH /api/appointment-orders/:id/check-in
+ * Không gửi request body
+ */
+const checkInAppointment = (
+  id: string
+): Promise<CheckInAppointmentResponse> => {
+  return api.patch(apiCheckInAppointment(id));
+};
+
 const AppointmentOrderService = {
   createOnlineBooking,
   listMyOnlineBookings,
   getMyOnlineBookingById,
+  listStaffAppointments,
+  checkInAppointment,
 };
 
 export * from './urls';
