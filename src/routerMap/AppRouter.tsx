@@ -24,6 +24,7 @@ import AdminUsersPage from '@/pages/AdminUsers';
 import AdminServicesPage from '@/pages/AdminServices';
 import AdminProductsPage from '@/pages/AdminProducts';
 import PetProfilePage from '@/pages/PetProfile';
+import CagesPage from '@/pages/Cages';
 
 const AppRouter = () => {
   const elements = useRoutes([
@@ -89,6 +90,20 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <AdminProductsPage />
+            </Suspense>
+          ),
+        },
+      ],
+    },
+    {
+      // Cage management: Admin and Receptionist can read; only Admin can create/edit
+      element: <RoleRoute allowRoles={['Admin', 'Receptionist']} />,
+      children: [
+        {
+          path: ROUTER.CAGES,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <CagesPage />
             </Suspense>
           ),
         },

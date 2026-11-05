@@ -10,4 +10,5 @@ export const breadcrumbMap: Record<string, string> = {
   users: 'Quản lý tài khoản',
   services: 'Quản lý dịch vụ',
   products: 'Quản lý sản phẩm',
+  cages: 'Quản lý chuồng',
 };

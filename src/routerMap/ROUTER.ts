@@ -11,6 +11,7 @@ const ROUTER = {
   ADMIN_USERS: '/admin/users',
   ADMIN_SERVICES: '/admin/services',
   ADMIN_PRODUCTS: '/admin/products',
+  CAGES: '/cages',
   NOT_FOUND: '*',
 };
 

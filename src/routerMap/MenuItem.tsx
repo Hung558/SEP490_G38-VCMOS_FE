@@ -6,9 +6,10 @@ import {
   TeamOutlined,
   AppstoreOutlined,
   ShoppingOutlined,
+  BuildOutlined,
 } from '@ant-design/icons';
 import ROUTER from './ROUTER';
-import { getRoleGroup } from '@/constants/roles';
+import { getRoleGroup, normalizeRole } from '@/constants/roles';
 
 export interface MenuItem {
   key: string;
@@ -27,6 +28,10 @@ export const ListTitleRouter = () => {
     {
       key: ROUTER.DASHBOARD,
       label: 'Bảng điều khiển',
+    },
+    {
+      key: ROUTER.CAGES,
+      label: 'Quản lý chuồng',
     },
   ];
 };
@@ -56,6 +61,10 @@ export const MenuItemBreadcrumbs = () => {
     {
       label: 'Quản lý sản phẩm',
       key: ROUTER.ADMIN_PRODUCTS,
+    },
+    {
+      label: 'Quản lý chuồng',
+      key: ROUTER.CAGES,
     },
   ];
 };
@@ -96,6 +105,18 @@ export const MenuItemStaff = (): MenuItem[] => {
   ];
 };
 
+// Receptionist can access Cages in addition to common staff items
+export const MenuItemReceptionist = (): MenuItem[] => {
+  return [
+    ...MenuItemStaff(),
+    {
+      key: ROUTER.CAGES,
+      label: 'Quản lý chuồng',
+      icon: <BuildOutlined />,
+    },
+  ];
+};
+
 export const MenuItemAdmin = (): MenuItem[] => {
   return [
     ...MenuItemStaff(),
@@ -114,13 +135,20 @@ export const MenuItemAdmin = (): MenuItem[] => {
       label: 'Quản lý sản phẩm',
       icon: <ShoppingOutlined />,
     },
+    {
+      key: ROUTER.CAGES,
+      label: 'Quản lý chuồng',
+      icon: <BuildOutlined />,
+    },
   ];
 };
 
 /** Hàm helper: Lấy menu theo role */
 export const getMenuByRole = (role?: string): MenuItem[] => {
+  const normRole = normalizeRole(role);
+  if (normRole === 'Admin') return MenuItemAdmin();
+  if (normRole === 'Receptionist') return MenuItemReceptionist();
   const group = getRoleGroup(role);
-  if (group === 'admin') return MenuItemAdmin();
   if (group === 'staff') return MenuItemStaff();
   return MenuItemCommon();
 };
