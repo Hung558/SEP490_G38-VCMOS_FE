@@ -6,3 +6,4 @@ export * from './pet.api';
 export * from './appointment.api';
 export * from './cage.api';
 export * from './cage-assignment.api';
+export * from './appointment-service.api';

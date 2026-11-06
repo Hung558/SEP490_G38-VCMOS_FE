@@ -35,6 +35,7 @@ import {
   DeleteOutlined,
   CopyOutlined,
   CheckOutlined,
+  PlusCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppointmentOrderService, {
@@ -44,6 +45,12 @@ import AppointmentOrderService, {
 } from '@/services/AppointmentOrderService';
 import type { OnlineAppointment, AppointmentStatus } from '@/types';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
+import AddAppointmentServiceModal from './components/AddAppointmentServiceModal';
+import {
+  isAppointmentEligibleForService,
+  isUserPetOwner,
+} from '@/services/AppointmentServiceService';
+import { STORAGE, storage } from '@/lib/storage';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { generatePath, useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
@@ -321,6 +328,16 @@ const DashboardPage: React.FC = () => {
   >(null);
   const [isAppointmentDetailOpen, setIsAppointmentDetailOpen] = useState(false);
 
+  const [appointmentToAddService, setAppointmentToAddService] =
+    useState<OnlineAppointment | null>(null);
+  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
+
+  // Safe PetOwner resolution supporting user.role, user.systemRole, and localStorage fallback
+  const storedUser = storage.getLocalStorage<any>(STORAGE.USER_INFO);
+  const effectiveUser =
+    user || (storedUser && typeof storedUser === 'object' ? storedUser : null);
+  const isPetOwner = isUserPetOwner(effectiveUser);
+
   // All pets cached for petId -> Pet name mapping
   const [allPets, setAllPets] = useState<Pet[]>([]);
   useEffect(() => {
@@ -539,20 +556,39 @@ const DashboardPage: React.FC = () => {
       title: 'Hành động',
       key: 'action',
       align: 'center' as const,
-      render: (_: unknown, record: OnlineAppointment) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          style={{ color: '#0d9488', fontWeight: 600 }}
-          onClick={() => {
-            setSelectedAppointmentId(record._id);
-            setIsAppointmentDetailOpen(true);
-          }}
-        >
-          Chi tiết
-        </Button>
-      ),
+      render: (_: unknown, record: OnlineAppointment) => {
+        const isEligible = isAppointmentEligibleForService(record);
+        return (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              style={{ color: '#0d9488', fontWeight: 600 }}
+              onClick={() => {
+                setSelectedAppointmentId(record._id);
+                setIsAppointmentDetailOpen(true);
+              }}
+            >
+              Chi tiết
+            </Button>
+            {isPetOwner && isEligible && (
+              <Button
+                type="link"
+                size="small"
+                icon={<PlusCircleOutlined />}
+                style={{ color: '#0284c7', fontWeight: 600 }}
+                onClick={() => {
+                  setAppointmentToAddService(record);
+                  setIsAddServiceModalOpen(true);
+                }}
+              >
+                Thêm dịch vụ
+              </Button>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -772,7 +808,8 @@ const DashboardPage: React.FC = () => {
             level={3}
             style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}
           >
-            Xin chào, {user?.fullName || user?.phone || 'Quý khách'}!
+            Xin chào,{' '}
+            {effectiveUser?.fullName || effectiveUser?.phone || 'Quý khách'}!
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
             Bảng theo dõi sức khoẻ thú cưng & quản lý chu trình khám chữa bệnh
@@ -1359,6 +1396,30 @@ const DashboardPage: React.FC = () => {
           setSelectedAppointmentId(null);
         }}
         petsMap={petsMap}
+        isPetOwner={isPetOwner}
+        onAddService={apt => {
+          setAppointmentToAddService(apt);
+          setIsAddServiceModalOpen(true);
+        }}
+      />
+
+      {/* Add Service to Online Appointment Modal */}
+      <AddAppointmentServiceModal
+        open={isAddServiceModalOpen}
+        appointment={appointmentToAddService}
+        pet={
+          appointmentToAddService
+            ? petsMap.get(appointmentToAddService.petId)
+            : undefined
+        }
+        onClose={() => {
+          setIsAddServiceModalOpen(false);
+          setAppointmentToAddService(null);
+        }}
+        onSuccess={() => {
+          // Re-fetch appointments to refresh table state
+          fetchAppointments();
+        }}
       />
     </DashboardWrapper>
   );

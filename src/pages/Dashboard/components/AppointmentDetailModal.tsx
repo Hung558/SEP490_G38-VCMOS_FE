@@ -15,6 +15,7 @@ import {
   CheckOutlined,
   InfoCircleOutlined,
   CloseOutlined,
+  PlusCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
@@ -24,6 +25,12 @@ import AppointmentOrderService, {
   getAppointmentStatusColor,
   extractApiError,
 } from '@/services/AppointmentOrderService';
+import {
+  isAppointmentEligibleForService,
+  isUserPetOwner,
+} from '@/services/AppointmentServiceService';
+import { STORAGE, storage } from '@/lib/storage';
+import { useAuth } from '@/contexts/routerProvider/authContext';
 import type { OnlineAppointment, Pet } from '@/types';
 
 const { Text } = Typography;
@@ -33,6 +40,8 @@ interface AppointmentDetailModalProps {
   appointmentId: string | null;
   onClose: () => void;
   petsMap: Map<string, Pet>;
+  onAddService?: (appointment: OnlineAppointment) => void;
+  isPetOwner?: boolean;
 }
 
 const DetailWrapper = styled.div`
@@ -84,7 +93,18 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   appointmentId,
   onClose,
   petsMap,
+  onAddService,
+  isPetOwner,
 }) => {
+  const { user } = useAuth();
+  const storedUser = storage.getLocalStorage<any>(STORAGE.USER_INFO);
+  const effectiveUser =
+    user || (storedUser && typeof storedUser === 'object' ? storedUser : null);
+  const resolvedIsPetOwner =
+    typeof isPetOwner === 'boolean'
+      ? isPetOwner
+      : isUserPetOwner(effectiveUser);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appointment, setAppointment] = useState<OnlineAppointment | null>(
@@ -153,10 +173,26 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
         </div>
       }
       footer={[
+        appointment &&
+          resolvedIsPetOwner &&
+          isAppointmentEligibleForService(appointment) &&
+          onAddService && (
+            <Button
+              key="add-service"
+              type="primary"
+              icon={<PlusCircleOutlined />}
+              style={{ background: '#0d9488', borderColor: '#0d9488' }}
+              onClick={() => {
+                onAddService(appointment);
+              }}
+            >
+              Thêm dịch vụ
+            </Button>
+          ),
         <Button key="close" icon={<CloseOutlined />} onClick={onClose}>
           Đóng
         </Button>,
-      ]}
+      ].filter(Boolean)}
       width={640}
     >
       <DetailWrapper>
