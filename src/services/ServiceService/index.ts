@@ -9,9 +9,13 @@ import type {
 import { buildServiceQuery } from './helpers';
 
 const listServices = (
-  filters?: ServiceFilters
+  filters?: ServiceFilters,
+  options?: { signal?: AbortSignal }
 ): Promise<{ services: Service[] }> =>
-  api.get(apiServices, { params: buildServiceQuery(filters) });
+  api.get(apiServices, {
+    params: buildServiceQuery(filters),
+    signal: options?.signal,
+  });
 
 const getService = (id: string): Promise<{ service: Service }> =>
   api.get(apiServiceDetail(id));
