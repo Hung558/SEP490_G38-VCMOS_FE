@@ -225,26 +225,26 @@ def run_tests():
         print("[TEST] 3. Verifying appointment rows and 'Thêm dịch vụ' buttons...")
         # The appointments table is identified by the header 'Mã lượt hẹn'
         apt_table = page.locator(".ant-table", has=page.locator("th", has_text="Mã lượt hẹn"))
-        rows = apt_table.locator("tbody tr")
+        rows = apt_table.locator("tbody tr.ant-table-row")
         row_count = rows.count()
         print(f"-> Found {row_count} appointment rows in table")
         assert row_count == 4, f"Expected 4 appointment rows, got {row_count}"
 
-        # APT-BOOKED-01 (Row 1): Booked -> should have "Thêm dịch vụ"
+        # APT-BOOKED-01 (Row 0): Booked -> should have "Thêm dịch vụ"
         row1 = rows.nth(0)
-        assert row1.locator("text=Thêm dịch vụ").is_visible(), "Row 1 (Booked) must have 'Thêm dịch vụ'"
+        assert row1.locator("text=Thêm dịch vụ").is_visible(), "Row 0 (Booked) must have 'Thêm dịch vụ'"
 
-        # APT-CHECKEDIN-02 (Row 2): CheckedIn -> should have "Thêm dịch vụ"
+        # APT-CHECKEDIN-02 (Row 1): CheckedIn -> should have "Thêm dịch vụ"
         row2 = rows.nth(1)
-        assert row2.locator("text=Thêm dịch vụ").is_visible(), "Row 2 (CheckedIn) must have 'Thêm dịch vụ'"
+        assert row2.locator("text=Thêm dịch vụ").is_visible(), "Row 1 (CheckedIn) must have 'Thêm dịch vụ'"
 
-        # APT-DONE-03 (Row 3): Done -> MUST NOT have "Thêm dịch vụ"
+        # APT-DONE-03 (Row 2): Done -> MUST NOT have "Thêm dịch vụ"
         row3 = rows.nth(2)
-        assert not row3.locator("text=Thêm dịch vụ").is_visible(), "Row 3 (Done) must NOT have 'Thêm dịch vụ'"
+        assert not row3.locator("text=Thêm dịch vụ").is_visible(), "Row 2 (Done) must NOT have 'Thêm dịch vụ'"
 
-        # APT-CANCELLED-04 (Row 4): Cancelled -> MUST NOT have "Thêm dịch vụ"
+        # APT-CANCELLED-04 (Row 3): Cancelled -> MUST NOT have "Thêm dịch vụ"
         row4 = rows.nth(3)
-        assert not row4.locator("text=Thêm dịch vụ").is_visible(), "Row 4 (Cancelled) must NOT have 'Thêm dịch vụ'"
+        assert not row4.locator("text=Thêm dịch vụ").is_visible(), "Row 3 (Cancelled) must NOT have 'Thêm dịch vụ'"
 
         # Stage 1b: Verify fallback when user object only has systemRole: 'PetOwner'
         print("[TEST] 3b. Verifying user with systemRole: 'PetOwner' only (safe role fallback)...")
@@ -263,7 +263,7 @@ def run_tests():
         page.wait_for_selector(".ant-table", timeout=8000)
         time.sleep(1)
         apt_table = page.locator(".ant-table", has=page.locator("th", has_text="Mã lượt hẹn"))
-        row1 = apt_table.locator("tbody tr").nth(0)
+        row1 = apt_table.locator("tbody tr.ant-table-row").nth(0)
         assert row1.locator("text=Thêm dịch vụ").is_visible(), "Row 1 must still have 'Thêm dịch vụ' when user only has systemRole: 'PetOwner'"
         print("-> Verified: systemRole 'PetOwner' without user.role correctly displays 'Thêm dịch vụ'")
 

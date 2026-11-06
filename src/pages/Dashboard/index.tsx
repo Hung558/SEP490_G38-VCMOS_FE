@@ -494,6 +494,7 @@ const DashboardPage: React.FC = () => {
       title: 'Mã lượt hẹn',
       dataIndex: 'code',
       key: 'code',
+      width: 130,
       render: (code: string) => (
         <strong style={{ color: '#0d9488', letterSpacing: 0.5 }}>{code}</strong>
       ),
@@ -502,6 +503,7 @@ const DashboardPage: React.FC = () => {
       title: 'Thú cưng',
       dataIndex: 'petId',
       key: 'petId',
+      width: 150,
       render: (petId: string) => {
         const p = petsMap.get(petId);
         if (p) {
@@ -527,6 +529,7 @@ const DashboardPage: React.FC = () => {
       title: 'Ngày hẹn khám',
       dataIndex: 'date',
       key: 'date',
+      width: 130,
       render: (date: string) => (
         <span>{date ? dayjs(date).format('DD/MM/YYYY') : '—'}</span>
       ),
@@ -546,6 +549,7 @@ const DashboardPage: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'derivedStatus',
       key: 'derivedStatus',
+      width: 140,
       render: (derivedStatus: AppointmentStatus) => (
         <Tag color={getAppointmentStatusColor(derivedStatus)}>
           {getAppointmentStatusLabel(derivedStatus)}
@@ -555,16 +559,17 @@ const DashboardPage: React.FC = () => {
     {
       title: 'Hành động',
       key: 'action',
+      width: 260,
       align: 'center' as const,
       render: (_: unknown, record: OnlineAppointment) => {
         const isEligible = isAppointmentEligibleForService(record);
         return (
-          <Space size="small">
+          <Space size="small" style={{ whiteSpace: 'nowrap' }}>
             <Button
               type="link"
               size="small"
               icon={<EyeOutlined />}
-              style={{ color: '#0d9488', fontWeight: 600 }}
+              style={{ color: '#0d9488', fontWeight: 600, padding: '4px 6px' }}
               onClick={() => {
                 setSelectedAppointmentId(record._id);
                 setIsAppointmentDetailOpen(true);
@@ -577,7 +582,11 @@ const DashboardPage: React.FC = () => {
                 type="link"
                 size="small"
                 icon={<PlusCircleOutlined />}
-                style={{ color: '#0284c7', fontWeight: 600 }}
+                style={{
+                  color: '#0284c7',
+                  fontWeight: 600,
+                  padding: '4px 6px',
+                }}
                 onClick={() => {
                   setAppointmentToAddService(record);
                   setIsAddServiceModalOpen(true);
@@ -1069,6 +1078,7 @@ const DashboardPage: React.FC = () => {
           columns={appointmentColumns}
           dataSource={appointments}
           loading={appointmentsLoading}
+          scroll={{ x: 900 }}
           pagination={{
             current: appointmentPage,
             pageSize: appointmentLimit,
