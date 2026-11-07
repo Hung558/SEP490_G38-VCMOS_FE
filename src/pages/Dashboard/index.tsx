@@ -327,6 +327,7 @@ const DashboardPage: React.FC = () => {
     string | null
   >(null);
   const [isAppointmentDetailOpen, setIsAppointmentDetailOpen] = useState(false);
+  const [detailRefreshCount, setDetailRefreshCount] = useState(0);
 
   const [appointmentToAddService, setAppointmentToAddService] =
     useState<OnlineAppointment | null>(null);
@@ -494,7 +495,7 @@ const DashboardPage: React.FC = () => {
       title: 'Mã lượt hẹn',
       dataIndex: 'code',
       key: 'code',
-      width: 130,
+      width: 115,
       render: (code: string) => (
         <strong style={{ color: '#0d9488', letterSpacing: 0.5 }}>{code}</strong>
       ),
@@ -503,7 +504,7 @@ const DashboardPage: React.FC = () => {
       title: 'Thú cưng',
       dataIndex: 'petId',
       key: 'petId',
-      width: 150,
+      width: 130,
       render: (petId: string) => {
         const p = petsMap.get(petId);
         if (p) {
@@ -529,7 +530,7 @@ const DashboardPage: React.FC = () => {
       title: 'Ngày hẹn khám',
       dataIndex: 'date',
       key: 'date',
-      width: 130,
+      width: 110,
       render: (date: string) => (
         <span>{date ? dayjs(date).format('DD/MM/YYYY') : '—'}</span>
       ),
@@ -549,7 +550,7 @@ const DashboardPage: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'derivedStatus',
       key: 'derivedStatus',
-      width: 140,
+      width: 110,
       render: (derivedStatus: AppointmentStatus) => (
         <Tag color={getAppointmentStatusColor(derivedStatus)}>
           {getAppointmentStatusLabel(derivedStatus)}
@@ -559,17 +560,32 @@ const DashboardPage: React.FC = () => {
     {
       title: 'Hành động',
       key: 'action',
-      width: 260,
+      width: 220,
+      fixed: 'right' as const,
       align: 'center' as const,
       render: (_: unknown, record: OnlineAppointment) => {
         const isEligible = isAppointmentEligibleForService(record);
         return (
-          <Space size="small" style={{ whiteSpace: 'nowrap' }}>
+          <Space
+            size={2}
+            style={{
+              display: 'inline-flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              whiteSpace: 'nowrap',
+            }}
+          >
             <Button
               type="link"
               size="small"
               icon={<EyeOutlined />}
-              style={{ color: '#0d9488', fontWeight: 600, padding: '4px 6px' }}
+              style={{
+                color: '#0d9488',
+                fontWeight: 600,
+                padding: '2px 4px',
+                height: 'auto',
+                lineHeight: 1.4,
+              }}
               onClick={() => {
                 setSelectedAppointmentId(record._id);
                 setIsAppointmentDetailOpen(true);
@@ -585,7 +601,9 @@ const DashboardPage: React.FC = () => {
                 style={{
                   color: '#0284c7',
                   fontWeight: 600,
-                  padding: '4px 6px',
+                  padding: '2px 4px',
+                  height: 'auto',
+                  lineHeight: 1.4,
                 }}
                 onClick={() => {
                   setAppointmentToAddService(record);
@@ -1078,7 +1096,7 @@ const DashboardPage: React.FC = () => {
           columns={appointmentColumns}
           dataSource={appointments}
           loading={appointmentsLoading}
-          scroll={{ x: 900 }}
+          scroll={{ x: 780 }}
           pagination={{
             current: appointmentPage,
             pageSize: appointmentLimit,
@@ -1407,6 +1425,7 @@ const DashboardPage: React.FC = () => {
         }}
         petsMap={petsMap}
         isPetOwner={isPetOwner}
+        refreshTrigger={detailRefreshCount}
         onAddService={apt => {
           setAppointmentToAddService(apt);
           setIsAddServiceModalOpen(true);
@@ -1427,8 +1446,9 @@ const DashboardPage: React.FC = () => {
           setAppointmentToAddService(null);
         }}
         onSuccess={() => {
-          // Re-fetch appointments to refresh table state
+          // Re-fetch appointments to refresh table state and detail modal
           fetchAppointments();
+          setDetailRefreshCount(c => c + 1);
         }}
       />
     </DashboardWrapper>

@@ -1,10 +1,28 @@
 import api from '../01_axios';
-import { apiOnlineAppointmentService } from './urls';
-import { buildCreateOnlineAppointmentServicePayload } from './helpers';
+import { apiOnlineAppointmentService, apiCreateOnlineBooking } from './urls';
+import {
+  buildCreateOnlineAppointmentServicePayload,
+  buildCreateOnlineBookingPayload,
+} from './helpers';
 import type {
   CreateOnlineAppointmentServicePayload,
   CreateOnlineAppointmentServiceResponse,
+  CreateCombinedOnlineBookingPayload,
+  CreateCombinedOnlineBookingResponse,
 } from './types';
+
+/**
+ * Đặt lịch online kèm dịch vụ cho chủ nuôi
+ * POST /api/appointment-services/online-booking
+ *
+ * Tạo một lượt hẹn và các dịch vụ trong cùng 1 request.
+ */
+const createOnlineBooking = (
+  data: CreateCombinedOnlineBookingPayload
+): Promise<CreateCombinedOnlineBookingResponse> => {
+  const payload = buildCreateOnlineBookingPayload(data);
+  return api.post(apiCreateOnlineBooking, payload);
+};
 
 /**
  * Tạo dịch vụ cho lịch hẹn online của chủ nuôi
@@ -20,6 +38,7 @@ const createOnlineAppointmentService = (
 };
 
 const AppointmentServiceService = {
+  createOnlineBooking,
   createOnlineAppointmentService,
 };
 

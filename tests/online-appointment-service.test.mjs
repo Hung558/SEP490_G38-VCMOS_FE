@@ -297,4 +297,246 @@ test('isUserPetOwner safely validates PetOwner from role or systemRole with case
   assert.equal(helpers.isUserPetOwner(123), false);
 });
 
+test('AppointmentServiceService apiCreateOnlineBooking URL matches BE endpoint without /api prefix', () => {
+  assert.equal(
+    urls.apiCreateOnlineBooking,
+    '/appointment-services/online-booking'
+  );
+  assert.equal(
+    urls.apiOnlineAppointmentService,
+    '/appointment-services/online'
+  );
+});
+
+test('buildCreateOnlineBookingPayload trims fields and whitelists combined booking payload', () => {
+  const payload = helpers.buildCreateOnlineBookingPayload({
+    petId: '  6ad96d4a9664da6b2c0d8d70  ',
+    date: '  2026-11-20  ',
+    note: '  Bé hơi nhát, nhờ khám nhẹ nhàng  ',
+    services: [
+      {
+        serviceId: '  6ad96d4a9664da6b2c0d8e01  ',
+        sequenceNo: 1,
+        isEmergency: false,
+        // Forbidden fields in service item:
+        orderId: '6ad96d4a9664da6b2c0d8f10',
+        preferredStaffId: '6ad96d4a9664da6b2c0d8b05',
+        assignedStaffId: '6ad96d4a9664da6b2c0d8b06',
+        status: 'Booked',
+        queueNo: 2,
+        enqueueAt: '2026-11-20T08:00:00Z',
+        dequeueAt: '2026-11-20T08:30:00Z',
+        groomingNote: { beforeNote: 'note' },
+      },
+      {
+        serviceId: '6ad96d4a9664da6b2c0d8e02',
+        sequenceNo: 2,
+        isEmergency: true,
+      },
+    ],
+    // Forbidden top-level fields:
+    ownerId: '6ad96d4a9664da6b2c0d8d61',
+    code: 'APT-123456',
+    isOnline: true,
+    derivedStatus: 'Booked',
+    checkedInAt: null,
+    extraRandomKey: 'forbidden',
+  });
+
+  assert.deepEqual(payload, {
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-11-20',
+    note: 'Bé hơi nhát, nhờ khám nhẹ nhàng',
+    services: [
+      {
+        serviceId: '6ad96d4a9664da6b2c0d8e01',
+        sequenceNo: 1,
+        isEmergency: false,
+      },
+      {
+        serviceId: '6ad96d4a9664da6b2c0d8e02',
+        sequenceNo: 2,
+        isEmergency: true,
+      },
+    ],
+  });
+
+  // Verify forbidden top-level keys are absent
+  assert.equal('ownerId' in payload, false);
+  assert.equal('code' in payload, false);
+  assert.equal('isOnline' in payload, false);
+  assert.equal('derivedStatus' in payload, false);
+  assert.equal('checkedInAt' in payload, false);
+  assert.equal('extraRandomKey' in payload, false);
+
+  // Verify forbidden service-item keys are absent
+  const s1 = payload.services[0];
+  assert.equal('orderId' in s1, false);
+  assert.equal('preferredStaffId' in s1, false);
+  assert.equal('assignedStaffId' in s1, false);
+  assert.equal('status' in s1, false);
+  assert.equal('queueNo' in s1, false);
+  assert.equal('enqueueAt' in s1, false);
+  assert.equal('dequeueAt' in s1, false);
+  assert.equal('groomingNote' in s1, false);
+});
+
+test('buildCreateOnlineBookingPayload omits note when empty and omits sequenceNo/isEmergency when invalid', () => {
+  const payload = helpers.buildCreateOnlineBookingPayload({
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-11-20',
+    note: '   ',
+    services: [
+      {
+        serviceId: '6ad96d4a9664da6b2c0d8e01',
+        sequenceNo: undefined,
+        isEmergency: undefined,
+      },
+      {
+        serviceId: '6ad96d4a9664da6b2c0d8e02',
+        sequenceNo: -1, // invalid -> omitted
+        isEmergency: 'not-a-boolean', // invalid -> omitted
+      },
+    ],
+  });
+
+  assert.deepEqual(payload, {
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-11-20',
+    services: [
+      { serviceId: '6ad96d4a9664da6b2c0d8e01' },
+      { serviceId: '6ad96d4a9664da6b2c0d8e02' },
+    ],
+  });
+  assert.equal('note' in payload, false);
+  assert.equal('sequenceNo' in payload.services[0], false);
+  assert.equal('isEmergency' in payload.services[0], false);
+  assert.equal('sequenceNo' in payload.services[1], false);
+  assert.equal('isEmergency' in payload.services[1], false);
+});
+
+test('validateOnlineBookingForm validates petId, date, services, and duplicate sequence numbers', () => {
+  // Empty form
+  const emptyRes = helpers.validateOnlineBookingForm({});
+  assert.equal(emptyRes.isValid, false);
+  assert.match(emptyRes.errors.petId || '', /bắt buộc/);
+  assert.match(emptyRes.errors.date || '', /bắt buộc/);
+  assert.match(emptyRes.errors.services || '', /ít nhất một dịch vụ/);
+
+  // Empty services array
+  const emptyServicesRes = helpers.validateOnlineBookingForm({
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-12-15',
+    services: [],
+  });
+  assert.equal(emptyServicesRes.isValid, false);
+  assert.match(emptyServicesRes.errors.services || '', /ít nhất một dịch vụ/);
+
+  // Duplicate sequence numbers in services
+  const duplicateSeqRes = helpers.validateOnlineBookingForm({
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-12-15',
+    services: [
+      { serviceId: '6ad96d4a9664da6b2c0d8e01', sequenceNo: 1 },
+      { serviceId: '6ad96d4a9664da6b2c0d8e02', sequenceNo: 1 }, // duplicate sequence
+    ],
+  });
+  assert.equal(duplicateSeqRes.isValid, false);
+  assert.match(
+    duplicateSeqRes.errors.serviceErrors?.[1]?.sequenceNo || '',
+    /trùng/
+  );
+
+  // Valid form
+  const validRes = helpers.validateOnlineBookingForm({
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-12-15',
+    note: 'Khám răng',
+    services: [
+      { serviceId: '6ad96d4a9664da6b2c0d8e01', sequenceNo: 1, isEmergency: false },
+      { serviceId: '6ad96d4a9664da6b2c0d8e02', sequenceNo: 2, isEmergency: true },
+    ],
+  });
+  assert.equal(validRes.isValid, true);
+  assert.deepEqual(validRes.errors, {});
+});
+
+test('getAppointmentServiceStatusLabel and Color map known statuses correctly', () => {
+  assert.equal(helpers.getAppointmentServiceStatusLabel('Booked'), 'Đã đặt');
+  assert.equal(helpers.getAppointmentServiceStatusLabel('Waiting'), 'Chờ thực hiện');
+  assert.equal(helpers.getAppointmentServiceStatusLabel('InProgress'), 'Đang thực hiện');
+  assert.equal(helpers.getAppointmentServiceStatusLabel('Done'), 'Hoàn tất');
+  assert.equal(helpers.getAppointmentServiceStatusLabel('Cancelled'), 'Đã hủy');
+  assert.equal(helpers.getAppointmentServiceStatusLabel('Overdue'), 'Quá hạn');
+
+  assert.equal(helpers.getAppointmentServiceStatusColor('Booked'), 'blue');
+  assert.equal(helpers.getAppointmentServiceStatusColor('Waiting'), 'orange');
+  assert.equal(helpers.getAppointmentServiceStatusColor('InProgress'), 'processing');
+  assert.equal(helpers.getAppointmentServiceStatusColor('Done'), 'success');
+  assert.equal(helpers.getAppointmentServiceStatusColor('Cancelled'), 'error');
+  assert.equal(helpers.getAppointmentServiceStatusColor('Overdue'), 'default');
+});
+
+test('getAppointmentServiceName and StaffName handle populated and unpopulated refs safely', () => {
+  // Populated service
+  assert.equal(
+    helpers.getAppointmentServiceName({
+      _id: '6ad96d4a9664da6b2c0d8c10',
+      name: 'Khám tổng quát',
+    }),
+    'Khám tổng quát'
+  );
+  // Unpopulated string ID
+  assert.equal(
+    helpers.getAppointmentServiceName('6ad96d4a9664da6b2c0d8c10'),
+    'Dịch vụ (0d8c10)'
+  );
+  // Null or undefined
+  assert.equal(helpers.getAppointmentServiceName(null), '—');
+  assert.equal(helpers.getAppointmentServiceName(undefined), '—');
+
+  // Populated staff
+  assert.equal(
+    helpers.getAppointmentServiceStaffName({
+      _id: '6ad96d4a9664da6b2c0d8b05',
+      fullName: 'Bác sĩ A',
+    }),
+    'Bác sĩ A'
+  );
+  // Unpopulated string ID
+  assert.equal(
+    helpers.getAppointmentServiceStaffName('6ad96d4a9664da6b2c0d8b05'),
+    'Nhân viên (0d8b05)'
+  );
+  // Null or undefined
+  assert.equal(helpers.getAppointmentServiceStaffName(null), '—');
+  assert.equal(helpers.getAppointmentServiceStaffName(undefined), '—');
+});
+
+test('filterActiveServices strictly filters out inactive, deleted, or invalid services', () => {
+  const mixedServices = [
+    { _id: 's1', name: 'Khám tổng quát', status: 'Active' },
+    { _id: 's2', name: 'Dịch vụ ngừng bán', status: 'Inactive' },
+    { _id: 's3', name: 'Tiêm phòng dại', status: 'Active' },
+    { _id: 's4', name: 'Dịch vụ cũ', status: 'Deleted' },
+    { _id: 's5', name: 'Không rõ trạng thái', status: undefined },
+    null,
+  ];
+
+  const filtered = helpers.filterActiveServices(mixedServices);
+  assert.equal(filtered.length, 2);
+  assert.deepEqual(
+    filtered.map(s => s._id),
+    ['s1', 's3']
+  );
+
+  // Edge cases
+  assert.deepEqual(helpers.filterActiveServices([]), []);
+  assert.deepEqual(helpers.filterActiveServices(null), []);
+  assert.deepEqual(helpers.filterActiveServices(undefined), []);
+  assert.deepEqual(helpers.filterActiveServices('not an array'), []);
+});
+
+
+
 

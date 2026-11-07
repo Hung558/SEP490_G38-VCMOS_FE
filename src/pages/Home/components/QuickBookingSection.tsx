@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
-import { Button, Input, Select, Steps, DatePicker, Alert, Spin } from 'antd';
+import {
+  Button,
+  Input,
+  Select,
+  Steps,
+  DatePicker,
+  Alert,
+  Spin,
+  Tag,
+} from 'antd';
 import {
   CheckCircleOutlined,
   PhoneOutlined,
@@ -21,17 +30,30 @@ import { toast } from 'sonner';
 
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import { useAuth } from '@/contexts/routerProvider/authContext';
-import { normalizeRole } from '@/constants/roles';
+import { STORAGE, storage } from '@/lib/storage';
 import PetService from '@/services/PetService';
-import AppointmentOrderService, {
+import ServiceService, { formatServicePrice } from '@/services/ServiceService';
+import type { Service } from '@/services/ServiceService';
+import AppointmentServiceService, {
+  isUserPetOwner,
   extractApiError,
+  validateOnlineBookingForm,
+  getAppointmentServiceStatusColor,
+  getAppointmentServiceStatusLabel,
+  getAppointmentServiceName,
+  filterActiveServices,
+} from '@/services/AppointmentServiceService';
+import {
   validateBookingDate,
   validateBookingNote,
   validateBookingPetId,
   getVietnamTodayString,
 } from '@/services/AppointmentOrderService';
-import type { Pet, OnlineAppointment } from '@/types';
+import type { Pet, OnlineAppointment, OnlineAppointmentService } from '@/types';
 import ROUTER from '@/routerMap/ROUTER';
+import BookingServiceStep, {
+  type SelectedBookingService,
+} from './BookingServiceStep';
 
 const SectionWrapper = styled.section`
   max-width: 1240px;
@@ -376,7 +398,7 @@ const SuccessCard = styled.div`
     .row {
       display: flex;
       justify-content: space-between;
-      padding: 4px 0;
+      padding: 6px 0;
       color: #334155;
     }
   }
@@ -389,23 +411,39 @@ const SuccessCard = styled.div`
   }
 `;
 
+interface CreatedBookingData {
+  appointment: OnlineAppointment;
+  services: OnlineAppointmentService[];
+}
+
 const QuickBookingSection: React.FC = () => {
   const navigate = useNavigate();
   const { isLogin } = useIsLogin();
   const { user } = useAuth();
 
-  const userRole = normalizeRole(user?.role);
-  const isOwner = userRole === 'PetOwner';
+  const storedUser = storage.getLocalStorage<any>(STORAGE.USER_INFO);
+  const effectiveUser =
+    user || (storedUser && typeof storedUser === 'object' ? storedUser : null);
+  const isOwner = isUserPetOwner(effectiveUser);
 
-  // Wizard step: 0 = Thú cưng, 1 = Ngày & Ghi chú, 2 = Xác nhận
+  // Wizard step: 0 = Thú cưng, 1 = Dịch vụ, 2 = Ngày & Ghi chú, 3 = Xác nhận
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Form states
+  // Pets state
   const [pets, setPets] = useState<Pet[]>([]);
   const [petsLoading, setPetsLoading] = useState(false);
   const [petsError, setPetsError] = useState<string | null>(null);
-
   const [selectedPetId, setSelectedPetId] = useState<string>('');
+
+  // Active Services state
+  const [activeServices, setActiveServices] = useState<Service[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [servicesError, setServicesError] = useState<string | null>(null);
+  const [selectedServices, setSelectedServices] = useState<
+    SelectedBookingService[]
+  >([]);
+
+  // Date & Note state
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [bookingNote, setBookingNote] = useState('');
 
@@ -415,8 +453,8 @@ const QuickBookingSection: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Success state
-  const [createdAppointment, setCreatedAppointment] =
-    useState<OnlineAppointment | null>(null);
+  const [createdBookingData, setCreatedBookingData] =
+    useState<CreatedBookingData | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Load active pets for logged-in PetOwner
@@ -444,7 +482,7 @@ const QuickBookingSection: React.FC = () => {
             setSelectedPetId(prev => prev || items[0]._id);
           }
         }
-      } catch (err: unknown) {
+      } catch {
         if (isMounted) {
           setPetsError('Không thể tải danh sách thú cưng. Vui lòng thử lại.');
         }
@@ -460,6 +498,64 @@ const QuickBookingSection: React.FC = () => {
       isMounted = false;
     };
   }, [isLogin, isOwner]);
+
+  // Refs to prevent race conditions and manage abort controller across retries
+  const servicesAbortCtrlRef = useRef<AbortController | null>(null);
+  const servicesReqSeqRef = useRef(0);
+
+  // Load active services with abort controller and sequence guard
+  const loadActiveServices = useCallback(async () => {
+    // Abort previous in-flight request if any to prevent race condition
+    if (servicesAbortCtrlRef.current) {
+      servicesAbortCtrlRef.current.abort();
+    }
+    const abortCtrl = new AbortController();
+    servicesAbortCtrlRef.current = abortCtrl;
+
+    const reqSeq = ++servicesReqSeqRef.current;
+    setServicesLoading(true);
+    setServicesError(null);
+
+    try {
+      const res = await ServiceService.listServices(
+        { status: 'Active' },
+        { signal: abortCtrl.signal }
+      );
+
+      // Only update state if this is still the newest request and not aborted
+      if (reqSeq === servicesReqSeqRef.current && !abortCtrl.signal.aborted) {
+        // Double-check active filter against stale or cached data
+        const items = filterActiveServices(res?.services);
+        setActiveServices(items);
+      }
+    } catch (err: unknown) {
+      // Ignore aborted or stale requests
+      if (
+        abortCtrl.signal.aborted ||
+        reqSeq !== servicesReqSeqRef.current ||
+        (err as any)?.name === 'CanceledError' ||
+        (err as any)?.name === 'AbortError' ||
+        (err as any)?.code === 'ERR_CANCELED'
+      ) {
+        return;
+      }
+
+      setServicesError('Không thể tải danh sách dịch vụ. Vui lòng thử lại.');
+    } finally {
+      if (reqSeq === servicesReqSeqRef.current && !abortCtrl.signal.aborted) {
+        setServicesLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    loadActiveServices();
+    return () => {
+      if (servicesAbortCtrlRef.current) {
+        servicesAbortCtrlRef.current.abort();
+      }
+    };
+  }, [loadActiveServices]);
 
   // Disable past dates according to Vietnam date semantics
   const disabledDate = (current: Dayjs) => {
@@ -488,6 +584,7 @@ const QuickBookingSection: React.FC = () => {
       return;
     }
 
+    // Step 0: Pet Selection validation
     if (currentStep === 0) {
       if (petsError) {
         toast.error(
@@ -513,7 +610,22 @@ const QuickBookingSection: React.FC = () => {
       }
       setFieldErrors(prev => ({ ...prev, petId: '' }));
       setCurrentStep(1);
-    } else if (currentStep === 1) {
+    }
+    // Step 1: Services Selection validation
+    else if (currentStep === 1) {
+      if (selectedServices.length === 0) {
+        setFieldErrors(prev => ({
+          ...prev,
+          services: 'Lịch hẹn phải có ít nhất một dịch vụ',
+        }));
+        toast.error('Vui lòng chọn ít nhất một dịch vụ để tiếp tục');
+        return;
+      }
+      setFieldErrors(prev => ({ ...prev, services: '' }));
+      setCurrentStep(2);
+    }
+    // Step 2: Date & Note validation
+    else if (currentStep === 2) {
       const dateStr = selectedDate
         ? selectedDate.format('YYYY-MM-DD')
         : undefined;
@@ -528,8 +640,8 @@ const QuickBookingSection: React.FC = () => {
         }));
         return;
       }
-      setFieldErrors({});
-      setCurrentStep(2);
+      setFieldErrors(prev => ({ ...prev, date: '', note: '' }));
+      setCurrentStep(3);
     }
   };
 
@@ -538,7 +650,7 @@ const QuickBookingSection: React.FC = () => {
     setCurrentStep(prev => Math.max(0, prev - 1));
   };
 
-  // Submit online booking
+  // Submit combined online booking
   const handleSubmitBooking = async () => {
     if (submitting) return;
 
@@ -554,16 +666,32 @@ const QuickBookingSection: React.FC = () => {
     }
 
     const dateStr = selectedDate ? selectedDate.format('YYYY-MM-DD') : '';
-    const petErr = validateBookingPetId(selectedPetId);
-    const dateErr = validateBookingDate(dateStr);
-    const noteErr = validateBookingNote(bookingNote);
+    const validation = validateOnlineBookingForm({
+      petId: selectedPetId,
+      date: dateStr,
+      note: bookingNote,
+      services: selectedServices.map((s, idx) => ({
+        serviceId: s.serviceId,
+        sequenceNo: s.sequenceNo || idx + 1,
+        isEmergency: s.isEmergency,
+      })),
+    });
 
-    if (petErr || dateErr || noteErr) {
+    if (!validation.isValid) {
       setFieldErrors({
-        ...(petErr ? { petId: petErr } : {}),
-        ...(dateErr ? { date: dateErr } : {}),
-        ...(noteErr ? { note: noteErr } : {}),
+        ...(validation.errors.petId ? { petId: validation.errors.petId } : {}),
+        ...(validation.errors.date ? { date: validation.errors.date } : {}),
+        ...(validation.errors.note ? { note: validation.errors.note } : {}),
+        ...(validation.errors.services
+          ? { services: validation.errors.services }
+          : {}),
       });
+      toast.error(
+        validation.errors.services ||
+          validation.errors.date ||
+          validation.errors.petId ||
+          'Thông tin chưa hợp lệ'
+      );
       return;
     }
 
@@ -571,35 +699,44 @@ const QuickBookingSection: React.FC = () => {
     setServerError(null);
 
     try {
-      const res = await AppointmentOrderService.createOnlineBooking({
+      const res = await AppointmentServiceService.createOnlineBooking({
         petId: selectedPetId,
         date: dateStr,
-        note: bookingNote,
+        note: bookingNote.trim() ? bookingNote.trim() : undefined,
+        services: selectedServices.map((s, idx) => ({
+          serviceId: s.serviceId,
+          sequenceNo: s.sequenceNo || idx + 1,
+          isEmergency: Boolean(s.isEmergency),
+        })),
       });
 
       if (res?.data) {
-        setCreatedAppointment(res.data);
-        toast.success(res.message || 'Đặt lịch khám thành công!');
+        setCreatedBookingData(res.data);
+        toast.success(res.message || 'Đặt lịch online thành công!');
       }
     } catch (error: unknown) {
       const {
         message,
         fieldErrors: serverFieldErrors,
-        status,
+        statusCode,
       } = extractApiError(error, 'Không thể đặt lịch hẹn. Vui lòng thử lại.');
 
-      if (status === 409) {
-        setServerError('Thú cưng này đã có lịch trong ngày đã chọn.');
-        toast.error('Thú cưng này đã có lịch trong ngày đã chọn.');
-      } else if (status === 403) {
+      if (statusCode === 409) {
+        setServerError(
+          message || 'Thú cưng này đã có lịch trong ngày đã chọn.'
+        );
+        toast.error(message || 'Thú cưng này đã có lịch trong ngày đã chọn.');
+      } else if (statusCode === 403) {
         setServerError('Tài khoản hiện tại không có quyền đặt lịch.');
         toast.error('Tài khoản hiện tại không có quyền đặt lịch.');
-      } else if (status === 404) {
-        setServerError(message || 'Không tìm thấy thú cưng.');
-        toast.error(message || 'Không tìm thấy thú cưng.');
+      } else if (statusCode === 404) {
+        setServerError(message || 'Không tìm thấy thông tin yêu cầu.');
+        toast.error(message || 'Không tìm thấy thông tin yêu cầu.');
       } else {
         setServerError(message);
-        setFieldErrors(serverFieldErrors);
+        if (serverFieldErrors) {
+          setFieldErrors(serverFieldErrors);
+        }
         toast.error(message);
       }
     } finally {
@@ -615,8 +752,9 @@ const QuickBookingSection: React.FC = () => {
   };
 
   const handleResetForm = () => {
-    setCreatedAppointment(null);
+    setCreatedBookingData(null);
     setCurrentStep(0);
+    setSelectedServices([]);
     setSelectedDate(null);
     setBookingNote('');
     setFieldErrors({});
@@ -636,9 +774,9 @@ const QuickBookingSection: React.FC = () => {
           </span>
           <h2>Đăng Ký Khám Cho Thú Cưng Nhanh Chóng</h2>
           <p className="desc">
-            Chủ động chọn ngày khám phù hợp và để lại thông tin triệu chứng cho
-            bác sĩ trước khi đến phòng khám. Lịch hẹn được hệ thống tiếp nhận
-            ngay sau khi đăng ký.
+            Chủ động chọn dịch vụ và ngày khám phù hợp cho thú cưng của bạn.
+            Lịch hẹn cùng danh sách dịch vụ được hệ thống phòng khám VCMOS tiếp
+            nhận đồng thời ngay sau khi đăng ký.
           </p>
 
           <ul className="benefits-list">
@@ -647,10 +785,10 @@ const QuickBookingSection: React.FC = () => {
                 <CalendarOutlined />
               </div>
               <div className="text">
-                <strong>Đặt lịch theo ngày thuận tiện</strong>
+                <strong>Đặt lịch và chọn dịch vụ linh hoạt</strong>
                 <span>
-                  Chọn ngày khám linh hoạt từ hôm nay trở đi theo múi giờ Việt
-                  Nam, dễ dàng sắp xếp lịch trình.
+                  Lựa chọn nhiều dịch vụ chăm sóc, tiêm phòng hay khám tổng quát
+                  ngay trong cùng một lượt hẹn.
                 </span>
               </div>
             </li>
@@ -720,25 +858,29 @@ const QuickBookingSection: React.FC = () => {
           )}
 
           {/* Success View */}
-          {createdAppointment ? (
+          {createdBookingData ? (
             <SuccessCard>
               <div className="success-icon">
                 <CheckCircleOutlined />
               </div>
               <h3>Đặt Lịch Hẹn Thành Công!</h3>
               <p className="subtext">
-                Phòng khám VCMOS đã tiếp nhận lịch hẹn của bạn. Vui lòng lưu lại
-                mã lượt hẹn để làm thủ tục tiếp nhận.
+                Phòng khám VCMOS đã tiếp nhận lịch hẹn và các dịch vụ đăng ký
+                của bạn. Vui lòng lưu lại mã lượt hẹn để làm thủ tục tiếp nhận.
               </p>
 
               <div className="appointment-code-box">
                 <span className="code-label">Mã lượt hẹn trực tuyến</span>
-                <span className="code-val">{createdAppointment.code}</span>
+                <span className="code-val">
+                  {createdBookingData.appointment.code}
+                </span>
                 <Button
                   size="small"
                   type="text"
                   icon={copiedCode ? <CheckOutlined /> : <CopyOutlined />}
-                  onClick={() => handleCopyCode(createdAppointment.code)}
+                  onClick={() =>
+                    handleCopyCode(createdBookingData.appointment.code)
+                  }
                 >
                   {copiedCode ? 'Đã sao chép' : 'Sao chép mã'}
                 </Button>
@@ -752,19 +894,97 @@ const QuickBookingSection: React.FC = () => {
                 <div className="row">
                   <span style={{ color: '#64748b' }}>Ngày hẹn:</span>
                   <strong>
-                    {dayjs(createdAppointment.date).format('DD/MM/YYYY')}
+                    {dayjs(createdBookingData.appointment.date).format(
+                      'DD/MM/YYYY'
+                    )}
                   </strong>
                 </div>
                 <div className="row">
                   <span style={{ color: '#64748b' }}>Trạng thái:</span>
                   <strong style={{ color: '#0d9488' }}>Đã đặt (Booked)</strong>
                 </div>
-                {createdAppointment.note && (
+                {createdBookingData.appointment.note && (
                   <div className="row">
                     <span style={{ color: '#64748b' }}>Ghi chú:</span>
-                    <span>{createdAppointment.note}</span>
+                    <span>{createdBookingData.appointment.note}</span>
                   </div>
                 )}
+                {createdBookingData.services &&
+                  createdBookingData.services.length > 0 && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        paddingTop: 10,
+                        borderTop: '1px dashed #e2e8f0',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: '#0f172a',
+                          marginBottom: 8,
+                          fontSize: 13,
+                        }}
+                      >
+                        Dịch vụ đã đăng ký ({createdBookingData.services.length}
+                        ):
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 6,
+                        }}
+                      >
+                        {createdBookingData.services.map((s, idx) => {
+                          const sInfo = activeServices.find(
+                            as =>
+                              as._id ===
+                              (typeof s.serviceId === 'string'
+                                ? s.serviceId
+                                : s.serviceId._id)
+                          );
+                          return (
+                            <div
+                              key={s._id || idx}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                background: '#f8fafc',
+                                padding: '6px 10px',
+                                borderRadius: 6,
+                                border: '1px solid #f1f5f9',
+                              }}
+                            >
+                              <span>
+                                <strong style={{ color: '#0d9488' }}>
+                                  #{s.sequenceNo || idx + 1}.
+                                </strong>{' '}
+                                {sInfo?.name ||
+                                  getAppointmentServiceName(s.serviceId)}
+                                {s.isEmergency && (
+                                  <Tag
+                                    color="red"
+                                    style={{ marginLeft: 6, fontSize: 11 }}
+                                  >
+                                    Khẩn cấp
+                                  </Tag>
+                                )}
+                              </span>
+                              <Tag
+                                color={getAppointmentServiceStatusColor(
+                                  s.status
+                                )}
+                              >
+                                {getAppointmentServiceStatusLabel(s.status)}
+                              </Tag>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
               </div>
 
               <div className="actions">
@@ -786,8 +1006,9 @@ const QuickBookingSection: React.FC = () => {
                 current={currentStep}
                 items={[
                   { title: '1. Thú cưng' },
-                  { title: '2. Ngày & Ghi chú' },
-                  { title: '3. Xác nhận' },
+                  { title: '2. Dịch vụ khám' },
+                  { title: '3. Ngày & Ghi chú' },
+                  { title: '4. Xác nhận' },
                 ]}
               />
 
@@ -1003,8 +1224,25 @@ const QuickBookingSection: React.FC = () => {
                   </div>
                 )}
 
-                {/* Step 1: Date & Note */}
+                {/* Step 1: Active Services Selection */}
                 {currentStep === 1 && (
+                  <BookingServiceStep
+                    services={activeServices}
+                    loading={servicesLoading}
+                    error={servicesError}
+                    onRetry={loadActiveServices}
+                    selectedServices={selectedServices}
+                    onChange={updated => {
+                      setSelectedServices(updated);
+                      setFieldErrors(prev => ({ ...prev, services: '' }));
+                      setServerError(null);
+                    }}
+                    errorText={fieldErrors.services}
+                  />
+                )}
+
+                {/* Step 2: Date & Note */}
+                {currentStep === 2 && (
                   <div>
                     <div className="section-label">
                       1. Chọn ngày hẹn khám (từ hôm nay trở đi):
@@ -1032,7 +1270,7 @@ const QuickBookingSection: React.FC = () => {
                       tự):
                     </div>
                     <Input.TextArea
-                      rows={5}
+                      rows={4}
                       value={bookingNote}
                       onChange={e => {
                         setBookingNote(e.target.value);
@@ -1050,8 +1288,8 @@ const QuickBookingSection: React.FC = () => {
                   </div>
                 )}
 
-                {/* Step 2: Summary & Confirmation */}
-                {currentStep === 2 && (
+                {/* Step 3: Summary & Confirmation */}
+                {currentStep === 3 && (
                   <div>
                     <div className="section-label">
                       Xác nhận thông tin đặt hẹn:
@@ -1065,6 +1303,88 @@ const QuickBookingSection: React.FC = () => {
                           {selectedPet?.breed || 'Giống chung'})
                         </strong>
                       </div>
+
+                      <div
+                        className="sum-row"
+                        style={{
+                          flexDirection: 'column',
+                          alignItems: 'stretch',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            marginBottom: 6,
+                          }}
+                        >
+                          <span className="label">
+                            Dịch vụ đã chọn ({selectedServices.length}):
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: '#0d9488',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Đơn giá
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 6,
+                          }}
+                        >
+                          {selectedServices.map((s, idx) => {
+                            const sItem = activeServices.find(
+                              as => as._id === s.serviceId
+                            );
+                            return (
+                              <div
+                                key={s.serviceId}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  fontSize: 13,
+                                  padding: '6px 10px',
+                                  background: '#f8fafc',
+                                  borderRadius: 6,
+                                  border: '1px solid #f1f5f9',
+                                }}
+                              >
+                                <span>
+                                  <strong style={{ color: '#0d9488' }}>
+                                    #{idx + 1}.
+                                  </strong>{' '}
+                                  {sItem?.name || 'Dịch vụ'}
+                                  {s.isEmergency && (
+                                    <Tag
+                                      color="red"
+                                      style={{ marginLeft: 6, fontSize: 11 }}
+                                    >
+                                      Khẩn cấp
+                                    </Tag>
+                                  )}
+                                </span>
+                                <span
+                                  style={{
+                                    fontWeight: 600,
+                                    color: '#334155',
+                                  }}
+                                >
+                                  {sItem?.basePrice !== undefined
+                                    ? formatServicePrice(sItem.basePrice)
+                                    : '—'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       <div className="sum-row">
                         <span className="label">Ngày hẹn khám:</span>
                         <strong>
@@ -1073,10 +1393,12 @@ const QuickBookingSection: React.FC = () => {
                             : 'Chưa chọn'}
                         </strong>
                       </div>
+
                       <div className="sum-row">
                         <span className="label">Ghi chú cho phòng khám:</span>
                         <span>{bookingNote.trim() || 'Không có ghi chú'}</span>
                       </div>
+
                       <div className="sum-row highlight">
                         <span className="label">Trạng thái khởi tạo:</span>
                         <span className="status-badge">Đã đặt (Booked)</span>
@@ -1087,7 +1409,7 @@ const QuickBookingSection: React.FC = () => {
                       type="info"
                       showIcon
                       message="Lưu ý tiếp nhận"
-                      description="Sau khi xác nhận, lịch hẹn sẽ được tạo trên hệ thống VCMOS. Nhân viên lễ tân sẽ kiểm tra và tiếp nhận bé theo đúng ngày bạn đã chọn."
+                      description="Sau khi xác nhận, lịch hẹn và các dịch vụ đăng ký sẽ được khởi tạo trên hệ thống VCMOS. Nhân viên lễ tân sẽ tiếp nhận bé theo đúng lịch trình đã đăng ký."
                     />
                   </div>
                 )}
@@ -1108,12 +1430,12 @@ const QuickBookingSection: React.FC = () => {
                   <div />
                 )}
 
-                {currentStep < 2 ? (
+                {currentStep < 3 ? (
                   <Button
                     type="primary"
                     className="btn-step btn-next"
                     onClick={handleNext}
-                    disabled={petsLoading}
+                    disabled={petsLoading || servicesLoading}
                   >
                     Tiếp tục <RightOutlined />
                   </Button>
