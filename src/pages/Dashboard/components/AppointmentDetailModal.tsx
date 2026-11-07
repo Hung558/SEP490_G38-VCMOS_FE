@@ -8,6 +8,7 @@ import {
   Spin,
   Alert,
   Typography,
+  Empty,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -16,6 +17,9 @@ import {
   InfoCircleOutlined,
   CloseOutlined,
   PlusCircleOutlined,
+  MedicineBoxOutlined,
+  ClockCircleOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
@@ -28,20 +32,31 @@ import AppointmentOrderService, {
 import {
   isAppointmentEligibleForService,
   isUserPetOwner,
+  getAppointmentServiceStatusLabel,
+  getAppointmentServiceStatusColor,
+  getAppointmentServiceName,
+  getAppointmentServiceStaffName,
 } from '@/services/AppointmentServiceService';
+import type { PopulatedServiceRef } from '@/services/AppointmentServiceService';
+import {
+  formatServicePrice,
+  formatServiceDuration,
+  serviceCategoryLabels,
+} from '@/services/ServiceService';
 import { STORAGE, storage } from '@/lib/storage';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import type { OnlineAppointment, Pet } from '@/types';
 
 const { Text } = Typography;
 
-interface AppointmentDetailModalProps {
+export interface AppointmentDetailModalProps {
   open: boolean;
   appointmentId: string | null;
   onClose: () => void;
   petsMap: Map<string, Pet>;
   onAddService?: (appointment: OnlineAppointment) => void;
   isPetOwner?: boolean;
+  refreshTrigger?: number;
 }
 
 const DetailWrapper = styled.div`
@@ -95,6 +110,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   petsMap,
   onAddService,
   isPetOwner,
+  refreshTrigger,
 }) => {
   const { user } = useAuth();
   const storedUser = storage.getLocalStorage<any>(STORAGE.USER_INFO);
@@ -151,7 +167,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
       isCurrent = false;
       abortCtrl.abort();
     };
-  }, [open, appointmentId]);
+  }, [open, appointmentId, refreshTrigger]);
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -193,7 +209,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
           Đóng
         </Button>,
       ].filter(Boolean)}
-      width={640}
+      width={680}
     >
       <DetailWrapper>
         {loading ? (
@@ -295,6 +311,159 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                 {dayjs(appointment.updatedAt).format('HH:mm DD/MM/YYYY')}
               </Descriptions.Item>
             </Descriptions>
+
+            {/* Services List Section */}
+            <div style={{ marginTop: 24 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  marginBottom: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <MedicineBoxOutlined style={{ color: '#0d9488' }} />
+                <span>
+                  Danh Sách Dịch Vụ Khám ({appointment.services?.length || 0})
+                </span>
+              </div>
+
+              {!appointment.services || appointment.services.length === 0 ? (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="Lịch hẹn này chưa có dịch vụ nào"
+                  style={{
+                    margin: '12px 0',
+                    padding: '16px',
+                    background: '#f8fafc',
+                    borderRadius: 8,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+                >
+                  {appointment.services.map((s, idx) => {
+                    const isPopulated =
+                      typeof s.serviceId === 'object' && s.serviceId !== null;
+                    const popService = isPopulated
+                      ? (s.serviceId as PopulatedServiceRef)
+                      : null;
+                    const assignedName = getAppointmentServiceStaffName(
+                      s.assignedStaffId
+                    );
+                    const preferredName = s.preferredStaffId
+                      ? getAppointmentServiceStaffName(s.preferredStaffId)
+                      : null;
+
+                    return (
+                      <div
+                        key={s._id || idx}
+                        style={{
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 8,
+                          padding: '12px 16px',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                            flexWrap: 'wrap',
+                            gap: 8,
+                          }}
+                        >
+                          <div>
+                            <span
+                              style={{
+                                fontWeight: 700,
+                                color: '#0d9488',
+                                marginRight: 8,
+                                fontSize: 13,
+                              }}
+                            >
+                              #{s.sequenceNo}
+                            </span>
+                            <strong
+                              style={{ color: '#0f172a', fontSize: 13.5 }}
+                            >
+                              {getAppointmentServiceName(s.serviceId)}
+                            </strong>
+                            {popService?.category && (
+                              <Tag
+                                color="cyan"
+                                style={{ marginLeft: 8, fontSize: 11 }}
+                              >
+                                {(
+                                  serviceCategoryLabels as Record<
+                                    string,
+                                    string
+                                  >
+                                )[popService.category] || popService.category}
+                              </Tag>
+                            )}
+                            {s.isEmergency && (
+                              <Tag color="red" style={{ fontSize: 11 }}>
+                                Khẩn cấp
+                              </Tag>
+                            )}
+                          </div>
+
+                          <div>
+                            <Tag
+                              color={getAppointmentServiceStatusColor(s.status)}
+                            >
+                              {getAppointmentServiceStatusLabel(s.status)}
+                            </Tag>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 16,
+                            marginTop: 6,
+                            fontSize: 12.5,
+                            color: '#64748b',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          {popService?.defaultDuration && (
+                            <span>
+                              <ClockCircleOutlined style={{ marginRight: 4 }} />
+                              {formatServiceDuration(
+                                popService.defaultDuration
+                              )}
+                            </span>
+                          )}
+                          {popService?.basePrice !== undefined && (
+                            <span>
+                              <DollarOutlined style={{ marginRight: 4 }} />
+                              {formatServicePrice(popService.basePrice)}
+                            </span>
+                          )}
+                          {s.assignedStaffId && assignedName !== '—' && (
+                            <span>
+                              Phụ trách: <strong>{assignedName}</strong>
+                            </span>
+                          )}
+                          {preferredName && preferredName !== '—' && (
+                            <span>
+                              Ưu tiên: <strong>{preferredName}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             <Alert
               type="info"

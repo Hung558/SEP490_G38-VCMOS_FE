@@ -1,3 +1,5 @@
+import type { OnlineAppointmentService } from './appointment-service.api';
+
 export type AppointmentStatus =
   | 'Booked'
   | 'CheckedIn'
@@ -17,6 +19,7 @@ export interface OnlineAppointment {
   isOnline: boolean;
   checkedInAt?: string | null;
   derivedStatus: AppointmentStatus;
+  services?: OnlineAppointmentService[];
   createdAt: string;
   updatedAt: string;
   __v?: number;
@@ -53,8 +56,12 @@ export interface ListMyOnlineBookingsResponse {
   pagination: AppointmentPagination;
 }
 
+export interface OnlineAppointmentDetail extends OnlineAppointment {
+  services: OnlineAppointmentService[];
+}
+
 export interface OnlineBookingDetailResponse {
-  data: OnlineAppointment;
+  data: OnlineAppointmentDetail;
 }
 
 export interface PopulatedPetRef {
