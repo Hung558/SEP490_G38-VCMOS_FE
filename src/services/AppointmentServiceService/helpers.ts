@@ -565,3 +565,74 @@ export const getAppointmentServiceStaffName = (staffRef: unknown): string => {
   }
   return '—';
 };
+
+/** Lấy _id nhân viên từ ref đã populate hoặc string ID */
+export const getStaffRefId = (staffRef: unknown): string | undefined => {
+  if (!staffRef) return undefined;
+  if (typeof staffRef === 'string') return staffRef;
+  if (typeof staffRef === 'object' && '_id' in staffRef) {
+    return String((staffRef as PopulatedStaffRef)._id);
+  }
+  return undefined;
+};
+
+/** Nhóm dịch vụ (category) khi serviceId đã được populate */
+export const getServiceRefCategory = (
+  serviceRef: unknown
+): string | undefined =>
+  serviceRef && typeof serviceRef === 'object'
+    ? (serviceRef as PopulatedServiceRef).category
+    : undefined;
+
+/** Dịch vụ ở các trạng thái này không phân công lại được (BE trả 409) */
+export const ASSIGN_LOCKED_SERVICE_STATUSES = [
+  'InProgress',
+  'Done',
+  'Cancelled',
+  'Overdue',
+] as const;
+
+/**
+ * Lịch đã check-in hoặc đang thực hiện: dịch vụ được phân công sẽ vào hàng đợi ngay.
+ * Lịch chưa check-in: dịch vụ đã phân công tự vào hàng đợi lúc check-in.
+ */
+export const isQueueingOrder = (orderStatus?: string): boolean =>
+  orderStatus === 'CheckedIn' || orderStatus === 'InProgress';
+
+/** Lý do không phân công được nhân sự cho dịch vụ; undefined nếu được phép */
+export const getAssignStaffBlockReason = (
+  serviceStatus?: string,
+  orderStatus?: string
+): string | undefined => {
+  if (
+    BLOCKED_ORDER_STATUSES.includes(
+      orderStatus as (typeof BLOCKED_ORDER_STATUSES)[number]
+    )
+  ) {
+    return 'Lịch hẹn đã hoàn tất, bị hủy hoặc quá hạn nên không thể phân công.';
+  }
+  if (
+    ASSIGN_LOCKED_SERVICE_STATUSES.includes(
+      serviceStatus as (typeof ASSIGN_LOCKED_SERVICE_STATUSES)[number]
+    )
+  ) {
+    return `Dịch vụ đang ở trạng thái "${getAppointmentServiceStatusLabel(
+      serviceStatus
+    )}" nên không thể phân công lại.`;
+  }
+  return undefined;
+};
+
+/**
+ * Có nên gửi phân công không: phải chọn một người khác người đang phụ trách
+ * (gửi lại đúng người cũ chỉ làm BE cấp số thứ tự mới, đẩy dịch vụ xuống cuối hàng)
+ */
+export const canSubmitAssignment = (
+  service: { status?: string; assignedStaffId?: unknown },
+  orderStatus: string | undefined,
+  selectedStaffId?: string
+): boolean => {
+  if (!selectedStaffId) return false;
+  if (getAssignStaffBlockReason(service.status, orderStatus)) return false;
+  return selectedStaffId !== getStaffRefId(service.assignedStaffId);
+};

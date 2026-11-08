@@ -1,5 +1,6 @@
 // Role-specific text of the profile page. Relative .ts import (no @/ alias) so
 // node:test can load this file directly.
+import ROUTER from '../../../routerMap/ROUTER.ts';
 import {
   getRoleGroup,
   getRoleLabel,
@@ -25,11 +26,12 @@ export const getAccountStatus = (status?: string) =>
     color: 'default',
   };
 
-// What each clinic role does (SRS actors) and the screens it will work in.
-// None of these screens exists yet; `code` is kept to link them later.
+// What each clinic role does (SRS actors) and the screens it works in.
+// `path` is set once a screen exists; the others show as in development.
 export interface StaffScreen {
   code: string;
   name: string;
+  path?: string;
 }
 
 export const STAFF_ROLE_CONTENT: Record<
@@ -40,12 +42,24 @@ export const STAFF_ROLE_CONTENT: Record<
     description:
       'Tiếp đón khách, quản lý lịch hẹn, chuồng, khách vãng lai và thu ngân.',
     screens: [
-      { code: 'SCR-16', name: 'Bảng điều khiển lễ tân' },
+      {
+        code: 'SCR-16',
+        name: 'Bảng điều khiển lễ tân',
+        path: ROUTER.CLINIC_APPOINTMENTS,
+      },
       { code: 'SCR-17', name: 'Lịch chung của phòng khám' },
-      { code: 'SCR-18', name: 'Tiếp nhận khách vãng lai' },
-      { code: 'SCR-19', name: 'Sơ đồ chuồng' },
+      {
+        code: 'SCR-18',
+        name: 'Tiếp nhận khách vãng lai',
+        path: ROUTER.CLINIC_APPOINTMENTS,
+      },
+      { code: 'SCR-19', name: 'Sơ đồ chuồng', path: ROUTER.CAGES },
       { code: 'SCR-20', name: 'Thu ngân và thanh toán' },
-      { code: 'SCR-21', name: 'Danh bạ khách hàng và thú cưng' },
+      {
+        code: 'SCR-21',
+        name: 'Danh bạ khách hàng và thú cưng',
+        path: ROUTER.CLINIC_APPOINTMENTS,
+      },
     ],
   },
   Veterinarian: {

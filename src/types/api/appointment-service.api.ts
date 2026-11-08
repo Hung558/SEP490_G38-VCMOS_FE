@@ -22,6 +22,10 @@ export interface PopulatedServiceRef {
 export interface PopulatedStaffRef {
   _id: string;
   fullName: string;
+  // The staff endpoints (list by order, assign-staff) also populate these
+  code?: string;
+  role?: string;
+  status?: string;
 }
 
 export type ServiceRef = string | PopulatedServiceRef;
@@ -83,4 +87,16 @@ export interface CreateCombinedOnlineBookingResponse {
     appointment: OnlineAppointment;
     services: OnlineAppointmentService[];
   };
+}
+
+/** GET /api/appointment-services?orderId= (Receptionist, Admin), sorted by sequenceNo */
+export interface ListOrderServicesResponse {
+  message: string;
+  data: OnlineAppointmentService[];
+}
+
+/** PATCH /api/appointment-services/:id/assign-staff (Receptionist) */
+export interface AssignStaffResponse {
+  message: string;
+  data: OnlineAppointmentService;
 }

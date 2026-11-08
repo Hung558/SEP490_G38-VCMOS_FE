@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Tag } from 'antd';
 import { CalendarOutlined } from '@ant-design/icons';
 import { getStaffRoleContent } from './profileContent';
@@ -22,7 +23,11 @@ const StaffWorkSection: React.FC<{ role?: string }> = ({ role }) => {
         {content.screens.map(screen => (
           <div className="screen-item" key={screen.code}>
             <span className="screen-name">{screen.name}</span>
-            <Tag style={{ margin: 0 }}>Đang phát triển</Tag>
+            {screen.path ? (
+              <Link to={screen.path}>Mở trang</Link>
+            ) : (
+              <Tag style={{ margin: 0 }}>Đang phát triển</Tag>
+            )}
           </div>
         ))}
       </div>

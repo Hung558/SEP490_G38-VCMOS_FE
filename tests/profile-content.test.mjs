@@ -45,6 +45,27 @@ test('each clinic role has its own work content; others have none', () => {
   assert.equal(content.getStaffRoleContent('Admin'), null);
 });
 
+test('screens that exist link to their page; the rest are still in development', () => {
+  const linked = screens =>
+    Object.fromEntries(screens.filter(s => s.path).map(s => [s.code, s.path]));
+  assert.deepEqual(
+    linked(content.getStaffRoleContent('Receptionist').screens),
+    {
+      'SCR-16': '/clinic/appointments',
+      'SCR-18': '/clinic/appointments',
+      'SCR-19': '/cages',
+      'SCR-21': '/clinic/appointments',
+    }
+  );
+  for (const role of ['Veterinarian', 'Groomer']) {
+    assert.deepEqual(
+      linked(content.getStaffRoleContent(role).screens),
+      {},
+      role
+    );
+  }
+});
+
 test('summarizeAccounts counts accounts per role and locked ones', () => {
   const summary = content.summarizeAccounts([
     { role: 'PetOwner', status: 'Active' },

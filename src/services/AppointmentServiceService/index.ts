@@ -1,5 +1,10 @@
 import api from '../01_axios';
-import { apiOnlineAppointmentService, apiCreateOnlineBooking } from './urls';
+import {
+  apiOnlineAppointmentService,
+  apiCreateOnlineBooking,
+  apiOrderServices,
+  apiAssignStaff,
+} from './urls';
 import {
   buildCreateOnlineAppointmentServicePayload,
   buildCreateOnlineBookingPayload,
@@ -9,6 +14,8 @@ import type {
   CreateOnlineAppointmentServiceResponse,
   CreateCombinedOnlineBookingPayload,
   CreateCombinedOnlineBookingResponse,
+  ListOrderServicesResponse,
+  AssignStaffResponse,
 } from './types';
 
 /**
@@ -37,9 +44,37 @@ const createOnlineAppointmentService = (
   return api.post(apiOnlineAppointmentService, payload);
 };
 
+/**
+ * Lễ tân / Admin xem các dịch vụ của một lịch hẹn (sắp theo sequenceNo)
+ * GET /api/appointment-services?orderId=
+ */
+const listOrderServices = (
+  orderId: string,
+  options?: { signal?: AbortSignal }
+): Promise<ListOrderServicesResponse> =>
+  api.get(apiOrderServices, {
+    params: { orderId: orderId.trim() },
+    signal: options?.signal,
+  });
+
+/**
+ * Lễ tân phân công Bác sĩ / Groomer cho một dịch vụ trong lịch hẹn.
+ * Lịch đã check-in (hoặc đang thực hiện) thì dịch vụ vào hàng đợi: Waiting + queueNo
+ * PATCH /api/appointment-services/:id/assign-staff
+ */
+const assignStaff = (
+  appointmentServiceId: string,
+  assignedStaffId: string
+): Promise<AssignStaffResponse> =>
+  api.patch(apiAssignStaff(appointmentServiceId), {
+    assignedStaffId: assignedStaffId.trim(),
+  });
+
 const AppointmentServiceService = {
   createOnlineBooking,
   createOnlineAppointmentService,
+  listOrderServices,
+  assignStaff,
 };
 
 export default AppointmentServiceService;
