@@ -10,4 +10,6 @@ export type {
   CreateOnlineBookingServiceItem,
   CreateCombinedOnlineBookingPayload,
   CreateCombinedOnlineBookingResponse,
+  ListOrderServicesResponse,
+  AssignStaffResponse,
 } from '../../types/api/appointment-service.api';

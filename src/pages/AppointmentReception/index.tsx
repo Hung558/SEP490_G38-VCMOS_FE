@@ -1,6 +1,11 @@
 import { Alert, Button, Card, Tabs, Typography } from 'antd';
-import { ScheduleOutlined, BuildOutlined } from '@ant-design/icons';
-import { PageWrapper } from './components/styles';
+import {
+  ScheduleOutlined,
+  BuildOutlined,
+  SearchOutlined,
+  UserAddOutlined,
+} from '@ant-design/icons';
+import { PageHeader, PageWrapper } from './components/styles';
 import { useAppointmentReception } from './components/useAppointmentReception';
 import AppointmentFilters from './components/AppointmentFilters';
 import AppointmentTable from './components/AppointmentTable';
@@ -9,6 +14,8 @@ import CheckInConfirmModal from './components/CheckInConfirmModal';
 import CageAssignmentTable from './components/CageAssignmentTable';
 import CageAssignmentModal from './components/CageAssignmentModal';
 import CageAssignmentDetailModal from './components/CageAssignmentDetailModal';
+import CustomerLookupPanel from './components/CustomerLookupPanel';
+import WalkInModal from './components/WalkInModal';
 
 const { Title, Text } = Typography;
 
@@ -62,77 +69,113 @@ const AppointmentReceptionPage = () => {
     </>
   );
 
+  const tabItems = [
+    {
+      key: 'appointments',
+      label: (
+        <span>
+          <ScheduleOutlined />
+          Danh sách lịch hẹn
+        </span>
+      ),
+      children: appointmentContent,
+    },
+    ...(state.isReceptionist
+      ? [
+          {
+            key: 'assignments',
+            label: (
+              <span>
+                <BuildOutlined />
+                Phân công chuồng
+              </span>
+            ),
+            children: (
+              <CageAssignmentTable
+                assignments={state.assignments}
+                loading={state.assignmentLoading}
+                error={state.assignmentError}
+                activeFilter={state.assignmentActiveFilter}
+                cageIdFilter={state.assignmentCageIdFilter}
+                orderIdFilter={state.assignmentOrderIdFilter}
+                onActiveFilterChange={state.handleAssignmentActiveFilter}
+                onCageIdFilterChange={state.handleAssignmentCageIdFilter}
+                onOrderIdFilterChange={state.handleAssignmentOrderIdFilter}
+                onResetFilters={state.resetAssignmentFilters}
+                onRefresh={state.fetchAssignments}
+                onOpenCreateModal={() => state.openCreateAssignment()}
+                onViewDetail={state.openAssignmentDetail}
+              />
+            ),
+          },
+        ]
+      : []),
+    {
+      key: 'lookup',
+      label: (
+        <span>
+          <SearchOutlined />
+          Tra cứu khách hàng
+        </span>
+      ),
+      children: (
+        <CustomerLookupPanel
+          canCreateWalkIn={state.isReceptionist}
+          onWalkIn={state.openWalkIn}
+        />
+      ),
+    },
+  ];
+
   return (
     <PageWrapper>
       <Card>
-        <div style={{ marginBottom: 20 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            Tiếp nhận lịch hẹn phòng khám
-          </Title>
-          <Text type="secondary">
-            Theo dõi, tiếp nhận khách hàng (check-in) và phân công chuồng lưu
-            trú cho thú cưng
-          </Text>
-        </div>
+        <PageHeader>
+          <div>
+            <Title level={3} style={{ margin: 0 }}>
+              Tiếp nhận lịch hẹn phòng khám
+            </Title>
+            <Text type="secondary">
+              Theo dõi, tiếp nhận khách hàng (check-in), khách vãng lai, phân
+              công nhân sự và chuồng lưu trú cho thú cưng
+            </Text>
+          </div>
+          {state.isReceptionist && (
+            <Button
+              type="primary"
+              icon={<UserAddOutlined />}
+              onClick={() => state.openWalkIn()}
+            >
+              Tiếp nhận khách vãng lai
+            </Button>
+          )}
+        </PageHeader>
 
-        {state.isReceptionist ? (
-          <Tabs
-            activeKey={state.activeTab}
-            onChange={key =>
-              state.setActiveTab(key as 'appointments' | 'assignments')
-            }
-            items={[
-              {
-                key: 'appointments',
-                label: (
-                  <span>
-                    <ScheduleOutlined />
-                    Danh sách lịch hẹn
-                  </span>
-                ),
-                children: appointmentContent,
-              },
-              {
-                key: 'assignments',
-                label: (
-                  <span>
-                    <BuildOutlined />
-                    Phân công chuồng
-                  </span>
-                ),
-                children: (
-                  <CageAssignmentTable
-                    assignments={state.assignments}
-                    loading={state.assignmentLoading}
-                    error={state.assignmentError}
-                    activeFilter={state.assignmentActiveFilter}
-                    cageIdFilter={state.assignmentCageIdFilter}
-                    orderIdFilter={state.assignmentOrderIdFilter}
-                    onActiveFilterChange={state.handleAssignmentActiveFilter}
-                    onCageIdFilterChange={state.handleAssignmentCageIdFilter}
-                    onOrderIdFilterChange={state.handleAssignmentOrderIdFilter}
-                    onResetFilters={state.resetAssignmentFilters}
-                    onRefresh={state.fetchAssignments}
-                    onOpenCreateModal={() => state.openCreateAssignment()}
-                    onViewDetail={state.openAssignmentDetail}
-                  />
-                ),
-              },
-            ]}
-          />
-        ) : (
-          appointmentContent
-        )}
+        <Tabs
+          activeKey={state.activeTab}
+          onChange={key =>
+            state.setActiveTab(key as 'appointments' | 'assignments' | 'lookup')
+          }
+          items={tabItems}
+        />
 
         {/* Modals */}
         <AppointmentDetailModal
           open={state.detailOpen}
           appointment={state.selectedAppointment}
+          canAssignStaff={state.isReceptionist}
           onClose={state.closeDetail}
         />
 
         {state.isReceptionist && (
           <>
+            <WalkInModal
+              open={state.walkInOpen}
+              initialPhone={state.walkInPhone}
+              onClose={state.closeWalkIn}
+              onCreated={state.handleWalkInCreated}
+            />
+
             <CheckInConfirmModal
               open={state.checkInOpen}
               appointment={state.checkInTarget}

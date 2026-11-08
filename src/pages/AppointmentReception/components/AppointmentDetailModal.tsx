@@ -8,18 +8,22 @@ import {
   getAppointmentStatusColor,
   getAppointmentStatusLabel,
 } from '@/services/AppointmentOrderService';
+import AppointmentServicesPanel from './AppointmentServicesPanel';
 
 const { Text } = Typography;
 
 interface AppointmentDetailModalProps {
   open: boolean;
   appointment: StaffAppointment | null;
+  /** Lễ tân được phân công nhân sự cho dịch vụ; Admin chỉ xem */
+  canAssignStaff: boolean;
   onClose: () => void;
 }
 
 const AppointmentDetailModal = ({
   open,
   appointment,
+  canAssignStaff,
   onClose,
 }: AppointmentDetailModalProps) => {
   if (!appointment) return null;
@@ -38,7 +42,7 @@ const AppointmentDetailModal = ({
       onCancel={onClose}
       footer={null}
       destroyOnHidden
-      width={640}
+      width={760}
     >
       <Descriptions bordered column={2} size="small" style={{ marginTop: 16 }}>
         <Descriptions.Item label="Mã lịch hẹn">
@@ -103,6 +107,11 @@ const AppointmentDetailModal = ({
             : '-'}
         </Descriptions.Item>
       </Descriptions>
+
+      <AppointmentServicesPanel
+        appointment={appointment}
+        canAssign={canAssignStaff}
+      />
     </Modal>
   );
 };

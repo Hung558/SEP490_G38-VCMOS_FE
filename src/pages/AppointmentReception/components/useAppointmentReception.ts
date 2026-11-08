@@ -8,6 +8,7 @@ import type {
   AppointmentStatus,
   CageAssignment,
   CreateCageAssignmentPayload,
+  CreateWalkInBookingResult,
   StaffAppointment,
 } from '@/types';
 import AppointmentOrderService, {
@@ -30,10 +31,15 @@ export const useAppointmentReception = () => {
   const isAdmin = role === 'Admin';
   const isReceptionist = role === 'Receptionist';
 
-  // Navigation tab for Receptionist
-  const [activeTab, setActiveTab] = useState<'appointments' | 'assignments'>(
-    'appointments'
-  );
+  // Navigation tab: cage assignments are Receptionist only, customer lookup is
+  // open to Admin too
+  const [activeTab, setActiveTab] = useState<
+    'appointments' | 'assignments' | 'lookup'
+  >('appointments');
+
+  // Walk-in modal (Receptionist only); the phone is pre-filled from the lookup tab
+  const [walkInOpen, setWalkInOpen] = useState(false);
+  const [walkInPhone, setWalkInPhone] = useState<string | undefined>();
 
   // Appointments List State
   const [appointments, setAppointments] = useState<StaffAppointment[]>([]);
@@ -445,6 +451,25 @@ export const useAppointmentReception = () => {
     setAssignmentDetailError(null);
   };
 
+  // Walk-in Actions (Receptionist only)
+  const openWalkIn = (phone?: string) => {
+    if (!isReceptionist) return;
+    setWalkInPhone(phone);
+    setWalkInOpen(true);
+  };
+
+  const closeWalkIn = () => {
+    setWalkInOpen(false);
+  };
+
+  // The modal stays open on its success view; refresh what it changed behind it
+  const handleWalkInCreated = (result: CreateWalkInBookingResult) => {
+    fetchAppointments();
+    if (result.cageAssignment && activeTab === 'assignments') {
+      fetchAssignments();
+    }
+  };
+
   return {
     isAdmin,
     isReceptionist,
@@ -506,5 +531,11 @@ export const useAppointmentReception = () => {
     openCreateAssignment,
     closeCreateAssignment,
     handleCreateAssignment,
+    // Walk-in
+    walkInOpen,
+    walkInPhone,
+    openWalkIn,
+    closeWalkIn,
+    handleWalkInCreated,
   };
 };
