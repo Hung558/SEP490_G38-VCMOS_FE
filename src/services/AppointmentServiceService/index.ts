@@ -4,6 +4,7 @@ import {
   apiCreateOnlineBooking,
   apiOrderServices,
   apiAssignStaff,
+  apiMyQueue,
 } from './urls';
 import {
   buildCreateOnlineAppointmentServicePayload,
@@ -16,6 +17,8 @@ import type {
   CreateCombinedOnlineBookingResponse,
   ListOrderServicesResponse,
   AssignStaffResponse,
+  AppointmentServiceStatus,
+  ListMyQueueResponse,
 } from './types';
 
 /**
@@ -70,11 +73,26 @@ const assignStaff = (
     assignedStaffId: assignedStaffId.trim(),
   });
 
+/**
+ * Bác sĩ / Groomer xem các dịch vụ được giao cho chính mình (id lấy từ token).
+ * Ca cấp cứu xếp trước, rồi theo số thứ tự; không lọc theo ngày
+ * GET /api/appointment-services/my-queue?status=
+ */
+const listMyQueue = (
+  status?: AppointmentServiceStatus,
+  options?: { signal?: AbortSignal }
+): Promise<ListMyQueueResponse> =>
+  api.get(apiMyQueue, {
+    params: status ? { status } : undefined,
+    signal: options?.signal,
+  });
+
 const AppointmentServiceService = {
   createOnlineBooking,
   createOnlineAppointmentService,
   listOrderServices,
   assignStaff,
+  listMyQueue,
 };
 
 export default AppointmentServiceService;

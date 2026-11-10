@@ -8,6 +8,7 @@ import {
   ShoppingOutlined,
   BuildOutlined,
   ScheduleOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -164,10 +165,25 @@ export const MenuItemAdmin = (): MenuItem[] => {
 };
 
 /** Hàm helper: Lấy menu theo role */
+// Veterinarian and Groomer work from their queue (SCR-22, SCR-26)
+export const MenuItemClinicalStaff = (role: string): MenuItem[] => {
+  return [
+    ...MenuItemStaff(),
+    {
+      key: ROUTER.STAFF_QUEUE,
+      label: role === 'Groomer' ? 'Hàng đợi spa' : 'Hàng đợi khám',
+      icon: <UnorderedListOutlined />,
+    },
+  ];
+};
+
 export const getMenuByRole = (role?: string): MenuItem[] => {
   const normRole = normalizeRole(role);
   if (normRole === 'Admin') return MenuItemAdmin();
   if (normRole === 'Receptionist') return MenuItemReceptionist();
+  if (normRole === 'Veterinarian' || normRole === 'Groomer') {
+    return MenuItemClinicalStaff(normRole);
+  }
   const group = getRoleGroup(role);
   if (group === 'staff') return MenuItemStaff();
   return MenuItemCommon();

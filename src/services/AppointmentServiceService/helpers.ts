@@ -5,6 +5,7 @@ import type {
   AppointmentServiceStatus,
   PopulatedServiceRef,
   PopulatedStaffRef,
+  QueueOrderRef,
 } from './types';
 
 const MONGO_OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
@@ -635,4 +636,84 @@ export const canSubmitAssignment = (
   if (!selectedStaffId) return false;
   if (getAssignStaffBlockReason(service.status, orderStatus)) return false;
   return selectedStaffId !== getStaffRefId(service.assignedStaffId);
+};
+
+export type QueueView = 'active' | 'booked' | 'done' | 'all';
+
+/** Các nhóm của hàng đợi nhân viên (SCR-22, SCR-26) */
+export const QUEUE_VIEWS: readonly {
+  key: QueueView;
+  label: string;
+  statuses?: readonly string[];
+}[] = [
+  {
+    key: 'active',
+    label: 'Đang chờ và đang làm',
+    statuses: ['Waiting', 'InProgress'],
+  },
+  { key: 'booked', label: 'Chờ khách check-in', statuses: ['Booked'] },
+  { key: 'done', label: 'Đã xong', statuses: ['Done'] },
+  { key: 'all', label: 'Tất cả' },
+];
+
+/** Lịch hẹn của một dịch vụ trong hàng đợi (BE populate cả đơn) */
+export const getQueueOrder = (item: {
+  orderId?: unknown;
+}): QueueOrderRef | null =>
+  item.orderId && typeof item.orderId === 'object'
+    ? (item.orderId as QueueOrderRef)
+    : null;
+
+/** Lọc hàng đợi theo nhóm trạng thái, và khi `todayOnly` thì chỉ lịch hẹn ngày `today` */
+export const filterMyQueue = <T extends { status?: string; orderId?: unknown }>(
+  items: T[] | null | undefined,
+  view: QueueView,
+  todayOnly: boolean,
+  today: string
+): T[] => {
+  const statuses = QUEUE_VIEWS.find(v => v.key === view)?.statuses;
+  return (items || []).filter(
+    item =>
+      (!statuses || statuses.includes(item.status || '')) &&
+      (!todayOnly || getQueueOrder(item)?.date === today)
+  );
+};
+
+/** Số dịch vụ của từng nhóm, để hiện trên bộ lọc */
+export const countMyQueue = <T extends { status?: string; orderId?: unknown }>(
+  items: T[] | null | undefined,
+  todayOnly: boolean,
+  today: string
+): Record<QueueView, number> =>
+  QUEUE_VIEWS.reduce(
+    (acc, view) => {
+      acc[view.key] = filterMyQueue(items, view.key, todayOnly, today).length;
+      return acc;
+    },
+    {} as Record<QueueView, number>
+  );
+
+export type ExamAction = 'waitCheckIn' | 'start' | 'continue' | 'view';
+
+/** Bác sĩ làm được gì với một ca trong hàng đợi; null với Groomer và dịch vụ Grooming */
+export const getExamAction = (
+  item: { status?: string; serviceId?: unknown },
+  role?: string
+): ExamAction | null => {
+  const category = getServiceRefCategory(item.serviceId);
+  if (role !== 'Veterinarian' || !category || category === 'Grooming') {
+    return null;
+  }
+  switch (item.status) {
+    case 'Booked':
+      return 'waitCheckIn';
+    case 'Waiting':
+      return 'start';
+    case 'InProgress':
+      return 'continue';
+    case 'Done':
+      return 'view';
+    default:
+      return null;
+  }
 };

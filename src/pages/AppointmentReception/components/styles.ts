@@ -78,6 +78,12 @@ export const SectionBlock = styled.div`
     margin-bottom: 12px;
   }
 
+  .section-subtitle {
+    font-weight: 600;
+    color: #334155;
+    margin: 4px 0 8px;
+  }
+
   .section-step {
     display: inline-flex;
     align-items: center;

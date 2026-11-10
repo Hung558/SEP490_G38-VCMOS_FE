@@ -22,6 +22,7 @@ import {
   DatePicker,
   Select,
   Alert,
+  Tabs,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -49,10 +50,13 @@ import AddAppointmentServiceModal from './components/AddAppointmentServiceModal'
 import {
   isAppointmentEligibleForService,
   isUserPetOwner,
+  getAppointmentServiceStaffName,
 } from '@/services/AppointmentServiceService';
+import QuickBookingSection from '@/pages/Home/components/QuickBookingSection';
+import { parseDashboardTab, type DashboardTab } from './dashboardTabs';
 import { STORAGE, storage } from '@/lib/storage';
 import { useAuth } from '@/contexts/routerProvider/authContext';
-import { generatePath, useNavigate } from 'react-router-dom';
+import { generatePath, useNavigate, useSearchParams } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import { toast } from 'sonner';
 import AiAssessmentSection from './components/AiAssessmentSection';
@@ -292,6 +296,44 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [isInpatientModalOpen, setIsInpatientModalOpen] = useState(false);
 
+  // Tabs (file 2): the active one lives in ?tab= so a reload or a link from
+  // another page lands on it; ?book= opens the booking form in "Quản lí lịch đặt"
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseDashboardTab(searchParams.get('tab'));
+  const bookParam = searchParams.get('book');
+  const [booking, setBooking] = useState<{
+    key: number;
+    petId?: string;
+    note?: string;
+  } | null>(null);
+
+  const setTab = useCallback(
+    (tab: DashboardTab) =>
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          next.set('tab', tab);
+          next.delete('book');
+          return next;
+        },
+        { replace: true }
+      ),
+    [setSearchParams]
+  );
+
+  // The booking wizard is remounted each time, so it starts on the chosen pet
+  const openBooking = useCallback(
+    (petId?: string, note?: string) => {
+      setBooking({ key: Date.now(), petId, note });
+      setTab('appointments');
+    },
+    [setTab]
+  );
+
+  useEffect(() => {
+    if (bookParam) openBooking(bookParam === 'new' ? undefined : bookParam);
+  }, [bookParam, openBooking]);
+
   // Pets state connected to backend API
   const [pets, setPets] = useState<Pet[]>([]);
   const [petsTotal, setPetsTotal] = useState(0);
@@ -355,6 +397,38 @@ const DashboardPage: React.FC = () => {
     for (const p of pets) map.set(p._id, p);
     return map;
   }, [allPets, pets]);
+
+  // File 2: the owner sees who the desk assigned. The list API returns no
+  // services, so each appointment on the page is read once from the detail API
+  const [staffByAppointment, setStaffByAppointment] = useState<
+    Record<string, string[] | null>
+  >({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStaffByAppointment({});
+    for (const apt of appointments) {
+      if (apt.derivedStatus === 'Cancelled') continue;
+      AppointmentOrderService.getMyOnlineBookingById(apt._id, {
+        signal: controller.signal,
+      })
+        .then(res => {
+          const names = (res.data?.services || [])
+            .map(s => getAppointmentServiceStaffName(s.assignedStaffId))
+            .filter(name => name !== '—');
+          setStaffByAppointment(prev => ({
+            ...prev,
+            [apt._id]: [...new Set(names)],
+          }));
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setStaffByAppointment(prev => ({ ...prev, [apt._id]: null }));
+          }
+        });
+    }
+    return () => controller.abort();
+  }, [appointments]);
 
   const appointmentAbortCtrlRef = useRef<AbortController | null>(null);
   const appointmentReqSeqRef = useRef(0);
@@ -534,6 +608,26 @@ const DashboardPage: React.FC = () => {
       render: (date: string) => (
         <span>{date ? dayjs(date).format('DD/MM/YYYY') : '—'}</span>
       ),
+    },
+    {
+      title: 'Người phụ trách',
+      key: 'staff',
+      width: 150,
+      render: (_: unknown, record: OnlineAppointment) => {
+        if (record.derivedStatus === 'Cancelled') {
+          return <Text type="secondary">—</Text>;
+        }
+        const names = staffByAppointment[record._id];
+        if (names === undefined) return <Text type="secondary">...</Text>;
+        if (names === null) {
+          return <Text type="secondary">Không tải được</Text>;
+        }
+        return names.length > 0 ? (
+          <span>{names.join(', ')}</span>
+        ) : (
+          <Text type="secondary">Chưa phân công</Text>
+        );
+      },
     },
     {
       title: 'Ghi chú',
@@ -812,10 +906,7 @@ const DashboardPage: React.FC = () => {
               type="primary"
               style={{ background: '#0d9488' }}
               icon={<CalendarOutlined />}
-              onClick={() => {
-                navigate(ROUTER.HOME + '#quick-booking');
-                toast.info(`Đặt lịch khám cho bé ${record.name}`);
-              }}
+              onClick={() => openBooking(record._id)}
               title="Đặt lịch khám"
             >
               Đặt lịch
@@ -859,7 +950,7 @@ const DashboardPage: React.FC = () => {
             type="primary"
             className="btn-new-appt"
             icon={<CalendarOutlined />}
-            onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
+            onClick={() => openBooking()}
           >
             + Đặt lịch hẹn mới
           </Button>
@@ -978,314 +1069,364 @@ const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
+      {/* File 2: pets, appointments and the AI check are separate tabs */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={key => setTab(key as DashboardTab)}
+        items={[
+          { key: 'pets', label: '🐾 Quản lí thú cưng' },
+          { key: 'appointments', label: '📅 Quản lí lịch đặt' },
+          { key: 'ai', label: '🤖 Tính năng AI' },
+        ]}
+      />
+
       {/* Online Appointments Table */}
-      <SectionCard
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span>📅 Danh Sách Lịch Hẹn Khám Trực Tuyến</span>
-            <Tag color={appointmentsTotal > 0 ? 'cyan' : 'default'}>
-              {appointmentsTotal} lượt hẹn
-            </Tag>
-          </div>
-        }
-        extra={
-          <Space wrap>
-            <Button
-              icon={<ReloadOutlined spin={appointmentsLoading} />}
-              onClick={fetchAppointments}
-              title="Làm mới danh sách lịch hẹn"
-            />
-            <Button
-              type="primary"
-              style={{ background: '#0d9488', borderColor: '#0d9488' }}
-              icon={<CalendarOutlined />}
-              onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
-            >
-              + Đặt lịch khám
-            </Button>
-          </Space>
-        }
-      >
-        {appointmentsError && (
-          <Alert
-            type="error"
-            showIcon
-            message="Không thể tải danh sách lịch hẹn"
-            description={appointmentsError}
-            action={
-              <Button size="small" onClick={fetchAppointments}>
-                Thử lại
-              </Button>
-            }
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
-        {/* Filter bar */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            marginBottom: 16,
-            alignItems: 'center',
-          }}
-        >
-          <Select
-            allowClear
-            placeholder="Lọc theo trạng thái"
-            style={{ minWidth: 200 }}
-            value={appointmentStatusFilter}
-            onChange={val => {
-              setAppointmentStatusFilter(val || undefined);
-              setAppointmentPage(1);
-            }}
-            options={[
-              { label: 'Tất cả trạng thái', value: '' },
-              { label: 'Đã đặt (Booked)', value: 'Booked' },
-              { label: 'Đã tiếp nhận (CheckedIn)', value: 'CheckedIn' },
-              { label: 'Đang thực hiện (InProgress)', value: 'InProgress' },
-              { label: 'Chờ chủ đón (WaitOwner)', value: 'WaitOwner' },
-              { label: 'Hoàn tất (Done)', value: 'Done' },
-              { label: 'Đã hủy (Cancelled)', value: 'Cancelled' },
-              { label: 'Quá hạn (Overdue)', value: 'Overdue' },
-            ]}
-          />
-
-          <DatePicker.RangePicker
-            format="DD/MM/YYYY"
-            placeholder={['Từ ngày', 'Đến ngày']}
-            value={
-              appointmentFromDate && appointmentToDate
-                ? [dayjs(appointmentFromDate), dayjs(appointmentToDate)]
-                : null
-            }
-            onChange={dates => {
-              if (dates && dates[0] && dates[1]) {
-                setAppointmentFromDate(dates[0].format('YYYY-MM-DD'));
-                setAppointmentToDate(dates[1].format('YYYY-MM-DD'));
-              } else {
-                setAppointmentFromDate(undefined);
-                setAppointmentToDate(undefined);
+      {activeTab === 'appointments' && (
+        <>
+          {booking && (
+            <SectionCard
+              title={<span>📝 Đặt lịch khám mới</span>}
+              extra={
+                <Button onClick={() => setBooking(null)}>Đóng form</Button>
               }
-              setAppointmentPage(1);
-            }}
-          />
+            >
+              <QuickBookingSection
+                key={booking.key}
+                embedded
+                initialPetId={booking.petId}
+                initialNote={booking.note}
+                onBooked={fetchAppointments}
+                onViewAppointments={() => setBooking(null)}
+                onAddPet={() => {
+                  setBooking(null);
+                  setTab('pets');
+                  setEditingPet(null);
+                  setIsPetFormModalOpen(true);
+                }}
+              />
+            </SectionCard>
+          )}
+          <SectionCard
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span>📅 Danh Sách Lịch Hẹn Khám Trực Tuyến</span>
+                <Tag color={appointmentsTotal > 0 ? 'cyan' : 'default'}>
+                  {appointmentsTotal} lượt hẹn
+                </Tag>
+              </div>
+            }
+            extra={
+              <Space wrap>
+                <Button
+                  icon={<ReloadOutlined spin={appointmentsLoading} />}
+                  onClick={fetchAppointments}
+                  title="Làm mới danh sách lịch hẹn"
+                />
+                <Button
+                  type="primary"
+                  style={{ background: '#0d9488', borderColor: '#0d9488' }}
+                  icon={<CalendarOutlined />}
+                  onClick={() => openBooking()}
+                >
+                  + Đặt lịch khám
+                </Button>
+              </Space>
+            }
+          >
+            {appointmentsError && (
+              <Alert
+                type="error"
+                showIcon
+                message="Không thể tải danh sách lịch hẹn"
+                description={appointmentsError}
+                action={
+                  <Button size="small" onClick={fetchAppointments}>
+                    Thử lại
+                  </Button>
+                }
+                style={{ marginBottom: 16 }}
+              />
+            )}
 
-          {(appointmentStatusFilter ||
-            appointmentFromDate ||
-            appointmentToDate) && (
-            <Button
-              type="link"
-              size="small"
-              style={{ color: '#64748b' }}
-              onClick={() => {
-                setAppointmentStatusFilter(undefined);
-                setAppointmentFromDate(undefined);
-                setAppointmentToDate(undefined);
-                setAppointmentPage(1);
+            {/* Filter bar */}
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                flexWrap: 'wrap',
+                marginBottom: 16,
+                alignItems: 'center',
               }}
             >
-              Xóa bộ lọc
-            </Button>
-          )}
-        </div>
+              <Select
+                allowClear
+                placeholder="Lọc theo trạng thái"
+                style={{ minWidth: 200 }}
+                value={appointmentStatusFilter}
+                onChange={val => {
+                  setAppointmentStatusFilter(val || undefined);
+                  setAppointmentPage(1);
+                }}
+                options={[
+                  { label: 'Tất cả trạng thái', value: '' },
+                  { label: 'Đã đặt (Booked)', value: 'Booked' },
+                  { label: 'Đã tiếp nhận (CheckedIn)', value: 'CheckedIn' },
+                  { label: 'Đang thực hiện (InProgress)', value: 'InProgress' },
+                  { label: 'Chờ chủ đón (WaitOwner)', value: 'WaitOwner' },
+                  { label: 'Hoàn tất (Done)', value: 'Done' },
+                  { label: 'Đã hủy (Cancelled)', value: 'Cancelled' },
+                  { label: 'Quá hạn (Overdue)', value: 'Overdue' },
+                ]}
+              />
 
-        <Table
-          rowKey="_id"
-          columns={appointmentColumns}
-          dataSource={appointments}
-          loading={appointmentsLoading}
-          scroll={{ x: 780 }}
-          pagination={{
-            current: appointmentPage,
-            pageSize: appointmentLimit,
-            total: appointmentsTotal,
-            showSizeChanger: true,
-            pageSizeOptions: ['5', '10', '20', '50'],
-            onChange: (p, ps) => {
-              setAppointmentPage(p);
-              setAppointmentLimit(ps);
-            },
-            showTotal: total => `Tổng số ${total} lượt hẹn`,
-          }}
-          size="middle"
-          locale={{
-            emptyText: (
-              <div style={{ padding: '28px 0', textAlign: 'center' }}>
-                <CalendarOutlined
-                  style={{ fontSize: 32, color: '#94a3b8', marginBottom: 8 }}
-                />
-                <div
-                  style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}
-                >
-                  {appointmentStatusFilter ||
-                  appointmentFromDate ||
-                  appointmentToDate
-                    ? 'Không tìm thấy lịch hẹn phù hợp với bộ lọc'
-                    : 'Chưa có lịch hẹn khám trực tuyến nào'}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    color: '#64748b',
-                    marginTop: 4,
-                    marginBottom: 14,
+              <DatePicker.RangePicker
+                format="DD/MM/YYYY"
+                placeholder={['Từ ngày', 'Đến ngày']}
+                value={
+                  appointmentFromDate && appointmentToDate
+                    ? [dayjs(appointmentFromDate), dayjs(appointmentToDate)]
+                    : null
+                }
+                onChange={dates => {
+                  if (dates && dates[0] && dates[1]) {
+                    setAppointmentFromDate(dates[0].format('YYYY-MM-DD'));
+                    setAppointmentToDate(dates[1].format('YYYY-MM-DD'));
+                  } else {
+                    setAppointmentFromDate(undefined);
+                    setAppointmentToDate(undefined);
+                  }
+                  setAppointmentPage(1);
+                }}
+              />
+
+              {(appointmentStatusFilter ||
+                appointmentFromDate ||
+                appointmentToDate) && (
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ color: '#64748b' }}
+                  onClick={() => {
+                    setAppointmentStatusFilter(undefined);
+                    setAppointmentFromDate(undefined);
+                    setAppointmentToDate(undefined);
+                    setAppointmentPage(1);
                   }}
                 >
-                  {appointmentStatusFilter ||
-                  appointmentFromDate ||
-                  appointmentToDate
-                    ? 'Hãy thử thay đổi hoặc xóa bộ lọc trạng thái và khoảng ngày'
-                    : 'Đăng ký ngày hẹn và ghi chú triệu chứng cho thú cưng dễ dàng trực tuyến'}
-                </div>
-                {appointmentStatusFilter ||
-                appointmentFromDate ||
-                appointmentToDate ? (
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      setAppointmentStatusFilter(undefined);
-                      setAppointmentFromDate(undefined);
-                      setAppointmentToDate(undefined);
-                      setAppointmentPage(1);
-                    }}
-                  >
-                    Xóa bộ lọc
-                  </Button>
-                ) : (
-                  <Button
-                    type="primary"
-                    size="small"
-                    style={{ background: '#0d9488' }}
-                    icon={<CalendarOutlined />}
-                    onClick={() => navigate(ROUTER.HOME + '#quick-booking')}
-                  >
-                    + Đặt lịch khám ngay
-                  </Button>
-                )}
-              </div>
-            ),
-          }}
-        />
-      </SectionCard>
+                  Xóa bộ lọc
+                </Button>
+              )}
+            </div>
+
+            <Table
+              rowKey="_id"
+              columns={appointmentColumns}
+              dataSource={appointments}
+              loading={appointmentsLoading}
+              scroll={{ x: 780 }}
+              pagination={{
+                current: appointmentPage,
+                pageSize: appointmentLimit,
+                total: appointmentsTotal,
+                showSizeChanger: true,
+                pageSizeOptions: ['5', '10', '20', '50'],
+                onChange: (p, ps) => {
+                  setAppointmentPage(p);
+                  setAppointmentLimit(ps);
+                },
+                showTotal: total => `Tổng số ${total} lượt hẹn`,
+              }}
+              size="middle"
+              locale={{
+                emptyText: (
+                  <div style={{ padding: '28px 0', textAlign: 'center' }}>
+                    <CalendarOutlined
+                      style={{
+                        fontSize: 32,
+                        color: '#94a3b8',
+                        marginBottom: 8,
+                      }}
+                    />
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: '#0f172a',
+                      }}
+                    >
+                      {appointmentStatusFilter ||
+                      appointmentFromDate ||
+                      appointmentToDate
+                        ? 'Không tìm thấy lịch hẹn phù hợp với bộ lọc'
+                        : 'Chưa có lịch hẹn khám trực tuyến nào'}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        color: '#64748b',
+                        marginTop: 4,
+                        marginBottom: 14,
+                      }}
+                    >
+                      {appointmentStatusFilter ||
+                      appointmentFromDate ||
+                      appointmentToDate
+                        ? 'Hãy thử thay đổi hoặc xóa bộ lọc trạng thái và khoảng ngày'
+                        : 'Đăng ký ngày hẹn và ghi chú triệu chứng cho thú cưng dễ dàng trực tuyến'}
+                    </div>
+                    {appointmentStatusFilter ||
+                    appointmentFromDate ||
+                    appointmentToDate ? (
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setAppointmentStatusFilter(undefined);
+                          setAppointmentFromDate(undefined);
+                          setAppointmentToDate(undefined);
+                          setAppointmentPage(1);
+                        }}
+                      >
+                        Xóa bộ lọc
+                      </Button>
+                    ) : (
+                      <Button
+                        type="primary"
+                        size="small"
+                        style={{ background: '#0d9488' }}
+                        icon={<CalendarOutlined />}
+                        onClick={() => openBooking()}
+                      >
+                        + Đặt lịch khám ngay
+                      </Button>
+                    )}
+                  </div>
+                ),
+              }}
+            />
+          </SectionCard>
+        </>
+      )}
 
       {/* My Pets Table */}
-      <SectionCard
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span>🐾 Hồ Sơ Thú Cưng Của Tôi</span>
-            <Tag color="cyan">{petsTotal} hồ sơ</Tag>
-          </div>
-        }
-        extra={
-          <Space wrap>
-            <Segmented
-              value={statusFilter}
-              onChange={val => {
-                setStatusFilter(val as PetStatusFilter);
-                setPage(1);
-              }}
-              options={[
-                { label: 'Đang nuôi (Active)', value: 'Active' },
-                { label: 'Đã xóa (Deleted)', value: 'Deleted' },
-                { label: 'Tất cả (All)', value: 'All' },
-              ]}
-            />
-            <Button
-              icon={<ReloadOutlined spin={petsLoading} />}
-              onClick={fetchPets}
-              title="Làm mới danh sách"
-            />
-            <Button
-              type="primary"
-              style={{ background: '#0d9488', borderColor: '#0d9488' }}
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setEditingPet(null);
-                setIsPetFormModalOpen(true);
-              }}
-            >
-              Thêm thú cưng
-            </Button>
-          </Space>
-        }
-      >
-        <Table
-          columns={petsColumns}
-          dataSource={pets}
-          rowKey="_id"
-          loading={petsLoading}
-          pagination={{
-            current: page,
-            pageSize: limit,
-            total: petsTotal,
-            onChange: (p, l) => {
-              setPage(p);
-              setLimit(l);
-            },
-            showSizeChanger: true,
-            pageSizeOptions: ['5', '10', '20'],
-          }}
-          size="middle"
-          locale={{
-            emptyText: (
-              <div style={{ padding: '32px 0', textAlign: 'center' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🐾</div>
-                <div
-                  style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}
-                >
-                  {statusFilter === 'Deleted'
-                    ? 'Không có thú cưng nào đã xóa'
-                    : 'Bạn chưa có hồ sơ thú cưng nào'}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: '#64748b',
-                    marginTop: 4,
-                    marginBottom: 16,
-                  }}
-                >
-                  Đăng ký thông tin thú cưng để theo dõi lịch tiêm phòng, bệnh
-                  án điện tử và đặt hẹn ưu tiên
-                </div>
-                {statusFilter !== 'Deleted' && (
-                  <Button
-                    type="primary"
-                    style={{ background: '#0d9488', borderColor: '#0d9488' }}
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      setEditingPet(null);
-                      setIsPetFormModalOpen(true);
+      {activeTab === 'pets' && (
+        <SectionCard
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span>🐾 Hồ Sơ Thú Cưng Của Tôi</span>
+              <Tag color="cyan">{petsTotal} hồ sơ</Tag>
+            </div>
+          }
+          extra={
+            <Space wrap>
+              <Segmented
+                value={statusFilter}
+                onChange={val => {
+                  setStatusFilter(val as PetStatusFilter);
+                  setPage(1);
+                }}
+                options={[
+                  { label: 'Đang nuôi (Active)', value: 'Active' },
+                  { label: 'Đã xóa (Deleted)', value: 'Deleted' },
+                  { label: 'Tất cả (All)', value: 'All' },
+                ]}
+              />
+              <Button
+                icon={<ReloadOutlined spin={petsLoading} />}
+                onClick={fetchPets}
+                title="Làm mới danh sách"
+              />
+              <Button
+                type="primary"
+                style={{ background: '#0d9488', borderColor: '#0d9488' }}
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  setEditingPet(null);
+                  setIsPetFormModalOpen(true);
+                }}
+              >
+                Thêm thú cưng
+              </Button>
+            </Space>
+          }
+        >
+          <Table
+            columns={petsColumns}
+            dataSource={pets}
+            rowKey="_id"
+            loading={petsLoading}
+            pagination={{
+              current: page,
+              pageSize: limit,
+              total: petsTotal,
+              onChange: (p, l) => {
+                setPage(p);
+                setLimit(l);
+              },
+              showSizeChanger: true,
+              pageSizeOptions: ['5', '10', '20'],
+            }}
+            size="middle"
+            locale={{
+              emptyText: (
+                <div style={{ padding: '32px 0', textAlign: 'center' }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🐾</div>
+                  <div
+                    style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}
+                  >
+                    {statusFilter === 'Deleted'
+                      ? 'Không có thú cưng nào đã xóa'
+                      : 'Bạn chưa có hồ sơ thú cưng nào'}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: '#64748b',
+                      marginTop: 4,
+                      marginBottom: 16,
                     }}
                   >
-                    + Đăng ký thú cưng đầu tiên
-                  </Button>
-                )}
-              </div>
-            ),
-          }}
-        />
-      </SectionCard>
+                    Đăng ký thông tin thú cưng để theo dõi lịch tiêm phòng, bệnh
+                    án điện tử và đặt hẹn ưu tiên
+                  </div>
+                  {statusFilter !== 'Deleted' && (
+                    <Button
+                      type="primary"
+                      style={{ background: '#0d9488', borderColor: '#0d9488' }}
+                      icon={<PlusOutlined />}
+                      onClick={() => {
+                        setEditingPet(null);
+                        setIsPetFormModalOpen(true);
+                      }}
+                    >
+                      + Đăng ký thú cưng đầu tiên
+                    </Button>
+                  )}
+                </div>
+              ),
+            }}
+          />
+        </SectionCard>
+      )}
 
       {/* Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu (Đang phát triển) */}
-      <AiAssessmentSection
-        isUnderDevelopment={true}
-        userPets={pets}
-        onAddNewPet={() => {
-          setEditingPet(null);
-          setIsPetFormModalOpen(true);
-        }}
-        onBookAppointment={notes => {
-          navigate(ROUTER.HOME + '#quick-booking');
-          if (notes) {
-            toast.info(
-              'Đã chuyển tiếp thông tin triệu chứng sang luồng đặt lịch khám!'
-            );
-          }
-        }}
-      />
+      {activeTab === 'ai' && (
+        <AiAssessmentSection
+          isUnderDevelopment={true}
+          userPets={pets}
+          onAddNewPet={() => {
+            setEditingPet(null);
+            setIsPetFormModalOpen(true);
+          }}
+          onBookAppointment={notes => {
+            openBooking(undefined, notes || undefined);
+            if (notes) {
+              toast.info(
+                'Đã chuyển tiếp thông tin triệu chứng sang luồng đặt lịch khám!'
+              );
+            }
+          }}
+        />
+      )}
 
       {/* Inpatient Modal Detail */}
       <Modal
@@ -1402,8 +1543,9 @@ const DashboardPage: React.FC = () => {
         }}
         onDelete={pet => setPetToDelete(pet)}
         onBookAppointment={pet => {
-          navigate(ROUTER.HOME + '#quick-booking');
-          toast.info(`Đặt lịch khám cho bé ${pet.name}`);
+          setIsPetDetailModalOpen(false);
+          setSelectedPet(null);
+          openBooking(pet._id);
         }}
         onOpenProfile={openPetProfile}
       />

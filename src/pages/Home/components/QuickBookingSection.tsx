@@ -79,6 +79,20 @@ const BookingCard = styled.div`
   }
 `;
 
+// Inside the dashboard tab: the wizard only, no marketing column or card frame
+const EmbeddedWrapper = styled.div``;
+
+const EmbeddedBookingCard = styled(BookingCard)`
+  grid-template-columns: 1fr;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+
+  @media (max-width: 960px) {
+    padding: 0;
+  }
+`;
+
 const GuestNotice = styled.div`
   background: #f0fdfa;
   border: 1px solid #ccfbf1;
@@ -416,8 +430,37 @@ interface CreatedBookingData {
   services: OnlineAppointmentService[];
 }
 
-const QuickBookingSection: React.FC = () => {
+interface QuickBookingSectionProps {
+  /**
+   * Inside the "Quản lí lịch đặt" tab of the owner dashboard: no marketing
+   * column, and the links that would open the dashboard call back instead
+   */
+  embedded?: boolean;
+  /** Pet chosen when the wizard opens (from "Đặt lịch" on a pet) */
+  initialPetId?: string;
+  /** Note filled in when the wizard opens (symptoms from the AI section) */
+  initialNote?: string;
+  /** A booking was created: the dashboard reloads its appointment list */
+  onBooked?: () => void;
+  onViewAppointments?: () => void;
+  onAddPet?: () => void;
+}
+
+const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
+  embedded = false,
+  initialPetId,
+  initialNote,
+  onBooked,
+  onViewAppointments,
+  onAddPet,
+}) => {
   const navigate = useNavigate();
+  const goToDashboard = () =>
+    embedded && onViewAppointments
+      ? onViewAppointments()
+      : navigate(ROUTER.DASHBOARD);
+  const goToAddPet = () =>
+    embedded && onAddPet ? onAddPet() : navigate(ROUTER.DASHBOARD);
   const { isLogin } = useIsLogin();
   const { user } = useAuth();
 
@@ -445,7 +488,7 @@ const QuickBookingSection: React.FC = () => {
 
   // Date & Note state
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
-  const [bookingNote, setBookingNote] = useState('');
+  const [bookingNote, setBookingNote] = useState(initialNote || '');
 
   // Validation / Error states
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -479,7 +522,9 @@ const QuickBookingSection: React.FC = () => {
           const items = res?.items || [];
           setPets(items);
           if (items.length > 0) {
-            setSelectedPetId(prev => prev || items[0]._id);
+            // The pet the owner clicked "Đặt lịch" on, when it is still active
+            const preferred = items.find(p => p._id === initialPetId);
+            setSelectedPetId(prev => prev || (preferred || items[0])._id);
           }
         }
       } catch {
@@ -497,7 +542,7 @@ const QuickBookingSection: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [isLogin, isOwner]);
+  }, [isLogin, isOwner, initialPetId]);
 
   // Refs to prevent race conditions and manage abort controller across retries
   const servicesAbortCtrlRef = useRef<AbortController | null>(null);
@@ -713,6 +758,7 @@ const QuickBookingSection: React.FC = () => {
       if (res?.data) {
         setCreatedBookingData(res.data);
         toast.success(res.message || 'Đặt lịch online thành công!');
+        onBooked?.();
       }
     } catch (error: unknown) {
       const {
@@ -764,70 +810,75 @@ const QuickBookingSection: React.FC = () => {
     }
   };
 
+  const Wrapper = embedded ? EmbeddedWrapper : SectionWrapper;
+  const Card = embedded ? EmbeddedBookingCard : BookingCard;
+
   return (
-    <SectionWrapper id="quick-booking">
-      <BookingCard>
+    <Wrapper id={embedded ? undefined : 'quick-booking'}>
+      <Card>
         {/* Left Information */}
-        <LeftInfo>
-          <span className="booking-pill">
-            <SafetyCertificateOutlined /> Đặt Lịch Hẹn Trực Tuyến
-          </span>
-          <h2>Đăng Ký Khám Cho Thú Cưng Nhanh Chóng</h2>
-          <p className="desc">
-            Chủ động chọn dịch vụ và ngày khám phù hợp cho thú cưng của bạn.
-            Lịch hẹn cùng danh sách dịch vụ được hệ thống phòng khám VCMOS tiếp
-            nhận đồng thời ngay sau khi đăng ký.
-          </p>
+        {!embedded && (
+          <LeftInfo>
+            <span className="booking-pill">
+              <SafetyCertificateOutlined /> Đặt Lịch Hẹn Trực Tuyến
+            </span>
+            <h2>Đăng Ký Khám Cho Thú Cưng Nhanh Chóng</h2>
+            <p className="desc">
+              Chủ động chọn dịch vụ và ngày khám phù hợp cho thú cưng của bạn.
+              Lịch hẹn cùng danh sách dịch vụ được hệ thống phòng khám VCMOS
+              tiếp nhận đồng thời ngay sau khi đăng ký.
+            </p>
 
-          <ul className="benefits-list">
-            <li>
-              <div className="icon-box">
-                <CalendarOutlined />
-              </div>
-              <div className="text">
-                <strong>Đặt lịch và chọn dịch vụ linh hoạt</strong>
-                <span>
-                  Lựa chọn nhiều dịch vụ chăm sóc, tiêm phòng hay khám tổng quát
-                  ngay trong cùng một lượt hẹn.
-                </span>
-              </div>
-            </li>
-            <li>
-              <div className="icon-box">
-                <CheckCircleOutlined />
-              </div>
-              <div className="text">
-                <strong>Đồng bộ trực tiếp với hồ sơ thú cưng</strong>
-                <span>
-                  Lịch hẹn tự động liên kết với hồ sơ thú cưng trên tài khoản
-                  chủ nuôi để tiện theo dõi.
-                </span>
-              </div>
-            </li>
-            <li>
-              <div className="icon-box">
-                <SafetyCertificateOutlined />
-              </div>
-              <div className="text">
-                <strong>Tiếp nhận chu đáo tại phòng khám</strong>
-                <span>
-                  Mã lượt hẹn tự động được cấp ngay khi đặt thành công, giảm
-                  thiểu thời gian chờ làm thủ tục.
-                </span>
-              </div>
-            </li>
-          </ul>
+            <ul className="benefits-list">
+              <li>
+                <div className="icon-box">
+                  <CalendarOutlined />
+                </div>
+                <div className="text">
+                  <strong>Đặt lịch và chọn dịch vụ linh hoạt</strong>
+                  <span>
+                    Lựa chọn nhiều dịch vụ chăm sóc, tiêm phòng hay khám tổng
+                    quát ngay trong cùng một lượt hẹn.
+                  </span>
+                </div>
+              </li>
+              <li>
+                <div className="icon-box">
+                  <CheckCircleOutlined />
+                </div>
+                <div className="text">
+                  <strong>Đồng bộ trực tiếp với hồ sơ thú cưng</strong>
+                  <span>
+                    Lịch hẹn tự động liên kết với hồ sơ thú cưng trên tài khoản
+                    chủ nuôi để tiện theo dõi.
+                  </span>
+                </div>
+              </li>
+              <li>
+                <div className="icon-box">
+                  <SafetyCertificateOutlined />
+                </div>
+                <div className="text">
+                  <strong>Tiếp nhận chu đáo tại phòng khám</strong>
+                  <span>
+                    Mã lượt hẹn tự động được cấp ngay khi đặt thành công, giảm
+                    thiểu thời gian chờ làm thủ tục.
+                  </span>
+                </div>
+              </li>
+            </ul>
 
-          <div className="hotline-box">
-            <div className="phone-icon">
-              <PhoneOutlined />
+            <div className="hotline-box">
+              <div className="phone-icon">
+                <PhoneOutlined />
+              </div>
+              <div className="info">
+                <div className="label">Hotline tiếp nhận & tư vấn 24/7</div>
+                <div className="phone-num">0902.099.905</div>
+              </div>
             </div>
-            <div className="info">
-              <div className="label">Hotline tiếp nhận & tư vấn 24/7</div>
-              <div className="phone-num">0902.099.905</div>
-            </div>
-          </div>
-        </LeftInfo>
+          </LeftInfo>
+        )}
 
         {/* Right Form Wrap */}
         <FormWrap>
@@ -991,9 +1042,9 @@ const QuickBookingSection: React.FC = () => {
                 <Button
                   type="primary"
                   style={{ background: '#0d9488', borderColor: '#0d9488' }}
-                  onClick={() => navigate(ROUTER.DASHBOARD)}
+                  onClick={goToDashboard}
                 >
-                  Xem trong Dashboard
+                  {embedded ? 'Xem danh sách lịch hẹn' : 'Xem trong Dashboard'}
                 </Button>
                 <Button onClick={handleResetForm}>Đặt thêm lịch khác</Button>
               </div>
@@ -1168,9 +1219,11 @@ const QuickBookingSection: React.FC = () => {
                           type="primary"
                           icon={<PlusOutlined />}
                           style={{ background: '#0d9488' }}
-                          onClick={() => navigate(ROUTER.DASHBOARD)}
+                          onClick={goToAddPet}
                         >
-                          Thêm thú cưng trong Dashboard
+                          {embedded
+                            ? 'Thêm thú cưng'
+                            : 'Thêm thú cưng trong Dashboard'}
                         </Button>
                         {fieldErrors.petId && (
                           <div
@@ -1214,7 +1267,7 @@ const QuickBookingSection: React.FC = () => {
                             size="small"
                             icon={<PlusOutlined />}
                             style={{ color: '#0d9488', padding: 0 }}
-                            onClick={() => navigate(ROUTER.DASHBOARD)}
+                            onClick={goToAddPet}
                           >
                             + Thêm hồ sơ thú cưng khác
                           </Button>
@@ -1454,8 +1507,8 @@ const QuickBookingSection: React.FC = () => {
             </>
           )}
         </FormWrap>
-      </BookingCard>
-    </SectionWrapper>
+      </Card>
+    </Wrapper>
   );
 };
 

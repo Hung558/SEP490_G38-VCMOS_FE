@@ -12,4 +12,7 @@ export type {
   CreateCombinedOnlineBookingResponse,
   ListOrderServicesResponse,
   AssignStaffResponse,
+  QueueOrderRef,
+  MyQueueItem,
+  ListMyQueueResponse,
 } from '../../types/api/appointment-service.api';

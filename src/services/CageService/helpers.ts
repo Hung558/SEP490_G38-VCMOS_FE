@@ -1,4 +1,5 @@
 import type {
+  Cage,
   CageCreatePayload,
   CageFieldErrors,
   CageFormValues,
@@ -8,6 +9,40 @@ import type {
   CageStatus,
   CageUpdatePayload,
 } from '../../types/api/cage.api.ts';
+
+// BR-11: tải trọng tối đa theo cỡ chuồng, giống canCageAccommodatePet của BE
+export const CAGE_MAX_WEIGHT_BY_SIZE: Record<CageSize, number> = {
+  S: 5,
+  M: 15,
+  L: 30,
+  XL: Infinity,
+};
+
+/**
+ * Chuồng có nhận được thú cưng này không (BR-11): cờ cách ly phải khớp nhu cầu cách ly,
+ * và cân nặng (nếu biết) không vượt tải trọng của chuồng. Chuồng khu nội trú không dùng
+ * để giữ thú cưng chờ khám.
+ */
+export const canCageHoldPet = (
+  cage: Pick<Cage, 'size' | 'isIsolated' | 'maxWeightKg' | 'zone'>,
+  petWeight?: number | null,
+  requiresIsolation = false
+): boolean => {
+  if (cage.zone === 'InpatientWard') return false;
+  if (Boolean(cage.isIsolated) !== Boolean(requiresIsolation)) return false;
+  if (
+    typeof petWeight === 'number' &&
+    Number.isFinite(petWeight) &&
+    petWeight > 0
+  ) {
+    const limit =
+      typeof cage.maxWeightKg === 'number' && cage.maxWeightKg > 0
+        ? cage.maxWeightKg
+        : CAGE_MAX_WEIGHT_BY_SIZE[cage.size];
+    if (limit !== undefined && petWeight > limit) return false;
+  }
+  return true;
+};
 
 export const CAGE_SIZES: CageSize[] = ['S', 'M', 'L', 'XL'];
 export const CAGE_STATUSES: CageStatus[] = ['Available', 'Occupied'];

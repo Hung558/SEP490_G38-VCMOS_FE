@@ -5,6 +5,9 @@ export interface Cage {
   _id: string;
   label: string;
   size: CageSize;
+  /** Overrides the size limit of BR-11 when set */
+  maxWeightKg?: number | null;
+  zone?: 'Holding' | 'InpatientWard';
   isIsolated: boolean;
   status: CageStatus;
   createdAt?: string;

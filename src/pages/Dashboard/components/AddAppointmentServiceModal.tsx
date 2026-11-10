@@ -321,7 +321,7 @@ const AddAppointmentServiceModal: React.FC<AddAppointmentServiceModalProps> = ({
         </Button>,
       ]}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       <StyledWrapper>
         {appointment && (

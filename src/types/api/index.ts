@@ -9,3 +9,4 @@ export * from './cage-assignment.api';
 export * from './appointment-service.api';
 export * from './staff.api';
 export * from './walk-in.api';
+export * from './medical-record.api';
