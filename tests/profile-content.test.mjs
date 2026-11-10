@@ -57,13 +57,17 @@ test('screens that exist link to their page; the rest are still in development',
       'SCR-21': '/clinic/appointments',
     }
   );
-  for (const role of ['Veterinarian', 'Groomer']) {
-    assert.deepEqual(
-      linked(content.getStaffRoleContent(role).screens),
-      {},
-      role
-    );
-  }
+  // A SOAP record (SCR-23) is opened from a case in the work queue
+  assert.deepEqual(
+    linked(content.getStaffRoleContent('Veterinarian').screens),
+    {
+      'SCR-22': '/clinic/my-queue',
+      'SCR-23': '/clinic/my-queue',
+    }
+  );
+  assert.deepEqual(linked(content.getStaffRoleContent('Groomer').screens), {
+    'SCR-26': '/clinic/my-queue',
+  });
 });
 
 test('summarizeAccounts counts accounts per role and locked ones', () => {

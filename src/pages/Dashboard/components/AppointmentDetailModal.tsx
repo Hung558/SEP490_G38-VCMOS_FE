@@ -20,9 +20,12 @@ import {
   MedicineBoxOutlined,
   ClockCircleOutlined,
   DollarOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
+import MedicalRecordModal from '@/components/medical/MedicalRecordModal';
+import { isMedicalServiceCategory } from '@/services/MedicalRecordService';
 
 import AppointmentOrderService, {
   getAppointmentStatusLabel,
@@ -127,6 +130,8 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
     null
   );
   const [copiedCode, setCopiedCode] = useState(false);
+  // Service whose SOAP record is open
+  const [recordServiceId, setRecordServiceId] = useState<string | null>(null);
 
   useEffect(() => {
     let isCurrent = true;
@@ -458,6 +463,21 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                             </span>
                           )}
                         </div>
+
+                        {/* The vet writes a SOAP record once the exam starts (BR-23: the owner may read it) */}
+                        {isMedicalServiceCategory(popService?.category) &&
+                          (s.status === 'InProgress' ||
+                            s.status === 'Done') && (
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<FileTextOutlined />}
+                              style={{ padding: 0, marginTop: 6 }}
+                              onClick={() => setRecordServiceId(s._id)}
+                            >
+                              Xem bệnh án
+                            </Button>
+                          )}
                       </div>
                     );
                   })}
@@ -476,6 +496,11 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
           </>
         ) : null}
       </DetailWrapper>
+
+      <MedicalRecordModal
+        appointmentServiceId={recordServiceId}
+        onClose={() => setRecordServiceId(null)}
+      />
     </Modal>
   );
 };

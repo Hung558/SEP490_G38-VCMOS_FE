@@ -9,9 +9,12 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { TeamOutlined } from '@ant-design/icons';
+import { FileTextOutlined, TeamOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import { toast } from 'sonner';
+import MedicalRecordModal from '@/components/medical/MedicalRecordModal';
+import { isMedicalServiceCategory } from '@/services/MedicalRecordService';
 import type {
   OnlineAppointmentService,
   StaffAppointment,
@@ -31,8 +34,8 @@ import AppointmentServiceService, {
 } from '@/services/AppointmentServiceService';
 import StaffService, {
   formatStaffOption,
-  getAssignableStaff,
   getRequiredStaffRole,
+  pickAssignableStaff,
 } from '@/services/StaffService';
 import { serviceCategoryLabels } from '@/services/ServiceService';
 import type { ServiceCategory } from '@/services/ServiceService';
@@ -62,8 +65,12 @@ const AppointmentServicesPanel = ({
   const [items, setItems] = useState<OnlineAppointmentService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Staff on duty on the appointment's date, and every active staff member as
+  // the fallback for a role nobody is scheduled for (file 2: "không vướng lịch")
+  const [onDutyStaff, setOnDutyStaff] = useState<StaffMember[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [staffLoading, setStaffLoading] = useState(canAssign);
+  const [recordServiceId, setRecordServiceId] = useState<string | null>(null);
   const [staffError, setStaffError] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedStaffId, setSelectedStaffId] = useState<string>();
@@ -102,14 +109,16 @@ const AppointmentServicesPanel = ({
     return () => abortRef.current?.abort();
   }, [fetchServices]);
 
+  const orderDate = appointment.date;
+
   useEffect(() => {
     if (!canAssign) return;
     const controller = new AbortController();
-    StaffService.listStaff(
-      { status: 'Active', limit: 100 },
-      { signal: controller.signal }
-    )
-      .then(res => setStaff(res.items || []))
+    StaffService.listStaffForDate(orderDate, { signal: controller.signal })
+      .then(res => {
+        setOnDutyStaff(res.onDuty);
+        setStaff(res.all);
+      })
       .catch((err: unknown) => {
         if (!isAbort(err)) setStaffError(true);
       })
@@ -117,7 +126,7 @@ const AppointmentServicesPanel = ({
         if (!controller.signal.aborted) setStaffLoading(false);
       });
     return () => controller.abort();
-  }, [canAssign]);
+  }, [canAssign, orderDate]);
 
   const startEditing = (item: OnlineAppointmentService) => {
     setEditingId(item._id);
@@ -168,7 +177,11 @@ const AppointmentServicesPanel = ({
 
     if (editingId === item._id) {
       const role = getRequiredStaffRole(getServiceRefCategory(item.serviceId));
-      const options = getAssignableStaff(staff, role);
+      const { staff: options, onDutyOnly } = pickAssignableStaff(
+        onDutyStaff,
+        staff,
+        role
+      );
       return (
         <>
           <div className="assign-row">
@@ -212,6 +225,16 @@ const AppointmentServicesPanel = ({
               {MSG23}
             </Text>
           )}
+          {!staffLoading &&
+            !staffError &&
+            options.length > 0 &&
+            !onDutyOnly && (
+              <Text type="secondary" style={{ display: 'block', marginTop: 6 }}>
+                Chưa có ai trong vai trò này có lịch làm việc ngày{' '}
+                {dayjs(orderDate).format('DD/MM/YYYY')}, nên đang hiện mọi nhân
+                sự đang hoạt động.
+              </Text>
+            )}
         </>
       );
     }
@@ -282,6 +305,19 @@ const AppointmentServicesPanel = ({
         </div>
 
         {renderAssignControls(item)}
+
+        {isMedicalServiceCategory(category) &&
+          (item.status === 'InProgress' || item.status === 'Done') && (
+            <Button
+              type="link"
+              size="small"
+              icon={<FileTextOutlined />}
+              style={{ padding: 0, marginTop: 6 }}
+              onClick={() => setRecordServiceId(item._id)}
+            >
+              Xem bệnh án
+            </Button>
+          )}
       </OrderServiceCard>
     );
   };
@@ -330,6 +366,11 @@ const AppointmentServicesPanel = ({
       ) : (
         items.map(renderItem)
       )}
+
+      <MedicalRecordModal
+        appointmentServiceId={recordServiceId}
+        onClose={() => setRecordServiceId(null)}
+      />
     </div>
   );
 };

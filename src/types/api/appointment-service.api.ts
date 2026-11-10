@@ -100,3 +100,26 @@ export interface AssignStaffResponse {
   message: string;
   data: OnlineAppointmentService;
 }
+
+/** The whole appointment order, populated in my-queue; its petId and ownerId are not */
+export interface QueueOrderRef {
+  _id: string;
+  code: string;
+  petId: string;
+  ownerId: string;
+  date: string; // YYYY-MM-DD
+  note?: string | null;
+  isOnline: boolean;
+  derivedStatus: string;
+  checkedInAt?: string | null;
+}
+
+export interface MyQueueItem extends Omit<OnlineAppointmentService, 'orderId'> {
+  orderId: QueueOrderRef | string;
+}
+
+/** GET /api/appointment-services/my-queue (Veterinarian, Groomer): emergencies first */
+export interface ListMyQueueResponse {
+  message: string;
+  data: MyQueueItem[];
+}

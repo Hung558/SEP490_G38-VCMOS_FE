@@ -462,12 +462,12 @@ export const useAppointmentReception = () => {
     setWalkInOpen(false);
   };
 
-  // The modal stays open on its success view; refresh what it changed behind it
+  // File 1: after a 201 close the modal and reload the appointments and the cage
+  // assignments, so the new walk-in and its cage show up at once
   const handleWalkInCreated = (result: CreateWalkInBookingResult) => {
+    setWalkInOpen(false);
     fetchAppointments();
-    if (result.cageAssignment && activeTab === 'assignments') {
-      fetchAssignments();
-    }
+    if (result.cageAssignment) fetchAssignments();
   };
 
   return {

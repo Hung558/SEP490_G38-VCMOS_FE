@@ -13,6 +13,10 @@ const ROUTER = {
   ADMIN_PRODUCTS: '/admin/products',
   CAGES: '/cages',
   CLINIC_APPOINTMENTS: '/clinic/appointments',
+  // Veterinarian / Groomer work queue (SCR-22, SCR-26)
+  STAFF_QUEUE: '/clinic/my-queue',
+  // SOAP exam of one appointment service (SCR-23); build with generatePath
+  EXAM_RECORD: '/clinic/exam/:appointmentServiceId',
   NOT_FOUND: '*',
 };
 

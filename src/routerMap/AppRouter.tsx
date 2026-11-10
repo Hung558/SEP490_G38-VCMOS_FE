@@ -26,6 +26,8 @@ import AdminProductsPage from '@/pages/AdminProducts';
 import PetProfilePage from '@/pages/PetProfile';
 import CagesPage from '@/pages/Cages';
 import AppointmentReceptionPage from '@/pages/AppointmentReception';
+import StaffQueuePage from '@/pages/StaffQueue';
+import ExamRecordPage from '@/pages/ExamRecord';
 
 const AppRouter = () => {
   const elements = useRoutes([
@@ -113,6 +115,34 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <AppointmentReceptionPage />
+            </Suspense>
+          ),
+        },
+      ],
+    },
+    {
+      // Work queue: the BE answers my-queue for Veterinarian and Groomer only
+      element: <RoleRoute allowRoles={['Veterinarian', 'Groomer']} />,
+      children: [
+        {
+          path: ROUTER.STAFF_QUEUE,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <StaffQueuePage />
+            </Suspense>
+          ),
+        },
+      ],
+    },
+    {
+      // Start, save and complete a SOAP record are Veterinarian-only on the BE
+      element: <RoleRoute allowRoles={['Veterinarian']} />,
+      children: [
+        {
+          path: ROUTER.EXAM_RECORD,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <ExamRecordPage />
             </Suspense>
           ),
         },

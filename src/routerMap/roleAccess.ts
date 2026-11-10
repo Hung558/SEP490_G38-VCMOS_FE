@@ -11,24 +11,24 @@ interface Landing {
   label: string;
 }
 
-// Each role's home page after login. Veterinarians and groomers use their
-// profile page until their queues (SCR-22, SCR-26) exist, and Admin starts on
-// account management until the analytics dashboard (SCR-28) exists: change
-// them here.
+// Each role's home page after login. Admin starts on account management until
+// the analytics dashboard (SCR-28) exists: change it here.
 const LANDING: Record<RoleGroup, Landing> = {
   owner: { path: ROUTER.DASHBOARD, label: 'Bảng điều khiển' },
   admin: { path: ROUTER.ADMIN_USERS, label: 'Trang quản trị' },
   staff: { path: ROUTER.PROFILE, label: 'Trang cá nhân' },
 };
 
-// Roles whose own page already exists. The reception page holds the
-// receptionist's appointment list, check-in, walk-in and staff assignment
-// (SCR-16, SCR-18).
+// Clinic roles start on their own working page: the reception page
+// (SCR-16, SCR-18) and the work queue of veterinarians and groomers
+// (SCR-22, SCR-26)
 const ROLE_LANDING: Record<string, Landing> = {
   Receptionist: {
     path: ROUTER.CLINIC_APPOINTMENTS,
     label: 'Tiếp nhận lịch hẹn',
   },
+  Veterinarian: { path: ROUTER.STAFF_QUEUE, label: 'Hàng đợi khám' },
+  Groomer: { path: ROUTER.STAFF_QUEUE, label: 'Hàng đợi spa' },
 };
 
 const getLanding = (role?: string): Landing =>

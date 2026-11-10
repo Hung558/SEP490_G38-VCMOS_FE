@@ -13,4 +13,6 @@ export const breadcrumbMap: Record<string, string> = {
   cages: 'Quản lý chuồng',
   clinic: 'Phòng khám',
   appointments: 'Tiếp nhận lịch hẹn',
+  'my-queue': 'Hàng đợi của tôi',
+  exam: 'Khám bệnh',
 };

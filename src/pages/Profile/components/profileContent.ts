@@ -66,8 +66,13 @@ export const STAFF_ROLE_CONTENT: Record<
     description:
       'Khám bệnh, ghi bệnh án SOAP, kê đơn thuốc và theo dõi thú cưng nội trú.',
     screens: [
-      { code: 'SCR-22', name: 'Lịch làm việc và hàng đợi khám' },
-      { code: 'SCR-23', name: 'Bệnh án SOAP' },
+      {
+        code: 'SCR-22',
+        name: 'Lịch làm việc và hàng đợi khám',
+        path: ROUTER.STAFF_QUEUE,
+      },
+      // A SOAP record is opened from a case in the queue
+      { code: 'SCR-23', name: 'Bệnh án SOAP', path: ROUTER.STAFF_QUEUE },
       { code: 'SCR-24', name: 'Chỉ định và kết quả cận lâm sàng' },
       { code: 'SCR-25', name: 'Khu nội trú và nhật ký hằng ngày' },
     ],
@@ -76,7 +81,11 @@ export const STAFF_ROLE_CONTENT: Record<
     description:
       'Thực hiện dịch vụ spa, grooming và ghi chú chăm sóc cho thú cưng.',
     screens: [
-      { code: 'SCR-26', name: 'Lịch làm việc và hàng đợi spa' },
+      {
+        code: 'SCR-26',
+        name: 'Lịch làm việc và hàng đợi spa',
+        path: ROUTER.STAFF_QUEUE,
+      },
       { code: 'SCR-27', name: 'Thực hiện grooming và ghi chú chăm sóc' },
       { code: 'SCR-24', name: 'Dịch vụ phụ được giao (ví dụ tắm thuốc)' },
     ],

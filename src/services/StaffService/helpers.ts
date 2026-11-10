@@ -40,6 +40,11 @@ export const buildStaffQuery = (
   if (search) {
     query.search = search;
   }
+  const workDate =
+    typeof params.workDate === 'string' ? params.workDate.trim() : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
+    query.workDate = workDate;
+  }
   if (
     typeof params.page === 'number' &&
     Number.isInteger(params.page) &&
@@ -67,6 +72,21 @@ export const getAssignableStaff = (
   Array.isArray(staff)
     ? staff.filter(s => s && s.role === role && s.status === 'Active')
     : [];
+
+/**
+ * Người có thể phân công cho một vai trò vào một ngày: ưu tiên người có lịch làm việc
+ * ngày đó ("không vướng lịch"). Nếu vai trò đó chưa ai có lịch (BE chưa có API xếp lịch),
+ * lùi về mọi người đang hoạt động và trả `onDutyOnly: false` để UI báo cho lễ tân.
+ */
+export const pickAssignableStaff = (
+  onDuty: StaffMember[] | null | undefined,
+  all: StaffMember[] | null | undefined,
+  role: ClinicalStaffRole
+): { staff: StaffMember[]; onDutyOnly: boolean } => {
+  const scheduled = getAssignableStaff(onDuty, role);
+  if (scheduled.length > 0) return { staff: scheduled, onDutyOnly: true };
+  return { staff: getAssignableStaff(all, role), onDutyOnly: false };
+};
 
 export const formatStaffOption = (
   staff: Pick<StaffMember, 'fullName' | 'code'>

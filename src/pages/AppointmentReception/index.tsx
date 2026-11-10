@@ -3,7 +3,7 @@ import {
   ScheduleOutlined,
   BuildOutlined,
   SearchOutlined,
-  UserAddOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { PageHeader, PageWrapper } from './components/styles';
 import { useAppointmentReception } from './components/useAppointmentReception';
@@ -143,10 +143,10 @@ const AppointmentReceptionPage = () => {
           {state.isReceptionist && (
             <Button
               type="primary"
-              icon={<UserAddOutlined />}
+              icon={<PlusOutlined />}
               onClick={() => state.openWalkIn()}
             >
-              Tiếp nhận khách vãng lai
+              Tiếp nhận khách vãng lai (Walk-in)
             </Button>
           )}
         </PageHeader>
@@ -174,6 +174,7 @@ const AppointmentReceptionPage = () => {
               initialPhone={state.walkInPhone}
               onClose={state.closeWalkIn}
               onCreated={state.handleWalkInCreated}
+              onSubmitFailed={state.fetchAppointments}
             />
 
             <CheckInConfirmModal

@@ -9,6 +9,7 @@ import PetFormModal from '@/pages/Dashboard/components/PetFormModal';
 import DeletePetModal from '@/pages/Dashboard/components/DeletePetModal';
 import PetProfileView from './components/PetProfileView';
 import PetTimelineSection from './components/PetTimelineSection';
+import { getBookingLink } from '@/pages/Dashboard/dashboardTabs';
 import { PetProfileWrapper } from './components/styles';
 
 type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
@@ -111,13 +112,10 @@ const PetProfilePage: React.FC = () => {
         pet={pet}
         onEdit={() => setIsFormOpen(true)}
         onDelete={() => setPetToDelete(pet)}
-        onBookAppointment={() => {
-          navigate(ROUTER.HOME + '#quick-booking');
-          toast.info(`Đặt lịch khám cho bé ${pet.name}`);
-        }}
+        onBookAppointment={() => navigate(getBookingLink(pet._id))}
       />
 
-      <PetTimelineSection />
+      <PetTimelineSection petId={pet._id} />
 
       <PetFormModal
         open={isFormOpen}

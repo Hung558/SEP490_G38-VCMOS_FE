@@ -17,6 +17,8 @@ export interface ListStaffParams {
   role?: ClinicalStaffRole;
   status?: StaffAccountStatus;
   search?: string;
+  /** YYYY-MM-DD: only staff with a work schedule (StaffSchedule) on that day */
+  workDate?: string;
   page?: number;
   limit?: number;
 }
