@@ -145,17 +145,20 @@ export const buildCreateOnlineAppointmentServicePayload = (
   return payload;
 };
 
+export interface ExtractedAppointmentServiceError {
+  message: string;
+  statusCode?: number;
+  status?: number;
+  fieldErrors?: Record<string, string>;
+}
+
 /**
  * Trích xuất lỗi chi tiết từ Axios Error response theo format BE trả về
  */
 export const extractApiError = (
   err: unknown,
   fallbackMessage = 'Đã có lỗi xảy ra. Vui lòng thử lại sau.'
-): {
-  message: string;
-  statusCode?: number;
-  fieldErrors?: Record<string, string>;
-} => {
+): ExtractedAppointmentServiceError => {
   if (!err || typeof err !== 'object') {
     return { message: fallbackMessage };
   }
@@ -166,7 +169,9 @@ export const extractApiError = (
       data?: {
         message?: string | string[];
         error?: string;
-        errors?: Record<string, string>;
+        errors?:
+          | Record<string, string>
+          | Array<string | { field?: string; message?: string }>;
       };
     };
     message?: string;
@@ -175,28 +180,49 @@ export const extractApiError = (
   const status = anyErr.response?.status;
   const resData = anyErr.response?.data;
 
+  let fieldErrors: Record<string, string> | undefined;
+  if (Array.isArray(resData?.errors)) {
+    fieldErrors = {};
+    for (const item of resData.errors) {
+      if (typeof item === 'string') {
+        fieldErrors.general = item;
+      } else if (item && typeof item === 'object') {
+        if (item.field && item.message) {
+          fieldErrors[item.field] = item.message;
+        } else if (item.message) {
+          fieldErrors.general = item.message;
+        }
+      }
+    }
+  } else if (resData?.errors && typeof resData.errors === 'object') {
+    fieldErrors = resData.errors as Record<string, string>;
+  }
+
   if (resData) {
     if (typeof resData.message === 'string' && resData.message.trim()) {
       return {
         message: resData.message.trim(),
+        status,
         statusCode: status,
-        fieldErrors: resData.errors,
+        fieldErrors,
       };
     }
 
     if (Array.isArray(resData.message) && resData.message.length > 0) {
       return {
         message: resData.message.join(', '),
+        status,
         statusCode: status,
-        fieldErrors: resData.errors,
+        fieldErrors,
       };
     }
 
     if (typeof resData.error === 'string' && resData.error.trim()) {
       return {
         message: resData.error.trim(),
+        status,
         statusCode: status,
-        fieldErrors: resData.errors,
+        fieldErrors,
       };
     }
   }
@@ -204,6 +230,7 @@ export const extractApiError = (
   if (status === 401) {
     return {
       message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      status: 401,
       statusCode: 401,
     };
   }
@@ -211,6 +238,7 @@ export const extractApiError = (
   if (status === 403) {
     return {
       message: 'Bạn không có quyền thực hiện thao tác này.',
+      status: 403,
       statusCode: 403,
     };
   }
@@ -218,6 +246,7 @@ export const extractApiError = (
   if (status === 404) {
     return {
       message: 'Không tìm thấy dữ liệu yêu cầu.',
+      status: 404,
       statusCode: 404,
     };
   }
@@ -225,6 +254,7 @@ export const extractApiError = (
   if (status === 409) {
     return {
       message: 'Dữ liệu bị trùng lặp hoặc xung đột.',
+      status: 409,
       statusCode: 409,
     };
   }
@@ -232,11 +262,12 @@ export const extractApiError = (
   if (typeof anyErr.message === 'string' && anyErr.message.trim()) {
     return {
       message: anyErr.message.trim(),
+      status,
       statusCode: status,
     };
   }
 
-  return { message: fallbackMessage, statusCode: status };
+  return { message: fallbackMessage, status, statusCode: status };
 };
 
 /**

@@ -534,7 +534,7 @@ const DashboardPage: React.FC = () => {
         'Không thể hủy lịch hẹn. Vui lòng thử lại.'
       );
       const message = errRes.message;
-      const status = errRes.status ?? (errRes as any).statusCode;
+      const status = errRes.status ?? errRes.statusCode;
       toast.error(message);
       if (status === 409 || status === 404) {
         setIsCancelModalOpen(false);
