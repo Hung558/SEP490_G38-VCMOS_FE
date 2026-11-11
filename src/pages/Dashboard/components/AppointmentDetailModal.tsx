@@ -177,7 +177,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
     } catch (err: unknown) {
       const errRes = extractApiError(err, 'Hủy lịch hẹn thất bại');
       const message = errRes.message;
-      const status = errRes.status ?? (errRes as any).statusCode;
+      const status = errRes.status ?? errRes.statusCode;
       toast.error(message);
       if (status === 409 || status === 404) {
         setIsCancelApptOpen(false);
@@ -204,7 +204,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
     } catch (err: unknown) {
       const errRes = extractApiError(err, 'Hủy dịch vụ thất bại');
       const message = errRes.message;
-      const status = errRes.status ?? (errRes as any).statusCode;
+      const status = errRes.status ?? errRes.statusCode;
       toast.error(message);
       if (status === 409 || status === 404) {
         setServiceToCancel(null);

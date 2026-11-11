@@ -232,6 +232,7 @@ test('extractApiError extracts status code and Vietnamese messages', () => {
   };
   assert.deepEqual(helpers.extractApiError(err400), {
     message: 'orderId không hợp lệ',
+    status: 400,
     statusCode: 400,
     fieldErrors: undefined,
   });
@@ -244,6 +245,7 @@ test('extractApiError extracts status code and Vietnamese messages', () => {
   };
   assert.deepEqual(helpers.extractApiError(err409), {
     message: 'Số thứ tự dịch vụ đã tồn tại trong lịch hẹn này',
+    status: 409,
     statusCode: 409,
     fieldErrors: undefined,
   });

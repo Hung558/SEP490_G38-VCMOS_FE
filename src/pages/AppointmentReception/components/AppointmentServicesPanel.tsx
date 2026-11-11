@@ -188,6 +188,7 @@ const AppointmentServicesPanel = ({
       setItems(prev => prev.map(s => (s._id === item._id ? res.data : s)));
       toast.success(res.message || 'Phân công nhân sự cho dịch vụ thành công');
       stopEditing();
+      onUpdated?.();
     } catch (err: unknown) {
       const { message, statusCode } = extractApiError(
         err,

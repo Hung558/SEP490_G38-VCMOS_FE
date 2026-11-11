@@ -121,6 +121,40 @@ export const useAppointmentReception = () => {
   const assignmentDetailRequestIdRef = useRef(0);
   const assignmentDetailAbortRef = useRef<AbortController | null>(null);
 
+  // Ref tracking currently opened appointment in detail modal for real-time synchronization
+  const selectedAppointmentRef = useRef<StaffAppointment | null>(null);
+  selectedAppointmentRef.current = selectedAppointment;
+
+  // Refresh single selected appointment from server to keep detail modal in sync
+  const refreshSelectedAppointment = useCallback(
+    async (targetCode?: string) => {
+      const code = targetCode || selectedAppointmentRef.current?.code;
+      const currentId = selectedAppointmentRef.current?._id;
+      if (!code) return;
+
+      try {
+        const res = await AppointmentOrderService.listStaffAppointments({
+          code,
+          page: 1,
+          limit: 1,
+        });
+        const fresh =
+          (res.data || []).find(a =>
+            currentId ? a._id === currentId : a.code === code
+          ) || res.data?.[0];
+        if (fresh) {
+          setSelectedAppointment(fresh);
+          setAppointments(prev =>
+            prev.map(item => (item._id === fresh._id ? fresh : item))
+          );
+        }
+      } catch {
+        // Keep current state on error
+      }
+    },
+    []
+  );
+
   // Fetch appointments list
   const fetchAppointments = useCallback(async () => {
     if (appointmentAbortRef.current) {
@@ -149,8 +183,21 @@ export const useAppointmentReception = () => {
 
       if (currentReqId !== appointmentRequestIdRef.current) return;
 
-      setAppointments(res.data || []);
+      const items = res.data || [];
+      setAppointments(items);
       setTotal(res.pagination?.total || 0);
+
+      // Synchronize selectedAppointment if detail modal is open
+      const currentSelected = selectedAppointmentRef.current;
+      if (currentSelected) {
+        const matched = items.find(a => a._id === currentSelected._id);
+        if (matched) {
+          setSelectedAppointment(matched);
+        } else if (currentSelected.code) {
+          // If filtered out from current list/page, refresh by code to keep modal content up-to-date
+          refreshSelectedAppointment(currentSelected.code);
+        }
+      }
     } catch (err: unknown) {
       if (
         axios.isCancel(err) ||
@@ -179,6 +226,7 @@ export const useAppointmentReception = () => {
     filterTo,
     page,
     limit,
+    refreshSelectedAppointment,
   ]);
 
   useEffect(() => {
@@ -301,6 +349,11 @@ export const useAppointmentReception = () => {
     setDetailOpen(false);
     setSelectedAppointment(null);
   };
+
+  const handleDetailUpdated = useCallback(() => {
+    fetchAppointments();
+    refreshSelectedAppointment();
+  }, [fetchAppointments, refreshSelectedAppointment]);
 
   // Check-In Actions (Receptionist only)
   const openCheckIn = (appointment: StaffAppointment) => {
@@ -551,6 +604,8 @@ export const useAppointmentReception = () => {
     selectedAppointment,
     openDetail,
     closeDetail,
+    refreshSelectedAppointment,
+    handleDetailUpdated,
     // Check-In
     checkInOpen,
     checkInTarget,

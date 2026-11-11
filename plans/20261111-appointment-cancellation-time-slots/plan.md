@@ -65,6 +65,25 @@
 - **Production Build:** `npm run build` succeeded in 12.40s (`dist/assets/index-BEda843C.js`).
 - **Constraint Check:** `tests/verify_vet_cage_e2e.py` remained 100% unchanged.
 
+## Phase 8 — Post-Audit Improvements & Final Verification (11/11/2026)
+
+1. **Improvement #1 — API Error Normalization (@contract):**
+   - Standardized `extractApiError` in both `src/services/AppointmentOrderService/helpers.ts` and `src/services/AppointmentServiceService/helpers.ts` to return both `status` and `statusCode` (`status === statusCode`), `message`, and normalized `fieldErrors: Record<string, string>`.
+   - Removed all `(errRes as any).statusCode` type assertions across `src/pages/Dashboard/index.tsx` and `AppointmentDetailModal.tsx`.
+   - Updated unit test assertions in `tests/online-appointment-service.test.mjs`.
+
+2. **Improvement #2 — Reception Detail Modal State Synchronization (@uiux):**
+   - In `src/pages/AppointmentReception/components/useAppointmentReception.ts`, introduced `selectedAppointmentRef`, `refreshSelectedAppointment(targetCode?)`, and `handleDetailUpdated` to automatically re-fetch and update `selectedAppointment` whenever services are cancelled or modified.
+   - Updated `src/pages/AppointmentReception/index.tsx` to pass `onUpdated={state.handleDetailUpdated}` to `<AppointmentDetailModal />`.
+   - Triggered `onUpdated?.()` upon staff assignment in `src/pages/AppointmentReception/components/AppointmentServicesPanel.tsx`.
+
+3. **Final Test & Build Verification:**
+   - **Unit tests:** `npm test` → 145/145 tests pass (100% green, 0 failures).
+   - **Typecheck:** `npm run check-types` → 0 errors.
+   - **Lint:** `npm run lint` → 0 warnings/errors.
+   - **Production build:** `npm run build` → 9.54s (`dist/assets/index-DbKCi6gf.js`).
+   - **Constraint check:** `tests/verify_vet_cage_e2e.py` strictly verified untouched (clean git diff, 0 edits).
+
 ## Target files
 
 - `src/services/AppointmentOrderService/urls.ts`

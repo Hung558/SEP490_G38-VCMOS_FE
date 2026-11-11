@@ -271,15 +271,18 @@ interface ApiErrorShape {
   message?: string;
 }
 
+export interface ExtractedApiError {
+  message: string;
+  fieldErrors: Record<string, string>;
+  status?: number;
+  statusCode?: number;
+}
+
 /** Trích xuất message và fieldErrors từ backend error response */
 export const extractApiError = (
   error: unknown,
   fallbackMessage = 'Đã có lỗi xảy ra'
-): {
-  message: string;
-  fieldErrors: Record<string, string>;
-  status?: number;
-} => {
+): ExtractedApiError => {
   const candidate = error as ApiErrorShape | undefined;
   const status = candidate?.response?.status;
   const data = candidate?.response?.data;
@@ -300,5 +303,5 @@ export const extractApiError = (
     }
   }
 
-  return { message, fieldErrors, status };
+  return { message, fieldErrors, status, statusCode: status };
 };
