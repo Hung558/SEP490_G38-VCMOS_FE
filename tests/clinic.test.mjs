@@ -408,3 +408,34 @@ test('dashboard tabs and the booking link', () => {
     '/dashboard?tab=appointments&book=new'
   );
 });
+
+test('cage weight limits and canCageHoldPet enforce BR-11 for Vet and Groomer waiting cages', () => {
+  assert.equal(cages.CAGE_MAX_WEIGHT_BY_SIZE.S, 5);
+  assert.equal(cages.CAGE_MAX_WEIGHT_BY_SIZE.M, 15);
+  assert.equal(cages.CAGE_MAX_WEIGHT_BY_SIZE.L, 30);
+  assert.equal(cages.CAGE_MAX_WEIGHT_BY_SIZE.XL, Infinity);
+
+  // Cages of size S (<= 5kg) cannot accommodate an 8.5kg pet
+  const smallCage = { size: 'S', isIsolated: false, zone: 'ExaminationZone' };
+  assert.equal(cages.canCageHoldPet(smallCage, 8.5, false), false);
+  assert.equal(cages.canCageHoldPet(smallCage, 4.2, false), true);
+
+  // Medium cage (<= 15kg) accommodates 8.5kg
+  const mediumCage = { size: 'M', isIsolated: false, zone: 'ExaminationZone' };
+  assert.equal(cages.canCageHoldPet(mediumCage, 8.5, false), true);
+  assert.equal(cages.canCageHoldPet(mediumCage, 18.0, false), false);
+
+  // Complete consultation payload with waitingCageId
+  const completePayload = {
+    ...medical.buildMedicalRecordPayload({
+      subjectiveNote: 'S',
+      objectiveNote: 'O',
+      assessment: 'A',
+      plan: 'P',
+      weight: 8.5,
+    }),
+    waitingCageId: '6ad96d4a9664da6b2c0d8c01',
+  };
+  assert.equal(completePayload.waitingCageId, '6ad96d4a9664da6b2c0d8c01');
+  assert.equal(completePayload.weight, 8.5);
+});

@@ -13,14 +13,25 @@ import {
   Typography,
   type FormInstance,
 } from 'antd';
-import { DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import {
+  BuildOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  SaveOutlined,
+} from '@ant-design/icons';
 import { toast } from 'sonner';
 import type {
   AppointmentServiceStatus,
   CompleteConsultationResponse,
+  CompleteMedicalRecordPayload,
   MedicalRecord,
 } from '@/types';
 import type { Product } from '@/services/ProductService';
+import CageService, {
+  CAGE_MAX_WEIGHT_BY_SIZE,
+  type Cage,
+} from '@/services/CageService';
+import { getAssignmentCageLabel } from '@/services/CageAssignmentService';
 import MedicalRecordService, {
   DURATION_DAYS_MAX,
   DURATION_DAYS_MIN,
@@ -87,6 +98,49 @@ const SoapForm = ({
     message: string;
     details: string[];
   } | null>(null);
+
+  // Chuồng chờ đón sau khám (BR-10, BR-11, UC-27)
+  const [availableCages, setAvailableCages] = useState<Cage[]>([]);
+  const [loadingCages, setLoadingCages] = useState(false);
+  const [selectedWaitingCageId, setSelectedWaitingCageId] = useState<
+    string | undefined
+  >(undefined);
+
+  // Watch cân nặng nhập từ form để kiểm tra tải trọng chuồng trực tiếp (BR-11)
+  const currentWeightInput = Form.useWatch('weight', form);
+  const effectiveWeight =
+    typeof currentWeightInput === 'number' &&
+    Number.isFinite(currentWeightInput) &&
+    currentWeightInput > 0
+      ? currentWeightInput
+      : typeof petWeight === 'number' &&
+          Number.isFinite(petWeight) &&
+          petWeight > 0
+        ? petWeight
+        : undefined;
+
+  useEffect(() => {
+    if (!confirmOpen) {
+      setSelectedWaitingCageId(undefined);
+      return;
+    }
+    const ctrl = new AbortController();
+    setLoadingCages(true);
+    CageService.listCages(
+      { status: 'Available', limit: 100 },
+      { signal: ctrl.signal }
+    )
+      .then(res => {
+        setAvailableCages(res.data?.items || []);
+      })
+      .catch(() => {
+        setAvailableCages([]);
+      })
+      .finally(() => {
+        setLoadingCages(false);
+      });
+    return () => ctrl.abort();
+  }, [confirmOpen]);
 
   const canComplete = serviceStatus === 'InProgress' && !locked;
   const editable =
@@ -196,13 +250,30 @@ const SoapForm = ({
     setCompleting(true);
     setServerError(null);
     try {
+      const payload: CompleteMedicalRecordPayload = {
+        ...buildMedicalRecordPayload(form.getFieldsValue(true)),
+        ...(selectedWaitingCageId
+          ? { waitingCageId: selectedWaitingCageId }
+          : {}),
+      };
       const result = await MedicalRecordService.completeConsultation(
         appointmentServiceId,
-        buildMedicalRecordPayload(form.getFieldsValue(true))
+        payload
       );
       setDirty(false);
       setConfirmOpen(false);
-      toast.success('Đã hoàn tất ca khám');
+      const cageLabel = result.waitingCageAssignment
+        ? getAssignmentCageLabel(
+            typeof result.waitingCageAssignment.cageId === 'object'
+              ? result.waitingCageAssignment.cageId
+              : null
+          )
+        : '';
+      toast.success(
+        cageLabel
+          ? `Đã hoàn tất ca khám và xếp bé vào chuồng ${cageLabel}.`
+          : 'Đã hoàn tất ca khám'
+      );
       onCompleted(result);
     } catch (err: unknown) {
       setConfirmOpen(false);
@@ -520,7 +591,12 @@ const SoapForm = ({
       )}
 
       <Modal
-        title="Hoàn tất ca khám?"
+        title={
+          <Space>
+            <BuildOutlined style={{ color: '#0d9488' }} />
+            <span>Hoàn tất ca khám?</span>
+          </Space>
+        }
         open={confirmOpen}
         onCancel={() => !completing && setConfirmOpen(false)}
         onOk={handleComplete}
@@ -528,13 +604,79 @@ const SoapForm = ({
         cancelText="Quay lại"
         confirmLoading={completing}
         destroyOnHidden
+        width={540}
       >
-        <Space direction="vertical">
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Text>Bệnh án và đơn thuốc sẽ được lưu cùng lúc với bước này.</Text>
           <Text>
             Dịch vụ chuyển sang Hoàn tất. Khi mọi dịch vụ của lịch hẹn đã xong,
             lịch hẹn chuyển sang Chờ chủ đón để lễ tân thu tiền.
           </Text>
+
+          <div
+            style={{
+              marginTop: 10,
+              padding: '12px 14px',
+              backgroundColor: '#f8fafc',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 600,
+                marginBottom: 6,
+                color: '#0f172a',
+                fontSize: 13,
+              }}
+            >
+              Chuồng chờ đón sau khám (không bắt buộc):
+            </div>
+            <Select
+              allowClear
+              placeholder={
+                loadingCages
+                  ? 'Đang tải danh sách chuồng trống...'
+                  : 'Chọn chuồng cho thú cưng chờ chủ đón (nếu cần)'
+              }
+              loading={loadingCages}
+              disabled={completing}
+              value={selectedWaitingCageId}
+              onChange={val => setSelectedWaitingCageId(val)}
+              style={{ width: '100%' }}
+              options={availableCages.map(c => {
+                const maxW =
+                  typeof c.maxWeightKg === 'number' && c.maxWeightKg > 0
+                    ? c.maxWeightKg
+                    : CAGE_MAX_WEIGHT_BY_SIZE[c.size];
+                const isOverweight =
+                  typeof effectiveWeight === 'number' &&
+                  effectiveWeight > 0 &&
+                  maxW !== undefined &&
+                  effectiveWeight > maxW;
+
+                return {
+                  value: c._id,
+                  disabled: isOverweight,
+                  label: isOverweight
+                    ? `${c.label} · Cỡ ${c.size}${c.isIsolated ? ' [Cách ly]' : ''} (⚠️ Quá tải: tối đa ${maxW}kg, bé ${effectiveWeight}kg)`
+                    : `${c.label} · Cỡ ${c.size}${c.isIsolated ? ' [Cách ly]' : ''} (Tối đa ${maxW === Infinity ? 'trên 30' : `${maxW}kg`})`,
+                };
+              })}
+              notFoundContent={
+                loadingCages
+                  ? 'Đang tải danh sách chuồng...'
+                  : 'Không có chuồng trống nào'
+              }
+            />
+            {typeof effectiveWeight === 'number' && effectiveWeight > 0 && (
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                Cân nặng thú cưng: <strong>{effectiveWeight} kg</strong>. Hệ
+                thống tự động giới hạn cỡ chuồng theo quy định tải trọng
+                (BR-11).
+              </div>
+            )}
+          </div>
         </Space>
       </Modal>
     </>

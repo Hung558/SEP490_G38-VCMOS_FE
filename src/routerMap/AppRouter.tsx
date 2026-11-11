@@ -99,8 +99,12 @@ const AppRouter = () => {
       ],
     },
     {
-      // Cage & Appointment management: Admin and Receptionist can access
-      element: <RoleRoute allowRoles={['Admin', 'Receptionist']} />,
+      // Cage management/viewing: Admin, Receptionist, Veterinarian, Groomer can access (BR-10, UC-27)
+      element: (
+        <RoleRoute
+          allowRoles={['Admin', 'Receptionist', 'Veterinarian', 'Groomer']}
+        />
+      ),
       children: [
         {
           path: ROUTER.CAGES,
@@ -110,6 +114,12 @@ const AppRouter = () => {
             </Suspense>
           ),
         },
+      ],
+    },
+    {
+      // Clinic appointments intake: Admin and Receptionist only
+      element: <RoleRoute allowRoles={['Admin', 'Receptionist']} />,
+      children: [
         {
           path: ROUTER.CLINIC_APPOINTMENTS,
           element: (
