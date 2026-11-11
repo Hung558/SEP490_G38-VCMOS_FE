@@ -78,6 +78,13 @@ export const useAppointmentReception = () => {
   );
   const [checkInSubmitting, setCheckInSubmitting] = useState(false);
 
+  // Cancel Appointment State (Receptionist only)
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<StaffAppointment | null>(
+    null
+  );
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
   // Cage Assignments State (Receptionist only)
   const [assignments, setAssignments] = useState<CageAssignment[]>([]);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
@@ -338,6 +345,50 @@ export const useAppointmentReception = () => {
     }
   };
 
+  // Cancel Appointment Actions (Receptionist only)
+  const openCancel = (appointment: StaffAppointment) => {
+    if (
+      !isReceptionist ||
+      !['Booked', 'CheckedIn'].includes(appointment.derivedStatus)
+    ) {
+      return;
+    }
+    setCancelTarget(appointment);
+    setCancelOpen(true);
+  };
+
+  const closeCancel = () => {
+    if (cancelSubmitting) return;
+    setCancelOpen(false);
+    setCancelTarget(null);
+  };
+
+  const confirmCancel = async (reason: string) => {
+    if (!cancelTarget || !isReceptionist || cancelSubmitting) return;
+
+    setCancelSubmitting(true);
+    try {
+      const res = await AppointmentOrderService.cancelAppointment(
+        cancelTarget._id,
+        { reason }
+      );
+      toast.success(res.message || 'Hủy lịch hẹn thành công');
+      setCancelOpen(false);
+      setCancelTarget(null);
+      fetchAppointments();
+    } catch (err: unknown) {
+      const { message, status } = extractApiError(err, 'Hủy lịch hẹn thất bại');
+      toast.error(message);
+      if (status === 409 || status === 404) {
+        setCancelOpen(false);
+        setCancelTarget(null);
+        fetchAppointments();
+      }
+    } finally {
+      setCancelSubmitting(false);
+    }
+  };
+
   // Cage Assignment Actions (Receptionist only)
   const openCreateAssignment = (appointment?: StaffAppointment) => {
     if (!isReceptionist) return;
@@ -507,6 +558,13 @@ export const useAppointmentReception = () => {
     openCheckIn,
     closeCheckIn,
     confirmCheckIn,
+    // Cancel (Receptionist)
+    cancelOpen,
+    cancelTarget,
+    cancelSubmitting,
+    openCancel,
+    closeCancel,
+    confirmCancel,
     // Assignments
     assignments,
     assignmentLoading,

@@ -36,6 +36,8 @@ export interface OnlineAppointmentService {
   orderId: string;
   serviceId: ServiceRef;
   sequenceNo: number;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
   preferredStaffId?: StaffRef;
   assignedStaffId?: StaffRef;
   status: AppointmentServiceStatus;
@@ -43,6 +45,12 @@ export interface OnlineAppointmentService {
   queueNo?: number | null;
   enqueueAt?: string | null;
   dequeueAt?: string | null;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?:
+    | string
+    | { _id: string; fullName?: string; role?: string }
+    | null;
   groomingNote?: {
     beforeNote?: string;
     afterNote?: string;
@@ -77,6 +85,7 @@ export interface CreateOnlineBookingServiceItem {
 export interface CreateCombinedOnlineBookingPayload {
   petId: string;
   date: string; // YYYY-MM-DD
+  slotStart?: string; // HH:mm
   note?: string;
   services: CreateOnlineBookingServiceItem[];
 }
@@ -108,10 +117,14 @@ export interface QueueOrderRef {
   petId: string;
   ownerId: string;
   date: string; // YYYY-MM-DD
+  slotStart?: string | null;
+  slotEnd?: string | null;
   note?: string | null;
   isOnline: boolean;
   derivedStatus: string;
   checkedInAt?: string | null;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
 }
 
 export interface MyQueueItem extends Omit<OnlineAppointmentService, 'orderId'> {
@@ -122,4 +135,13 @@ export interface MyQueueItem extends Omit<OnlineAppointmentService, 'orderId'> {
 export interface ListMyQueueResponse {
   message: string;
   data: MyQueueItem[];
+}
+
+export interface CancelAppointmentServicePayload {
+  reason: string;
+}
+
+export interface CancelAppointmentServiceResponse {
+  message: string;
+  data: OnlineAppointmentService;
 }

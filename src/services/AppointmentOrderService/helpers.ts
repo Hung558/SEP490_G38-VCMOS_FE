@@ -126,6 +126,10 @@ export const buildBookingPayload = (
     date: (raw.date || '').trim(),
   };
 
+  if (typeof raw.slotStart === 'string' && raw.slotStart.trim()) {
+    payload.slotStart = raw.slotStart.trim();
+  }
+
   const trimmedNote = (raw.note || '').trim();
   if (trimmedNote) {
     payload.note = trimmedNote;

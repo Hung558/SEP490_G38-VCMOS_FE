@@ -4,6 +4,7 @@ import {
   apiCreateOnlineBooking,
   apiOrderServices,
   apiAssignStaff,
+  apiCancelAppointmentService,
   apiMyQueue,
 } from './urls';
 import {
@@ -19,6 +20,8 @@ import type {
   AssignStaffResponse,
   AppointmentServiceStatus,
   ListMyQueueResponse,
+  CancelAppointmentServicePayload,
+  CancelAppointmentServiceResponse,
 } from './types';
 
 /**
@@ -87,12 +90,25 @@ const listMyQueue = (
     signal: options?.signal,
   });
 
+/**
+ * Hủy lẻ 1 dịch vụ trong lịch hẹn (PetOwner hoặc Receptionist)
+ * PATCH /api/appointment-services/:id/cancel
+ */
+const cancelAppointmentService = (
+  appointmentServiceId: string,
+  payload: CancelAppointmentServicePayload
+): Promise<CancelAppointmentServiceResponse> =>
+  api.patch(apiCancelAppointmentService(appointmentServiceId), {
+    reason: (payload?.reason || '').trim(),
+  });
+
 const AppointmentServiceService = {
   createOnlineBooking,
   createOnlineAppointmentService,
   listOrderServices,
   assignStaff,
   listMyQueue,
+  cancelAppointmentService,
 };
 
 export default AppointmentServiceService;

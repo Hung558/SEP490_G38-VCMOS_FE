@@ -8,6 +8,7 @@ test('AppointmentOrderService urls match backend endpoints', () => {
   assert.equal(urls.apiOnlineBooking, '/appointment-orders/online');
   assert.equal(urls.apiMyBookings, '/appointment-orders/me');
   assert.equal(urls.apiMyBookingDetail('apt123'), '/appointment-orders/me/apt123');
+  assert.equal(urls.apiCancelAppointment('apt123'), '/appointment-orders/apt123/cancel');
 });
 
 test('Appointment statuses match backend contract', () => {
@@ -94,11 +95,13 @@ test('buildBookingPayload trims fields and omits empty note', () => {
   const p2 = helpers.buildBookingPayload({
     petId: '6ad96d4a9664da6b2c0d8d70',
     date: '2026-11-20',
+    slotStart: ' 09:30 ',
     note: '  Khám định kỳ  ',
   });
   assert.deepEqual(p2, {
     petId: '6ad96d4a9664da6b2c0d8d70',
     date: '2026-11-20',
+    slotStart: '09:30',
     note: 'Khám định kỳ',
   });
 });

@@ -37,6 +37,7 @@ import AppointmentServiceService, {
   getAppointmentServiceStatusLabel,
   getAppointmentServiceName,
   filterActiveServices,
+  getVietnamCurrentTime,
 } from '@/services/AppointmentServiceService';
 import { getVietnamTodayString } from '@/services/AppointmentOrderService';
 import type { Pet, OnlineAppointment, OnlineAppointmentService } from '@/types';
@@ -484,9 +485,59 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
     SelectedBookingService[]
   >([]);
 
-  // Date & Note state
+  // Date & Slot & Note state
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
+  const [selectedSlotStart, setSelectedSlotStart] = useState<string>('');
   const [bookingNote, setBookingNote] = useState(initialNote || '');
+
+  // Time slot options for clinic operating hours (08:00 - 17:30)
+  const clinicSlotOptions = useMemo(() => {
+    const allSlots = [
+      '08:00',
+      '08:30',
+      '09:00',
+      '09:30',
+      '10:00',
+      '10:30',
+      '11:00',
+      '11:30',
+      '12:00',
+      '12:30',
+      '13:00',
+      '13:30',
+      '14:00',
+      '14:30',
+      '15:00',
+      '15:30',
+      '16:00',
+      '16:30',
+      '17:00',
+      '17:30',
+    ];
+    const isToday =
+      selectedDate &&
+      selectedDate.format('YYYY-MM-DD') === getVietnamTodayString();
+    const currentVNTime = isToday ? getVietnamCurrentTime() : '';
+
+    return allSlots.map(slot => {
+      const isPast = Boolean(isToday && slot <= currentVNTime);
+      return {
+        value: slot,
+        label: isPast ? `${slot} (Đã qua giờ này)` : slot,
+        disabled: isPast,
+      };
+    });
+  }, [selectedDate]);
+
+  // Clear selected slot if it becomes disabled (e.g. date changed to today and time has passed)
+  useEffect(() => {
+    if (selectedSlotStart) {
+      const slot = clinicSlotOptions.find(s => s.value === selectedSlotStart);
+      if (slot?.disabled) {
+        setSelectedSlotStart('');
+      }
+    }
+  }, [clinicSlotOptions, selectedSlotStart]);
 
   // Validation / Error states
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -658,9 +709,11 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
     }
 
     const dateStr = selectedDate ? selectedDate.format('YYYY-MM-DD') : '';
+    const trimmedSlot = selectedSlotStart.trim();
     const validation = validateOnlineBookingForm({
       petId: selectedPetId,
       date: dateStr,
+      slotStart: trimmedSlot || undefined,
       note: bookingNote,
       services: selectedServices.map((s, idx) => ({
         serviceId: s.serviceId,
@@ -673,6 +726,9 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
       setFieldErrors({
         ...(validation.errors.petId ? { petId: validation.errors.petId } : {}),
         ...(validation.errors.date ? { date: validation.errors.date } : {}),
+        ...(validation.errors.slotStart
+          ? { slotStart: validation.errors.slotStart }
+          : {}),
         ...(validation.errors.note ? { note: validation.errors.note } : {}),
         ...(validation.errors.services
           ? { services: validation.errors.services }
@@ -682,6 +738,7 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
         validation.errors.petId ||
           validation.errors.services ||
           validation.errors.date ||
+          validation.errors.slotStart ||
           validation.errors.note ||
           'Thông tin chưa hợp lệ'
       );
@@ -695,6 +752,7 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
       const res = await AppointmentServiceService.createOnlineBooking({
         petId: selectedPetId,
         date: dateStr,
+        slotStart: trimmedSlot || undefined,
         note: bookingNote.trim() ? bookingNote.trim() : undefined,
         services: selectedServices.map((s, idx) => ({
           serviceId: s.serviceId,
@@ -749,6 +807,7 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
     setCreatedBookingData(null);
     setSelectedServices([]);
     setSelectedDate(null);
+    setSelectedSlotStart('');
     setBookingNote('');
     setFieldErrors({});
     setServerError(null);
@@ -897,6 +956,18 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
                     )}
                   </strong>
                 </div>
+                {(createdBookingData.appointment.slotStart ||
+                  createdBookingData.appointment.slotEnd) && (
+                  <div className="row">
+                    <span style={{ color: '#64748b' }}>Khung giờ hẹn:</span>
+                    <strong style={{ color: '#0d9488' }}>
+                      {createdBookingData.appointment.slotStart || '--:--'}
+                      {createdBookingData.appointment.slotEnd
+                        ? ` - ${createdBookingData.appointment.slotEnd}`
+                        : ''}
+                    </strong>
+                  </div>
+                )}
                 <div className="row">
                   <span style={{ color: '#64748b' }}>Trạng thái:</span>
                   <strong style={{ color: '#0d9488' }}>Đã đặt (Booked)</strong>
@@ -962,6 +1033,21 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
                                 </strong>{' '}
                                 {sInfo?.name ||
                                   getAppointmentServiceName(s.serviceId)}
+                                {(s.scheduledStart || s.scheduledEnd) && (
+                                  <span
+                                    style={{
+                                      fontSize: 12,
+                                      color: '#64748b',
+                                      marginLeft: 6,
+                                    }}
+                                  >
+                                    ({s.scheduledStart || ''}
+                                    {s.scheduledEnd
+                                      ? ` - ${s.scheduledEnd}`
+                                      : ''}
+                                    )
+                                  </span>
+                                )}
                                 {s.isEmergency && (
                                   <Tag
                                     color="red"
@@ -1229,24 +1315,65 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
               <div className="form-section-block">
                 <div className="grid-two-cols">
                   <div>
-                    <div className="section-label">3. Ngày hẹn khám:</div>
-                    <DatePicker
-                      value={selectedDate}
-                      onChange={val => {
-                        setSelectedDate(val);
-                        setFieldErrors(prev => ({ ...prev, date: '' }));
-                        setServerError(null);
+                    <div className="section-label">
+                      3. Ngày hẹn & Khung giờ khám:
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10,
                       }}
-                      disabledDate={disabledDate}
-                      format="DD/MM/YYYY"
-                      placeholder="Chọn ngày hẹn khám (từ hôm nay)"
-                      style={{ width: '100%', marginBottom: 4 }}
-                      size="large"
-                      status={fieldErrors.date ? 'error' : undefined}
-                    />
-                    {fieldErrors.date && (
-                      <div className="field-error">{fieldErrors.date}</div>
-                    )}
+                    >
+                      <div>
+                        <DatePicker
+                          value={selectedDate}
+                          onChange={val => {
+                            setSelectedDate(val);
+                            setFieldErrors(prev => ({
+                              ...prev,
+                              date: '',
+                              slotStart: '',
+                            }));
+                            setServerError(null);
+                          }}
+                          disabledDate={disabledDate}
+                          format="DD/MM/YYYY"
+                          placeholder="Chọn ngày hẹn khám (từ hôm nay)"
+                          style={{ width: '100%', marginBottom: 4 }}
+                          size="large"
+                          status={fieldErrors.date ? 'error' : undefined}
+                        />
+                        {fieldErrors.date && (
+                          <div className="field-error">{fieldErrors.date}</div>
+                        )}
+                      </div>
+
+                      <div>
+                        <Select
+                          value={selectedSlotStart || undefined}
+                          onChange={val => {
+                            setSelectedSlotStart(val || '');
+                            setFieldErrors(prev => ({
+                              ...prev,
+                              slotStart: '',
+                            }));
+                            setServerError(null);
+                          }}
+                          placeholder="Chọn giờ hẹn (tùy chọn, từ 08:00 - 17:30)"
+                          allowClear
+                          style={{ width: '100%', marginBottom: 4 }}
+                          size="large"
+                          options={clinicSlotOptions}
+                          status={fieldErrors.slotStart ? 'error' : undefined}
+                        />
+                        {fieldErrors.slotStart && (
+                          <div className="field-error">
+                            {fieldErrors.slotStart}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -1254,7 +1381,7 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
                       4. Ghi chú triệu chứng hoặc lưu ý (tùy chọn):
                     </div>
                     <Input.TextArea
-                      rows={3}
+                      rows={4}
                       value={bookingNote}
                       onChange={e => {
                         setBookingNote(e.target.value);
@@ -1298,6 +1425,9 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
                         ? selectedDate.format('DD/MM/YYYY')
                         : 'Chưa chọn'}
                     </strong>
+                  </div>
+                  <div>
+                    Giờ hẹn: <strong>{selectedSlotStart || 'Linh hoạt'}</strong>
                   </div>
                 </div>
                 {selectedServices.length > 0 && (

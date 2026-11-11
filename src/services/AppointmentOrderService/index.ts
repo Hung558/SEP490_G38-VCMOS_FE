@@ -5,6 +5,7 @@ import {
   apiMyBookingDetail,
   apiStaffAppointments,
   apiCheckInAppointment,
+  apiCancelAppointment,
 } from './urls';
 import {
   buildBookingPayload,
@@ -12,6 +13,8 @@ import {
   buildStaffAppointmentFilterQuery,
 } from './helpers';
 import type {
+  CancelAppointmentPayload,
+  CancelAppointmentResponse,
   CheckInAppointmentResponse,
   CreateOnlineBookingPayload,
   CreateOnlineBookingResponse,
@@ -87,12 +90,26 @@ const checkInAppointment = (
   return api.patch(apiCheckInAppointment(id));
 };
 
+/**
+ * Hủy toàn bộ đơn lịch hẹn (dành cho PetOwner trước check-in hoặc Receptionist)
+ * PATCH /api/appointment-orders/:id/cancel
+ */
+const cancelAppointment = (
+  id: string,
+  payload: CancelAppointmentPayload
+): Promise<CancelAppointmentResponse> => {
+  return api.patch(apiCancelAppointment(id), {
+    reason: (payload?.reason || '').trim(),
+  });
+};
+
 const AppointmentOrderService = {
   createOnlineBooking,
   listMyOnlineBookings,
   getMyOnlineBookingById,
   listStaffAppointments,
   checkInAppointment,
+  cancelAppointment,
 };
 
 export * from './urls';

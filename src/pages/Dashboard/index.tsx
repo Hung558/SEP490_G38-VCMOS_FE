@@ -47,6 +47,7 @@ import AppointmentOrderService, {
 import type { OnlineAppointment, AppointmentStatus } from '@/types';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
 import AddAppointmentServiceModal from './components/AddAppointmentServiceModal';
+import CancelReasonModal from '@/components/appointment/CancelReasonModal';
 import {
   isAppointmentEligibleForService,
   isUserPetOwner,
@@ -375,6 +376,12 @@ const DashboardPage: React.FC = () => {
     useState<OnlineAppointment | null>(null);
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
 
+  // Cancellation State
+  const [appointmentToCancel, setAppointmentToCancel] =
+    useState<OnlineAppointment | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
   // Safe PetOwner resolution supporting user.role, user.systemRole, and localStorage fallback
   const storedUser = storage.getLocalStorage<any>(STORAGE.USER_INFO);
   const effectiveUser =
@@ -508,6 +515,38 @@ const DashboardPage: React.FC = () => {
     };
   }, [fetchAppointments]);
 
+  const handleConfirmCancelAppointment = async (reason: string) => {
+    if (!appointmentToCancel || cancelSubmitting) return;
+    setCancelSubmitting(true);
+    try {
+      const res = await AppointmentOrderService.cancelAppointment(
+        appointmentToCancel._id,
+        { reason }
+      );
+      toast.success(res.message || 'Đã hủy lịch hẹn thành công');
+      setIsCancelModalOpen(false);
+      setAppointmentToCancel(null);
+      fetchAppointments();
+      setDetailRefreshCount(c => c + 1);
+    } catch (err: unknown) {
+      const errRes = extractApiError(
+        err,
+        'Không thể hủy lịch hẹn. Vui lòng thử lại.'
+      );
+      const message = errRes.message;
+      const status = errRes.status ?? (errRes as any).statusCode;
+      toast.error(message);
+      if (status === 409 || status === 404) {
+        setIsCancelModalOpen(false);
+        setAppointmentToCancel(null);
+        fetchAppointments();
+        setDetailRefreshCount(c => c + 1);
+      }
+    } finally {
+      setCancelSubmitting(false);
+    }
+  };
+
   // Modal controllers
   const [isPetFormModalOpen, setIsPetFormModalOpen] = useState(false);
   const [isPetDetailModalOpen, setIsPetDetailModalOpen] = useState(false);
@@ -604,9 +643,17 @@ const DashboardPage: React.FC = () => {
       title: 'Ngày hẹn khám',
       dataIndex: 'date',
       key: 'date',
-      width: 110,
-      render: (date: string) => (
-        <span>{date ? dayjs(date).format('DD/MM/YYYY') : '—'}</span>
+      width: 125,
+      render: (date: string, record: OnlineAppointment) => (
+        <div>
+          <div>{date ? dayjs(date).format('DD/MM/YYYY') : '—'}</div>
+          {record.slotStart && (
+            <div style={{ fontSize: 12, color: '#0d9488', fontWeight: 500 }}>
+              {record.slotStart}
+              {record.slotEnd ? ` - ${record.slotEnd}` : ''}
+            </div>
+          )}
+        </div>
       ),
     },
     {
@@ -644,17 +691,25 @@ const DashboardPage: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'derivedStatus',
       key: 'derivedStatus',
-      width: 110,
-      render: (derivedStatus: AppointmentStatus) => (
-        <Tag color={getAppointmentStatusColor(derivedStatus)}>
-          {getAppointmentStatusLabel(derivedStatus)}
-        </Tag>
-      ),
+      width: 120,
+      render: (derivedStatus: AppointmentStatus, record: OnlineAppointment) => {
+        const tag = (
+          <Tag color={getAppointmentStatusColor(derivedStatus)}>
+            {getAppointmentStatusLabel(derivedStatus)}
+          </Tag>
+        );
+        if (derivedStatus === 'Cancelled' && record.cancelReason) {
+          return (
+            <Tooltip title={`Lý do hủy: ${record.cancelReason}`}>{tag}</Tooltip>
+          );
+        }
+        return tag;
+      },
     },
     {
       title: 'Hành động',
       key: 'action',
-      width: 240,
+      width: 280,
       fixed: 'right' as const,
       align: 'center' as const,
       render: (_: unknown, record: OnlineAppointment) => {
@@ -705,6 +760,25 @@ const DashboardPage: React.FC = () => {
                 }}
               >
                 Thêm dịch vụ
+              </Button>
+            )}
+            {isPetOwner && record.derivedStatus === 'Booked' && (
+              <Button
+                type="link"
+                size="small"
+                danger
+                style={{
+                  fontWeight: 600,
+                  padding: '2px 4px',
+                  height: 'auto',
+                  lineHeight: 1.4,
+                }}
+                onClick={() => {
+                  setAppointmentToCancel(record);
+                  setIsCancelModalOpen(true);
+                }}
+              >
+                Hủy lịch
               </Button>
             )}
           </Space>
@@ -1568,11 +1642,37 @@ const DashboardPage: React.FC = () => {
         petsMap={petsMap}
         isPetOwner={isPetOwner}
         refreshTrigger={detailRefreshCount}
+        onUpdated={fetchAppointments}
         onAddService={apt => {
           setAppointmentToAddService(apt);
           setIsAddServiceModalOpen(true);
         }}
       />
+
+      {/* Cancel Whole Appointment Modal (from Table action) */}
+      {appointmentToCancel && (
+        <CancelReasonModal
+          open={isCancelModalOpen}
+          title="Hủy lịch hẹn trực tuyến"
+          warningText="Bạn đang thực hiện hủy toàn bộ lịch hẹn này. Mọi dịch vụ chưa thực hiện thuộc lịch hẹn cũng sẽ bị hủy."
+          targetDescription={
+            <div>
+              Mã lịch hẹn: <strong>{appointmentToCancel.code}</strong> (Ngày{' '}
+              {dayjs(appointmentToCancel.date).format('DD/MM/YYYY')}
+              {appointmentToCancel.slotStart
+                ? ` - ${appointmentToCancel.slotStart}`
+                : ''}
+              )
+            </div>
+          }
+          confirmLoading={cancelSubmitting}
+          onCancel={() => {
+            setIsCancelModalOpen(false);
+            setAppointmentToCancel(null);
+          }}
+          onConfirm={handleConfirmCancelAppointment}
+        />
+      )}
 
       {/* Add Service to Online Appointment Modal */}
       <AddAppointmentServiceModal
