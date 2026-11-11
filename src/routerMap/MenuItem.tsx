@@ -165,7 +165,7 @@ export const MenuItemAdmin = (): MenuItem[] => {
 };
 
 /** Hàm helper: Lấy menu theo role */
-// Veterinarian and Groomer work from their queue (SCR-22, SCR-26)
+// Veterinarian and Groomer work from their queue (SCR-22, SCR-26) and can check cages (BR-10, UC-27)
 export const MenuItemClinicalStaff = (role: string): MenuItem[] => {
   return [
     ...MenuItemStaff(),
@@ -173,6 +173,11 @@ export const MenuItemClinicalStaff = (role: string): MenuItem[] => {
       key: ROUTER.STAFF_QUEUE,
       label: role === 'Groomer' ? 'Hàng đợi spa' : 'Hàng đợi khám',
       icon: <UnorderedListOutlined />,
+    },
+    {
+      key: ROUTER.CAGES,
+      label: 'Quản lý chuồng',
+      icon: <BuildOutlined />,
     },
   ];
 };

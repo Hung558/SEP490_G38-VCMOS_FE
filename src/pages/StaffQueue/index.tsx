@@ -243,12 +243,8 @@ const StaffQueuePage = () => {
         </Button>
       );
     }
-    // Groomers have no start API: they take the pet out of its waiting cage themselves
-    if (
-      !isVet &&
-      order &&
-      (item.status === 'Waiting' || item.status === 'InProgress')
-    ) {
+    // Both Veterinarians and Groomers can look up the pet's cage and release it (SCR-22, SCR-26, BR-10)
+    if (order && (item.status === 'Waiting' || item.status === 'InProgress')) {
       buttons.push(
         <Button
           key="cage"
