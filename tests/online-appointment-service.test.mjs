@@ -537,6 +537,61 @@ test('filterActiveServices strictly filters out inactive, deleted, or invalid se
   assert.deepEqual(helpers.filterActiveServices('not an array'), []);
 });
 
+test('validateOnlineBookingForm validates all fields simultaneously for single-form submission', () => {
+  // Empty form submission: all missing required fields reported together
+  const emptyRes = helpers.validateOnlineBookingForm({
+    petId: '',
+    date: '',
+    services: [],
+  });
+
+  assert.equal(emptyRes.isValid, false);
+  assert.ok(emptyRes.errors.petId, 'petId error should be present');
+  assert.ok(emptyRes.errors.services, 'services error should be present');
+  assert.ok(emptyRes.errors.date, 'date error should be present');
+
+  // Partial submission: only invalid fields reported, allowing inline field binding
+  const partialRes = helpers.validateOnlineBookingForm({
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-12-25',
+    services: [], // missing services
+  });
+
+  assert.equal(partialRes.isValid, false);
+  assert.equal(partialRes.errors.petId, undefined);
+  assert.equal(partialRes.errors.date, undefined);
+  assert.ok(partialRes.errors.services, 'services error should be present');
+});
+
+test('buildCreateOnlineBookingPayload adheres strictly to whitelist and omits empty/internal fields', () => {
+  const payload = helpers.buildCreateOnlineBookingPayload({
+    petId: ' 6ad96d4a9664da6b2c0d8d70 ',
+    date: ' 2026-12-25 ',
+    note: '  Bé bị cảm cúm  ',
+    services: [
+      { serviceId: ' 6ad96d4a9664da6b2c0d8e01 ', sequenceNo: 1, isEmergency: true },
+    ],
+    // extra fields that should never be sent
+    ownerId: '6ad96d4a9664da6b2c0d8a01',
+    code: 'APT-123456',
+    isOnline: true,
+  });
+
+  assert.equal(payload.petId, '6ad96d4a9664da6b2c0d8d70');
+  assert.equal(payload.date, '2026-12-25');
+  assert.equal(payload.note, 'Bé bị cảm cúm');
+  assert.equal(payload.services.length, 1);
+  assert.equal(payload.services[0].serviceId, '6ad96d4a9664da6b2c0d8e01');
+  assert.equal(payload.services[0].sequenceNo, 1);
+  assert.equal(payload.services[0].isEmergency, true);
+
+  // Assert no extra or internal fields are present
+  assert.equal('ownerId' in payload, false);
+  assert.equal('code' in payload, false);
+  assert.equal('isOnline' in payload, false);
+});
+
+
 
 
 

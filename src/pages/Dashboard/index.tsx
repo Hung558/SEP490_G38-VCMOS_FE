@@ -654,14 +654,14 @@ const DashboardPage: React.FC = () => {
     {
       title: 'Hành động',
       key: 'action',
-      width: 220,
+      width: 240,
       fixed: 'right' as const,
       align: 'center' as const,
       render: (_: unknown, record: OnlineAppointment) => {
         const isEligible = isAppointmentEligibleForService(record);
         return (
           <Space
-            size={2}
+            size={6}
             style={{
               display: 'inline-flex',
               justifyContent: 'center',
@@ -1223,7 +1223,7 @@ const DashboardPage: React.FC = () => {
               columns={appointmentColumns}
               dataSource={appointments}
               loading={appointmentsLoading}
-              scroll={{ x: 780 }}
+              scroll={{ x: 960 }}
               pagination={{
                 current: appointmentPage,
                 pageSize: appointmentLimit,

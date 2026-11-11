@@ -34,6 +34,7 @@ export interface SelectedBookingService {
 }
 
 export interface BookingServiceStepProps {
+  title?: string;
   services: Service[];
   loading: boolean;
   error: string | null;
@@ -170,6 +171,7 @@ const StepWrapper = styled.div`
 `;
 
 const BookingServiceStep: React.FC<BookingServiceStepProps> = ({
+  title,
   services,
   loading,
   error,
@@ -234,7 +236,7 @@ const BookingServiceStep: React.FC<BookingServiceStepProps> = ({
   return (
     <StepWrapper>
       <div className="section-label">
-        1. Chọn các dịch vụ cần thực hiện cho thú cưng:
+        {title || '1. Chọn các dịch vụ cần thực hiện cho thú cưng:'}
       </div>
 
       {loading ? (

@@ -416,11 +416,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
               <TeamOutlined /> Đội ngũ Bác sĩ
             </a>
             <a
-              href="#quick-booking"
+              href="#booking"
               className="subnav-item"
               onClick={e => {
                 e.preventDefault();
-                scrollToSection('quick-booking');
+                handleBookingClick();
               }}
             >
               <CalendarOutlined /> Đặt lịch hẹn khám
