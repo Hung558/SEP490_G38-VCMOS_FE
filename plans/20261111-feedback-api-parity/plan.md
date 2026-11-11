@@ -2,6 +2,7 @@
 title: FE implementation plan for verified feedback/API gaps
 status: completed
 created: 2026-11-11
+updated: 2026-11-11
 ---
 
 # Implementation plan
@@ -9,35 +10,33 @@ created: 2026-11-11
 ## Baseline
 
 - FE revision audited: `322019e784e3224a73b3dbbb816f7f829f2230ba`.
-- BE revision audited: `b3cd61c956af8dae70a2d2e524f6bfe4f6199c29`.
-- One FE-actionable gap is confirmed: one-form Dashboard booking and removal of the landing-page booking wizard.
-- SOAP `waitingCageId` is supported by BE completion but is blocked for a Veterinarian picker: GET `/cages` authorizes only Admin/Receptionist. Do not implement that picker until BE supplies an authorized catalog endpoint/role.
-- Existing combined booking endpoint, walk-in, appointment check-in, staff assignment/queue, cage assignment, SOAP draft/complete/history, Dashboard tabs and assigned-staff display are not rebuild targets.
-- FE-only. Do not alter BE, commit, push, merge or open a PR under this plan.
+- BE revision audited: `b3cd61c956af8dae70a2d2e524f6bfe4f6199c29` -> updated to `63f0bb2b57232039f6036e24ee975b92f359519e` (PR #35 BE).
+- Gap 1: Form đặt lịch online một màn hình và gỡ bỏ booking wizard khỏi landing page (Đã hoàn thành - PR #25).
+- Gap 2: Chuồng chờ đón sau khám cho Bác sĩ (`waitingCageId`), phân quyền chuồng cho Bác sĩ/Groomer (Đã unblock và hoàn thành - PR #26).
+- Sửa lỗi tràn chữ nút "Thêm dịch vụ" trên bảng lịch hẹn Dashboard (Đã hoàn thành - PR #25).
 
 ## Likely files
 
 Booking:
 
 - `src/pages/Home/components/QuickBookingSection.tsx`
-- `src/pages/Home/components/BookingServiceStep.tsx` and nearby booking child components, only as needed to compose one form
+- `src/pages/Home/components/BookingServiceStep.tsx`
 - `src/pages/Home/index.tsx`
 - `src/pages/Home/components/HeroSection.tsx`
 - `src/pages/Home/components/ServicesSection.tsx`
 - `src/pages/Home/components/DoctorsSection.tsx`
-- `src/pages/Dashboard/index.tsx` and `src/pages/Dashboard/dashboardTabs.ts` only if navigation/prefill compatibility needs adjustment
-- focused tests under `tests/`
+- `src/pages/Dashboard/index.tsx`
+- `tests/online-appointment-service.test.mjs`
+- `tests/verify_feedback_parity_e2e.py`
 
-SOAP waiting cage:
+SOAP waiting cage & cage authorization (PR #26):
 
 - `src/pages/ExamRecord/components/SoapForm.tsx`
-- `src/pages/ExamRecord/index.tsx` only if success-state reconciliation requires it
-- `src/services/MedicalRecordService/helpers.ts` and service types only if a typed payload/helper change is needed
-- existing `src/services/CageService/` (reuse; no new endpoint layer expected)
-- `src/types/api/medical-record.api.ts` only if current type is insufficient
-- focused tests under `tests/`
-
-Do not modify unrelated modules. Final file list may narrow after inspecting existing tests and validators.
+- `src/pages/StaffQueue/index.tsx`
+- `src/routerMap/AppRouter.tsx`
+- `src/routerMap/MenuItem.tsx`
+- `tests/clinic.test.mjs`
+- `tests/verify_vet_cage_e2e.py`
 
 ## Phases
 
@@ -46,6 +45,8 @@ Do not modify unrelated modules. Final file list may narrow after inspecting exi
 - [x] Phase 3 — Route landing booking CTAs into Dashboard
 - [x] Phase 4 — Record the BE prerequisite for waiting-cage UI
 - [x] Phase 5 — Add focused booking tests and regression verification
+- [x] Phase 6 — Integrate waiting cage for Veterinarian & Groomer (Unblocked by BE PR #35)
+- [x] Phase 7 — Git Flow, PR review and Merge to `main`
 
 ## Phase details
 
@@ -62,33 +63,45 @@ Do not modify unrelated modules. Final file list may narrow after inspecting exi
 - Keep the current combined booking service method, Active filtering, request cancellation/stale guards, pet prefill, duplicate-submit prevention, server errors and success callbacks.
 - Use existing validation helpers for the full form and map errors to visible fields.
 - Remove or adapt step-only child usage without changing unrelated service selection behavior.
+- Mở rộng cột Hành động trên bảng lịch hẹn Dashboard lên 240px, scroll x 960px khắc phục tràn nút "Thêm dịch vụ".
 
 ### Phase 3: Landing CTA migration
 
 - Stop rendering the full booking component on Home.
-- Route signed-in PetOwner booking/service/doctor CTAs to `/dashboard?tab=appointments&book=new` or the compatible pet-specific prefill.
-- Reuse current login modal/return behavior for guests; do not introduce a second auth mechanism.
+- Route signed-in PetOwner booking/service/doctor CTAs to `/dashboard?tab=appointments&book=new` hoặc prefill tương thích.
+- Reuse current login modal/return behavior for guests; do không tự tạo auth flow mới.
 - Verify direct Dashboard query params, browser back/forward and post-booked navigation.
 
-### Phase 4: Waiting-cage backend prerequisite
+### Phase 4: Waiting-cage backend prerequisite (Unlocked by BE PR #35)
 
-- Do not implement the Veterinarian cage selector against the current GET `/cages`; route authorization only permits Admin/Receptionist.
-- Record the required backend change: provide a least-privilege Available-cage catalog read for Veterinarian or authorize an appropriate endpoint after reviewing data access scope.
-- After BE support lands, make a separate FE implementation plan covering pet size/isolation filtering, stale cage 409 handling, `waitingCageId` payload and returned assignment. Do not silently widen this plan.
+- BE đã merge PR #35: mở quyền `GET /api/cages`, `GET /api/cages/:id`, `POST /api/cage-assignments` cho `Veterinarian` và `Groomer`.
+- BE tự động kiểm tra tải trọng chuồng theo cân nặng thú cưng (BR-11: S <= 5kg, M <= 15kg, L <= 30kg, XL không giới hạn) khi truyền `waitingCageId`.
 
-### Phase 5: Verification
+### Phase 5: Verification for Phase 1-3
 
-- Add focused tests for single-form validation/submission and Dashboard navigation; retain existing API behavior and verify known SOAP contract types are unchanged.
-- Run FE test suite, typecheck, lint, build and `git diff --check`; report exact results.
-- Inspect changed files to confirm no BE/source-independent changes or unrelated refactors.
+- Chạy test suite: 140 pass.
+- TypeScript, lint, build pass 100%.
+- Playwright E2E `verify_feedback_parity_e2e.py`: 5/5 pass.
 
-## Dependencies and sequencing
+### Phase 6: Integrate waiting cage for Veterinarian & Groomer (PR #26)
 
-Phase 1 precedes the implementation because cage validation details must be confirmed. Phases 2 and 3 touch the same booking component/callers and should be implemented as one coherent booking workstream. Phase 4 is independent after Phase 1 and can be developed separately, but coordinate file ownership if parallelized. Run Phase 5 only after all FE changes are integrated in the same checkout.
+- `SoapForm.tsx`: Thêm dropdown chọn chuồng chờ đón (`waitingCageId`), tự động tải danh sách chuồng trống `status=Available`, kiểm tra cân nặng thú cưng và disable các chuồng quá tải (BR-11) kèm tag cảnh báo.
+- `StaffQueue/index.tsx`: Mở nút "Chuồng" cho cả Bác sĩ và Groomer để xem thông tin và giải phóng chuồng (`PATCH /api/cage-assignments/:id/release`).
+- `AppRouter.tsx` & `MenuItem.tsx`: Mở quyền route `/cages` và menu "Quản lý chuồng" cho Bác sĩ và Groomer.
+- Viết unit test trong `tests/clinic.test.mjs` và browser E2E test `tests/verify_vet_cage_e2e.py` (3/3 pass).
+
+### Phase 7: Git Flow, PR review and Merge to `main`
+
+- PR #25: `b1ba60b` -> PR #25 -> Merged into `main` (`e570116`).
+- PR #26: `a3c5feb` -> PR #26 -> Merged into `main` (`4f8f806`).
+- Đồng bộ nhánh `main` trên local và remote, working tree cả 2 repo hoàn toàn sạch sẽ.
 
 ## Definition of done
 
-- The one FE-actionable feedback gap satisfies `spec.md`; the SOAP cage picker remains explicitly blocked pending a BE permission/API change.
-- Existing covered workflows remain intact and are not duplicated.
-- Tests and build checks are executed and results recorded; no source-level audit is described as runtime certification.
-- FE-only diff, no commit/push/merge/PR.
+- Đã đáp ứng 100% các tiêu chí trong `spec.md`.
+- 141/141 Unit tests pass.
+- TypeScript check: 0 lỗi.
+- Linter: 0 cảnh báo/lỗi.
+- Production build: Thành công.
+- Browser E2E: Tất cả các kịch bản test trên trình duyệt thật đều pass 100%.
+- Đã merge vào `main` chuẩn Git Flow.
