@@ -17,6 +17,14 @@ test('AppointmentServiceService URLs match BE endpoint without /api prefix', () 
     urls.apiOnlineAppointmentService,
     '/appointment-services/online'
   );
+  assert.equal(
+    urls.apiCreateOnlineBooking,
+    '/appointment-services/online-booking'
+  );
+  assert.equal(
+    urls.apiCancelAppointmentService('svc123'),
+    '/appointment-services/svc123/cancel'
+  );
 });
 
 test('isValidMongoObjectId correctly validates 24-character hexadecimal IDs', () => {
@@ -589,6 +597,73 @@ test('buildCreateOnlineBookingPayload adheres strictly to whitelist and omits em
   assert.equal('ownerId' in payload, false);
   assert.equal('code' in payload, false);
   assert.equal('isOnline' in payload, false);
+});
+
+test('buildCreateOnlineBookingPayload supports optional slotStart in whitelist', () => {
+  const payload = helpers.buildCreateOnlineBookingPayload({
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-12-25',
+    slotStart: '  09:00  ',
+    services: [
+      { serviceId: '6ad96d4a9664da6b2c0d8e01' },
+    ],
+  });
+
+  assert.equal(payload.slotStart, '09:00');
+});
+
+test('validateSlotStart validates format HH:mm and operating hours 08:00 - 18:00', () => {
+  // Optional if empty or undefined
+  assert.equal(helpers.validateSlotStart(undefined), undefined);
+  assert.equal(helpers.validateSlotStart(''), undefined);
+  assert.equal(helpers.validateSlotStart('   '), undefined);
+
+  // Invalid format
+  assert.match(helpers.validateSlotStart('9:00'), /định dạng/);
+  assert.match(helpers.validateSlotStart('09:0'), /định dạng/);
+  assert.match(helpers.validateSlotStart('invalid'), /định dạng/);
+
+  // Out of clinic hours (< 08:00 or >= 18:00)
+  assert.match(helpers.validateSlotStart('07:30'), /khung giờ làm việc/);
+  assert.match(helpers.validateSlotStart('18:00'), /khung giờ làm việc/);
+  assert.match(helpers.validateSlotStart('19:30'), /khung giờ làm việc/);
+
+  // Future valid time
+  assert.equal(helpers.validateSlotStart('09:00', '2099-12-31'), undefined);
+  assert.equal(helpers.validateSlotStart('17:30', '2099-12-31'), undefined);
+});
+
+test('validateCancelReason requires non-empty string and caps length at 200', () => {
+  assert.match(helpers.validateCancelReason(undefined), /bắt buộc/);
+  assert.match(helpers.validateCancelReason(''), /bắt buộc/);
+  assert.match(helpers.validateCancelReason('   '), /bắt buộc/);
+  assert.equal(helpers.validateCancelReason('Bận việc đột xuất'), undefined);
+  assert.equal(helpers.validateCancelReason('a'.repeat(200)), undefined);
+  assert.match(helpers.validateCancelReason('a'.repeat(201)), /tối đa 200/);
+});
+
+test('validateOnlineBookingForm validates slotStart when provided', () => {
+  const validRes = helpers.validateOnlineBookingForm({
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2099-12-25',
+    slotStart: '10:00',
+    services: [
+      { serviceId: '6ad96d4a9664da6b2c0d8e01', sequenceNo: 1 },
+    ],
+  });
+  assert.equal(validRes.isValid, true);
+  assert.equal(validRes.errors.slotStart, undefined);
+
+  const invalidSlotRes = helpers.validateOnlineBookingForm({
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2099-12-25',
+    slotStart: '06:00',
+    services: [
+      { serviceId: '6ad96d4a9664da6b2c0d8e01', sequenceNo: 1 },
+    ],
+  });
+  assert.equal(invalidSlotRes.isValid, false);
+  assert.match(invalidSlotRes.errors.slotStart, /khung giờ làm việc/);
 });
 
 

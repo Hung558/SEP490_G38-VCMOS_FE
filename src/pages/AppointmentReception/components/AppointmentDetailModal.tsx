@@ -18,6 +18,7 @@ interface AppointmentDetailModalProps {
   /** Lễ tân được phân công nhân sự cho dịch vụ; Admin chỉ xem */
   canAssignStaff: boolean;
   onClose: () => void;
+  onUpdated?: () => void;
 }
 
 const AppointmentDetailModal = ({
@@ -25,6 +26,7 @@ const AppointmentDetailModal = ({
   appointment,
   canAssignStaff,
   onClose,
+  onUpdated,
 }: AppointmentDetailModalProps) => {
   if (!appointment) return null;
 
@@ -54,6 +56,15 @@ const AppointmentDetailModal = ({
             ? dayjs(appointment.date).format('DD/MM/YYYY')
             : '-'}
         </Descriptions.Item>
+
+        {(appointment.slotStart || appointment.slotEnd) && (
+          <Descriptions.Item label="Khung giờ hẹn">
+            <strong style={{ color: '#0958d9' }}>
+              {appointment.slotStart || '--:--'}
+              {appointment.slotEnd ? ` - ${appointment.slotEnd}` : ''}
+            </strong>
+          </Descriptions.Item>
+        )}
 
         <Descriptions.Item label="Trạng thái">
           <Tag color={getAppointmentStatusColor(appointment.derivedStatus)}>
@@ -91,6 +102,21 @@ const AppointmentDetailModal = ({
           )}
         </Descriptions.Item>
 
+        {appointment.derivedStatus === 'Cancelled' && (
+          <Descriptions.Item label="Thông tin hủy lịch" span={2}>
+            <div>
+              <span style={{ color: '#ff4d4f', fontWeight: 600 }}>Lý do: </span>
+              <span>{appointment.cancelReason || 'Không có lý do'}</span>
+            </div>
+            {appointment.cancelledAt && (
+              <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
+                Thời gian hủy:{' '}
+                {dayjs(appointment.cancelledAt).format('HH:mm DD/MM/YYYY')}
+              </div>
+            )}
+          </Descriptions.Item>
+        )}
+
         <Descriptions.Item label="Ghi chú" span={2}>
           {appointment.note || <Text type="secondary">Không có ghi chú</Text>}
         </Descriptions.Item>
@@ -111,6 +137,7 @@ const AppointmentDetailModal = ({
       <AppointmentServicesPanel
         appointment={appointment}
         canAssign={canAssignStaff}
+        onUpdated={onUpdated}
       />
     </Modal>
   );

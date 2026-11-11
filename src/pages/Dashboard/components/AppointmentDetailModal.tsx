@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import {
   Modal,
@@ -25,6 +25,7 @@ import {
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import MedicalRecordModal from '@/components/medical/MedicalRecordModal';
+import CancelReasonModal from '@/components/appointment/CancelReasonModal';
 import { isMedicalServiceCategory } from '@/services/MedicalRecordService';
 
 import AppointmentOrderService, {
@@ -32,7 +33,7 @@ import AppointmentOrderService, {
   getAppointmentStatusColor,
   extractApiError,
 } from '@/services/AppointmentOrderService';
-import {
+import AppointmentServiceService, {
   isAppointmentEligibleForService,
   isUserPetOwner,
   getAppointmentServiceStatusLabel,
@@ -48,7 +49,7 @@ import {
 } from '@/services/ServiceService';
 import { STORAGE, storage } from '@/lib/storage';
 import { useAuth } from '@/contexts/routerProvider/authContext';
-import type { OnlineAppointment, Pet } from '@/types';
+import type { OnlineAppointment, OnlineAppointmentService, Pet } from '@/types';
 
 const { Text } = Typography;
 
@@ -58,6 +59,7 @@ export interface AppointmentDetailModalProps {
   onClose: () => void;
   petsMap: Map<string, Pet>;
   onAddService?: (appointment: OnlineAppointment) => void;
+  onUpdated?: () => void;
   isPetOwner?: boolean;
   refreshTrigger?: number;
 }
@@ -112,6 +114,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   onClose,
   petsMap,
   onAddService,
+  onUpdated,
   isPetOwner,
   refreshTrigger,
 }) => {
@@ -132,6 +135,86 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   // Service whose SOAP record is open
   const [recordServiceId, setRecordServiceId] = useState<string | null>(null);
+
+  // Cancel Whole Appointment State
+  const [isCancelApptOpen, setIsCancelApptOpen] = useState(false);
+  const [cancelApptLoading, setCancelApptLoading] = useState(false);
+
+  // Cancel Single Service State
+  const [serviceToCancel, setServiceToCancel] =
+    useState<OnlineAppointmentService | null>(null);
+  const [cancelServiceLoading, setCancelServiceLoading] = useState(false);
+
+  const reloadAppointment = useCallback(async () => {
+    if (!appointmentId) return;
+    try {
+      const res =
+        await AppointmentOrderService.getMyOnlineBookingById(appointmentId);
+      if (res?.data) {
+        setAppointment(res.data);
+      }
+    } catch (err: unknown) {
+      const { message } = extractApiError(
+        err,
+        'Không thể tải chi tiết lịch hẹn khám.'
+      );
+      setError(message);
+    }
+  }, [appointmentId]);
+
+  const handleConfirmCancelAppt = async (reason: string) => {
+    if (!appointment || cancelApptLoading) return;
+    setCancelApptLoading(true);
+    try {
+      const res = await AppointmentOrderService.cancelAppointment(
+        appointment._id,
+        { reason }
+      );
+      toast.success(res.message || 'Đã hủy lịch hẹn thành công');
+      setIsCancelApptOpen(false);
+      await reloadAppointment();
+      onUpdated?.();
+    } catch (err: unknown) {
+      const errRes = extractApiError(err, 'Hủy lịch hẹn thất bại');
+      const message = errRes.message;
+      const status = errRes.status ?? (errRes as any).statusCode;
+      toast.error(message);
+      if (status === 409 || status === 404) {
+        setIsCancelApptOpen(false);
+        await reloadAppointment();
+        onUpdated?.();
+      }
+    } finally {
+      setCancelApptLoading(false);
+    }
+  };
+
+  const handleConfirmCancelService = async (reason: string) => {
+    if (!serviceToCancel || cancelServiceLoading) return;
+    setCancelServiceLoading(true);
+    try {
+      const res = await AppointmentServiceService.cancelAppointmentService(
+        serviceToCancel._id,
+        { reason }
+      );
+      toast.success(res.message || 'Đã hủy dịch vụ thành công');
+      setServiceToCancel(null);
+      await reloadAppointment();
+      onUpdated?.();
+    } catch (err: unknown) {
+      const errRes = extractApiError(err, 'Hủy dịch vụ thất bại');
+      const message = errRes.message;
+      const status = errRes.status ?? (errRes as any).statusCode;
+      toast.error(message);
+      if (status === 409 || status === 404) {
+        setServiceToCancel(null);
+        await reloadAppointment();
+        onUpdated?.();
+      }
+    } finally {
+      setCancelServiceLoading(false);
+    }
+  };
 
   useEffect(() => {
     let isCurrent = true;
@@ -194,6 +277,17 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
         </div>
       }
       footer={[
+        appointment &&
+          resolvedIsPetOwner &&
+          appointment.derivedStatus === 'Booked' && (
+            <Button
+              key="cancel-appt"
+              danger
+              onClick={() => setIsCancelApptOpen(true)}
+            >
+              Hủy lịch hẹn
+            </Button>
+          ),
         appointment &&
           resolvedIsPetOwner &&
           isAppointmentEligibleForService(appointment) &&
@@ -281,6 +375,15 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                 <strong>{dayjs(appointment.date).format('DD/MM/YYYY')}</strong>
               </Descriptions.Item>
 
+              {(appointment.slotStart || appointment.slotEnd) && (
+                <Descriptions.Item label="Khung giờ hẹn">
+                  <strong style={{ color: '#0d9488' }}>
+                    {appointment.slotStart || '--:--'}
+                    {appointment.slotEnd ? ` - ${appointment.slotEnd}` : ''}
+                  </strong>
+                </Descriptions.Item>
+              )}
+
               <Descriptions.Item label="Trạng thái chu trình">
                 <Tag
                   color={getAppointmentStatusColor(appointment.derivedStatus)}
@@ -289,6 +392,27 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                   {appointment.derivedStatus})
                 </Tag>
               </Descriptions.Item>
+
+              {appointment.derivedStatus === 'Cancelled' && (
+                <Descriptions.Item label="Thông tin hủy lịch">
+                  <div>
+                    <span style={{ color: '#ef4444', fontWeight: 600 }}>
+                      Lý do:{' '}
+                    </span>
+                    <span>{appointment.cancelReason || 'Không có lý do'}</span>
+                  </div>
+                  {appointment.cancelledAt && (
+                    <div
+                      style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}
+                    >
+                      Thời gian hủy:{' '}
+                      {dayjs(appointment.cancelledAt).format(
+                        'HH:mm DD/MM/YYYY'
+                      )}
+                    </div>
+                  )}
+                </Descriptions.Item>
+              )}
 
               <Descriptions.Item label="Ghi chú của bạn">
                 {appointment.note ? (
@@ -438,6 +562,16 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                             flexWrap: 'wrap',
                           }}
                         >
+                          {(s.scheduledStart || s.scheduledEnd) && (
+                            <span>
+                              <ClockCircleOutlined style={{ marginRight: 4 }} />
+                              Khung giờ:{' '}
+                              <strong>
+                                {s.scheduledStart || ''}
+                                {s.scheduledEnd ? ` - ${s.scheduledEnd}` : ''}
+                              </strong>
+                            </span>
+                          )}
                           {popService?.defaultDuration && (
                             <span>
                               <ClockCircleOutlined style={{ marginRight: 4 }} />
@@ -464,20 +598,57 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                           )}
                         </div>
 
-                        {/* The vet writes a SOAP record once the exam starts (BR-23: the owner may read it) */}
-                        {isMedicalServiceCategory(popService?.category) &&
-                          (s.status === 'InProgress' ||
-                            s.status === 'Done') && (
-                            <Button
-                              type="link"
-                              size="small"
-                              icon={<FileTextOutlined />}
-                              style={{ padding: 0, marginTop: 6 }}
-                              onClick={() => setRecordServiceId(s._id)}
-                            >
-                              Xem bệnh án
-                            </Button>
-                          )}
+                        {s.status === 'Cancelled' && s.cancelReason && (
+                          <div
+                            style={{
+                              marginTop: 6,
+                              fontSize: 12.5,
+                              color: '#ef4444',
+                            }}
+                          >
+                            <span>Lý do hủy: {s.cancelReason}</span>
+                            {s.cancelledAt && (
+                              <span style={{ color: '#94a3b8', marginLeft: 6 }}>
+                                (
+                                {dayjs(s.cancelledAt).format(
+                                  'HH:mm DD/MM/YYYY'
+                                )}
+                                )
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+                          {/* The vet writes a SOAP record once the exam starts (BR-23: the owner may read it) */}
+                          {isMedicalServiceCategory(popService?.category) &&
+                            (s.status === 'InProgress' ||
+                              s.status === 'Done') && (
+                              <Button
+                                type="link"
+                                size="small"
+                                icon={<FileTextOutlined />}
+                                style={{ padding: 0 }}
+                                onClick={() => setRecordServiceId(s._id)}
+                              >
+                                Xem bệnh án
+                              </Button>
+                            )}
+
+                          {resolvedIsPetOwner &&
+                            appointment.derivedStatus === 'Booked' &&
+                            s.status === 'Booked' && (
+                              <Button
+                                type="link"
+                                size="small"
+                                danger
+                                style={{ padding: 0 }}
+                                onClick={() => setServiceToCancel(s)}
+                              >
+                                Hủy dịch vụ này
+                              </Button>
+                            )}
+                        </div>
                       </div>
                     );
                   })}
@@ -501,6 +672,45 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
         appointmentServiceId={recordServiceId}
         onClose={() => setRecordServiceId(null)}
       />
+
+      {/* Cancel Whole Appointment Modal */}
+      {appointment && (
+        <CancelReasonModal
+          open={isCancelApptOpen}
+          title="Hủy lịch hẹn trực tuyến"
+          warningText="Bạn đang thực hiện hủy toàn bộ lịch hẹn này. Mọi dịch vụ chưa thực hiện thuộc lịch hẹn cũng sẽ bị hủy."
+          targetDescription={
+            <div>
+              Lịch hẹn: <strong>{appointment.code}</strong> (Ngày{' '}
+              {dayjs(appointment.date).format('DD/MM/YYYY')}
+              {appointment.slotStart ? ` - ${appointment.slotStart}` : ''})
+            </div>
+          }
+          confirmLoading={cancelApptLoading}
+          onCancel={() => setIsCancelApptOpen(false)}
+          onConfirm={handleConfirmCancelAppt}
+        />
+      )}
+
+      {/* Cancel Single Service Modal */}
+      {serviceToCancel && (
+        <CancelReasonModal
+          open={Boolean(serviceToCancel)}
+          title="Hủy dịch vụ trong lịch hẹn"
+          warningText="Dịch vụ này sẽ bị hủy và rút khỏi lịch hẹn."
+          targetDescription={
+            <div>
+              Dịch vụ: #{serviceToCancel.sequenceNo}.{' '}
+              <strong>
+                {getAppointmentServiceName(serviceToCancel.serviceId)}
+              </strong>
+            </div>
+          }
+          confirmLoading={cancelServiceLoading}
+          onCancel={() => setServiceToCancel(null)}
+          onConfirm={handleConfirmCancelService}
+        />
+      )}
     </Modal>
   );
 };

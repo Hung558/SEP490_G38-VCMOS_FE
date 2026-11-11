@@ -15,4 +15,6 @@ export type {
   QueueOrderRef,
   MyQueueItem,
   ListMyQueueResponse,
+  CancelAppointmentServicePayload,
+  CancelAppointmentServiceResponse,
 } from '../../types/api/appointment-service.api';

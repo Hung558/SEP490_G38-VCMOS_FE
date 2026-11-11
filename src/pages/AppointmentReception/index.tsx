@@ -5,12 +5,14 @@ import {
   SearchOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { PageHeader, PageWrapper } from './components/styles';
 import { useAppointmentReception } from './components/useAppointmentReception';
 import AppointmentFilters from './components/AppointmentFilters';
 import AppointmentTable from './components/AppointmentTable';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
 import CheckInConfirmModal from './components/CheckInConfirmModal';
+import CancelReasonModal from '@/components/appointment/CancelReasonModal';
 import CageAssignmentTable from './components/CageAssignmentTable';
 import CageAssignmentModal from './components/CageAssignmentModal';
 import CageAssignmentDetailModal from './components/CageAssignmentDetailModal';
@@ -65,6 +67,7 @@ const AppointmentReceptionPage = () => {
         onViewDetail={state.openDetail}
         onCheckIn={state.openCheckIn}
         onAssignCage={state.openCreateAssignment}
+        onCancelAppointment={state.openCancel}
       />
     </>
   );
@@ -165,6 +168,7 @@ const AppointmentReceptionPage = () => {
           appointment={state.selectedAppointment}
           canAssignStaff={state.isReceptionist}
           onClose={state.closeDetail}
+          onUpdated={state.fetchAppointments}
         />
 
         {state.isReceptionist && (
@@ -184,6 +188,27 @@ const AppointmentReceptionPage = () => {
               onConfirm={state.confirmCheckIn}
               onClose={state.closeCheckIn}
             />
+
+            {state.cancelTarget && (
+              <CancelReasonModal
+                open={state.cancelOpen}
+                title="Lễ tân hủy lịch hẹn"
+                warningText="Lịch hẹn và các dịch vụ chưa bắt đầu (Booked, Waiting) sẽ bị hủy. Thao tác không thể hoàn tác."
+                targetDescription={
+                  <div>
+                    Mã lịch hẹn: <strong>{state.cancelTarget.code}</strong>{' '}
+                    (Ngày {dayjs(state.cancelTarget.date).format('DD/MM/YYYY')}
+                    {state.cancelTarget.slotStart
+                      ? ` - ${state.cancelTarget.slotStart}`
+                      : ''}
+                    )
+                  </div>
+                }
+                confirmLoading={state.cancelSubmitting}
+                onCancel={state.closeCancel}
+                onConfirm={state.confirmCancel}
+              />
+            )}
 
             <CageAssignmentModal
               open={state.createAssignmentOpen}

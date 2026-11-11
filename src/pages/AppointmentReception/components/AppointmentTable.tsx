@@ -1,4 +1,4 @@
-import { Button, Space, Table, Tag, Typography } from 'antd';
+import { Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleOutlined,
@@ -29,6 +29,7 @@ interface AppointmentTableProps {
   onViewDetail: (appointment: StaffAppointment) => void;
   onCheckIn: (appointment: StaffAppointment) => void;
   onAssignCage: (appointment: StaffAppointment) => void;
+  onCancelAppointment?: (appointment: StaffAppointment) => void;
 }
 
 const AppointmentTable = ({
@@ -42,6 +43,7 @@ const AppointmentTable = ({
   onViewDetail,
   onCheckIn,
   onAssignCage,
+  onCancelAppointment,
 }: AppointmentTableProps) => {
   const columns: ColumnsType<StaffAppointment> = [
     {
@@ -59,9 +61,17 @@ const AppointmentTable = ({
       title: 'Ngày hẹn',
       dataIndex: 'date',
       key: 'date',
-      width: 120,
-      render: (date: string) => (
-        <Text>{date ? dayjs(date).format('DD/MM/YYYY') : '-'}</Text>
+      width: 130,
+      render: (date: string, record: StaffAppointment) => (
+        <div>
+          <Text>{date ? dayjs(date).format('DD/MM/YYYY') : '-'}</Text>
+          {record.slotStart && (
+            <div style={{ fontSize: 12, color: '#0958d9', fontWeight: 500 }}>
+              {record.slotStart}
+              {record.slotEnd ? ` - ${record.slotEnd}` : ''}
+            </div>
+          )}
+        </div>
       ),
     },
     {
@@ -108,11 +118,19 @@ const AppointmentTable = ({
       dataIndex: 'derivedStatus',
       key: 'derivedStatus',
       width: 140,
-      render: (status: string) => (
-        <Tag color={getAppointmentStatusColor(status)}>
-          {getAppointmentStatusLabel(status)}
-        </Tag>
-      ),
+      render: (status: string, record: StaffAppointment) => {
+        const tag = (
+          <Tag color={getAppointmentStatusColor(status)}>
+            {getAppointmentStatusLabel(status)}
+          </Tag>
+        );
+        if (status === 'Cancelled' && record.cancelReason) {
+          return (
+            <Tooltip title={`Lý do hủy: ${record.cancelReason}`}>{tag}</Tooltip>
+          );
+        }
+        return tag;
+      },
     },
     {
       title: 'Check-in lúc',
@@ -131,10 +149,14 @@ const AppointmentTable = ({
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 220,
+      width: 280,
       fixed: 'right',
       render: (_, record) => {
         const canCheckIn = isReceptionist && record.derivedStatus === 'Booked';
+        const canCancel =
+          isReceptionist &&
+          ['Booked', 'CheckedIn'].includes(record.derivedStatus) &&
+          Boolean(onCancelAppointment);
 
         return (
           <ActionsWrapper>
@@ -162,6 +184,15 @@ const AppointmentTable = ({
                 onClick={() => onAssignCage(record)}
               >
                 Phân chuồng
+              </Button>
+            )}
+            {canCancel && (
+              <Button
+                size="small"
+                danger
+                onClick={() => onCancelAppointment?.(record)}
+              >
+                Hủy hẹn
               </Button>
             )}
           </ActionsWrapper>

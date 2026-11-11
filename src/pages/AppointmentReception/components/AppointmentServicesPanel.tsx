@@ -14,6 +14,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import MedicalRecordModal from '@/components/medical/MedicalRecordModal';
+import CancelReasonModal from '@/components/appointment/CancelReasonModal';
 import { isMedicalServiceCategory } from '@/services/MedicalRecordService';
 import type {
   OnlineAppointmentService,
@@ -55,12 +56,14 @@ interface AppointmentServicesPanelProps {
   appointment: StaffAppointment;
   /** Chỉ Lễ tân được phân công; Admin chỉ xem */
   canAssign: boolean;
+  onUpdated?: () => void;
 }
 
 /** Dịch vụ của một lịch hẹn và người phụ trách (SCR-16) */
 const AppointmentServicesPanel = ({
   appointment,
   canAssign,
+  onUpdated,
 }: AppointmentServicesPanelProps) => {
   const [items, setItems] = useState<OnlineAppointmentService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,9 +80,42 @@ const AppointmentServicesPanel = ({
   const [savingId, setSavingId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Cancel Service State
+  const [serviceToCancel, setServiceToCancel] =
+    useState<OnlineAppointmentService | null>(null);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
   const orderId = appointment._id;
   const orderStatus = appointment.derivedStatus;
   const orderBlockReason = getAssignStaffBlockReason(undefined, orderStatus);
+
+  const handleConfirmCancelService = async (reason: string) => {
+    if (!serviceToCancel || cancelSubmitting) return;
+    setCancelSubmitting(true);
+    try {
+      const res = await AppointmentServiceService.cancelAppointmentService(
+        serviceToCancel._id,
+        { reason }
+      );
+      toast.success(res.message || 'Đã hủy dịch vụ thành công');
+      setServiceToCancel(null);
+      fetchServices();
+      onUpdated?.();
+    } catch (err: unknown) {
+      const { message, statusCode } = extractApiError(
+        err,
+        'Hủy dịch vụ thất bại'
+      );
+      toast.error(message);
+      if (statusCode === 409 || statusCode === 404) {
+        setServiceToCancel(null);
+        fetchServices();
+        onUpdated?.();
+      }
+    } finally {
+      setCancelSubmitting(false);
+    }
+  };
 
   const fetchServices = useCallback(async () => {
     abortRef.current?.abort();
@@ -279,6 +315,15 @@ const AppointmentServicesPanel = ({
         </div>
 
         <div className="service-meta">
+          {(item.scheduledStart || item.scheduledEnd) && (
+            <span>
+              <Text type="secondary">Khung giờ: </Text>
+              <Text strong>
+                {item.scheduledStart || ''}
+                {item.scheduledEnd ? ` - ${item.scheduledEnd}` : ''}
+              </Text>
+            </span>
+          )}
           <span>
             <Text type="secondary">Phụ trách: </Text>
             {item.assignedStaffId ? (
@@ -302,22 +347,53 @@ const AppointmentServicesPanel = ({
               {getAppointmentServiceStaffName(item.preferredStaffId)}
             </span>
           )}
+          {item.status === 'Cancelled' && item.cancelReason && (
+            <div style={{ marginTop: 4, fontSize: 12.5, color: '#ff4d4f' }}>
+              <span>Lý do hủy: {item.cancelReason}</span>
+              {item.cancelledAt && (
+                <span style={{ color: '#8c8c8c', marginLeft: 6 }}>
+                  ({dayjs(item.cancelledAt).format('HH:mm DD/MM/YYYY')})
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {renderAssignControls(item)}
 
-        {isMedicalServiceCategory(category) &&
-          (item.status === 'InProgress' || item.status === 'Done') && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            marginTop: 6,
+            alignItems: 'center',
+          }}
+        >
+          {isMedicalServiceCategory(category) &&
+            (item.status === 'InProgress' || item.status === 'Done') && (
+              <Button
+                type="link"
+                size="small"
+                icon={<FileTextOutlined />}
+                style={{ padding: 0 }}
+                onClick={() => setRecordServiceId(item._id)}
+              >
+                Xem bệnh án
+              </Button>
+            )}
+
+          {canAssign && ['Booked', 'Waiting'].includes(item.status) && (
             <Button
               type="link"
               size="small"
-              icon={<FileTextOutlined />}
-              style={{ padding: 0, marginTop: 6 }}
-              onClick={() => setRecordServiceId(item._id)}
+              danger
+              style={{ padding: 0 }}
+              onClick={() => setServiceToCancel(item)}
             >
-              Xem bệnh án
+              Hủy dịch vụ
             </Button>
           )}
+        </div>
       </OrderServiceCard>
     );
   };
@@ -371,6 +447,25 @@ const AppointmentServicesPanel = ({
         appointmentServiceId={recordServiceId}
         onClose={() => setRecordServiceId(null)}
       />
+
+      {serviceToCancel && (
+        <CancelReasonModal
+          open={Boolean(serviceToCancel)}
+          title="Hủy dịch vụ trong lịch hẹn"
+          warningText="Dịch vụ này sẽ bị hủy và rút khỏi hàng đợi của nhân sự (nếu có)."
+          targetDescription={
+            <div>
+              Dịch vụ: #{serviceToCancel.sequenceNo}.{' '}
+              <strong>
+                {getAppointmentServiceName(serviceToCancel.serviceId)}
+              </strong>
+            </div>
+          }
+          confirmLoading={cancelSubmitting}
+          onCancel={() => setServiceToCancel(null)}
+          onConfirm={handleConfirmCancelService}
+        />
+      )}
     </div>
   );
 };

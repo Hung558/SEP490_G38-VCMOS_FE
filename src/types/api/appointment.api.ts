@@ -15,10 +15,18 @@ export interface OnlineAppointment {
   petId: string;
   ownerId: string;
   date: string; // YYYY-MM-DD
+  slotStart?: string | null;
+  slotEnd?: string | null;
   note?: string | null;
   isOnline: boolean;
   checkedInAt?: string | null;
   derivedStatus: AppointmentStatus;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?:
+    | string
+    | { _id: string; fullName?: string; role?: string }
+    | null;
   services?: OnlineAppointmentService[];
   createdAt: string;
   updatedAt: string;
@@ -28,6 +36,7 @@ export interface OnlineAppointment {
 export interface CreateOnlineBookingPayload {
   petId: string;
   date: string;
+  slotStart?: string;
   note?: string;
 }
 
@@ -81,10 +90,18 @@ export interface StaffAppointment {
   petId: PopulatedPetRef | string;
   ownerId: PopulatedOwnerRef | string;
   date: string; // YYYY-MM-DD
+  slotStart?: string | null;
+  slotEnd?: string | null;
   note?: string | null;
   isOnline: boolean;
   derivedStatus: AppointmentStatus;
   checkedInAt?: string | null;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?:
+    | string
+    | { _id: string; fullName?: string; role?: string }
+    | null;
   createdAt: string;
   updatedAt: string;
   __v?: number;
@@ -110,4 +127,13 @@ export interface ListStaffAppointmentsResponse {
 export interface CheckInAppointmentResponse {
   message: string;
   data: StaffAppointment;
+}
+
+export interface CancelAppointmentPayload {
+  reason: string;
+}
+
+export interface CancelAppointmentResponse {
+  message: string;
+  data: OnlineAppointment | StaffAppointment;
 }

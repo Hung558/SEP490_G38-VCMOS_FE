@@ -270,6 +270,10 @@ export const buildCreateOnlineBookingPayload = (
     payload.note = anyData.note.trim();
   }
 
+  if (typeof anyData.slotStart === 'string' && anyData.slotStart.trim()) {
+    payload.slotStart = anyData.slotStart.trim();
+  }
+
   const rawServices = Array.isArray(anyData.services) ? anyData.services : [];
   payload.services = rawServices.map((item: unknown) => {
     const rawItem = (item && typeof item === 'object' ? item : {}) as Record<
@@ -314,6 +318,70 @@ export const getVietnamTodayString = (): string => {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
+};
+
+/**
+ * Lấy giờ hiện tại theo giờ Việt Nam (Asia/Ho_Chi_Minh) dạng HH:mm
+ */
+export const getVietnamCurrentTime = (): string => {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
+  } catch {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+};
+
+/**
+ * Validate giờ bắt đầu đặt lịch (slotStart):
+ * - Tùy chọn (nếu không truyền => hợp lệ)
+ * - Đúng định dạng HH:mm
+ * - Nằm trong giờ mở cửa phòng khám: 08:00 đến trước 18:00 (tức <= 17:30)
+ * - Nếu đặt cho ngày hôm nay, không được ở trong quá khứ
+ */
+export const validateSlotStart = (
+  slotStart?: string,
+  date?: string
+): string | undefined => {
+  if (!slotStart || typeof slotStart !== 'string' || !slotStart.trim()) {
+    return undefined;
+  }
+  const trimmed = slotStart.trim();
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(trimmed)) {
+    return 'Khung giờ phải đúng định dạng HH:mm';
+  }
+  if (trimmed < '08:00' || trimmed >= '18:00') {
+    return 'Giờ hẹn phải nằm trong khung giờ làm việc (08:00 - 18:00)';
+  }
+  const todayStr = getVietnamTodayString();
+  if (date && date.trim() === todayStr) {
+    const currentHHmm = getVietnamCurrentTime();
+    if (trimmed <= currentHHmm) {
+      return 'Giờ hẹn không được ở trong quá khứ';
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Validate lý do hủy lịch hẹn / dịch vụ:
+ * - Bắt buộc nhập chuỗi không rỗng
+ * - Tối đa 200 ký tự (theo hợp đồng BE)
+ */
+export const validateCancelReason = (reason?: unknown): string | undefined => {
+  if (typeof reason !== 'string' || !reason.trim()) {
+    return 'Lý do hủy là bắt buộc';
+  }
+  if (reason.trim().length > 200) {
+    return 'Lý do hủy tối đa 200 ký tự';
+  }
+  return undefined;
 };
 
 /**
@@ -367,6 +435,7 @@ export interface OnlineBookingFormValidationResult {
   errors: {
     petId?: string;
     date?: string;
+    slotStart?: string;
     note?: string;
     services?: string;
     serviceErrors?: Array<{
@@ -383,6 +452,7 @@ export interface OnlineBookingFormValidationResult {
 export const validateOnlineBookingForm = (values: {
   petId?: unknown;
   date?: unknown;
+  slotStart?: unknown;
   note?: unknown;
   services?: unknown;
 }): OnlineBookingFormValidationResult => {
@@ -402,13 +472,21 @@ export const validateOnlineBookingForm = (values: {
     errors.date = dateErr;
   }
 
-  // 3. note (optional)
+  // 3. slotStart (optional)
+  const slotStartStr =
+    typeof values.slotStart === 'string' ? values.slotStart : undefined;
+  const slotErr = validateSlotStart(slotStartStr, dateStr);
+  if (slotErr) {
+    errors.slotStart = slotErr;
+  }
+
+  // 4. note (optional)
   const noteErr = validateBookingNote(values.note);
   if (noteErr) {
     errors.note = noteErr;
   }
 
-  // 4. services
+  // 5. services
   if (!Array.isArray(values.services) || values.services.length === 0) {
     errors.services = 'Lịch hẹn phải có ít nhất một dịch vụ';
   } else {

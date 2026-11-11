@@ -5,3 +5,5 @@ export const apiMyBookingDetail = (id: string) =>
 export const apiStaffAppointments = '/appointment-orders';
 export const apiCheckInAppointment = (id: string) =>
   `/appointment-orders/${id}/check-in`;
+export const apiCancelAppointment = (id: string) =>
+  `/appointment-orders/${id}/cancel`;
