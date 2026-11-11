@@ -1,33 +1,36 @@
-# Antigravity handoff
+# Antigravity handoff & Status Summary
 
-## Task
+## Trạng thái hoàn thành: COMPLETED (11/11/2026)
 
-Implement the one FE-actionable gap in `spec.md` and `plan.md`: replace the PetOwner four-step booking wizard with one form in Dashboard appointments, and route landing booking CTAs to that Dashboard form.
+Toàn bộ các yêu cầu từ spec và plan hôm nay đã được triển khai, kiểm thử tự động toàn diện và merge thành công vào nhánh `main` theo quy trình Git Flow.
 
-The SOAP waiting-cage control is explicitly blocked: BE accepts `waitingCageId` at completion, but its cage-list route permits only Admin/Receptionist, not Veterinarian. Do not implement a picker until BE provides a least-privilege catalog API or changes authorization.
+### 1. PR #25: Đặt lịch online 1 form, gỡ khỏi Landing, sửa nút Action
 
-## Before editing
+- **Mã commit:** `b1ba60b`
+- **Pull Request:** [PR #25](https://github.com/Hung558/SEP490_G38-VCMOS_FE/pull/25) (Merged at `e570116`)
+- **Nội dung:**
+  - Chuyển `QuickBookingSection` sang form 1 màn hình hiển thị đồng thời toàn bộ thông tin.
+  - Loại bỏ booking wizard khỏi Landing page, chuyển hướng các CTA sang Dashboard.
+  - Mở rộng cột Hành động trên bảng lịch hẹn Dashboard lên 240px, scroll x 960px, khắc phục triệt để lỗi tràn chữ nút "Thêm dịch vụ".
+  - Chống race condition khi retry tải dịch vụ và lọc nghiêm ngặt dịch vụ `Active`.
 
-- Read `spec.md` and `plan.md` in full.
-- Confirm worktree is at FE branch/revision the user intends; do not switch branches, fetch, merge, commit, push or modify BE under this task.
-- Re-read current BE booking validator/service and trace all callers/tests before changing shared booking component behavior.
-- Do not implement SOAP cage selection: current BE `GET /api/cages` returns authorization denial for Veterinarian; track it as a backend prerequisite.
+### 2. PR #26: Tích hợp chọn chuồng chờ đón & phân quyền chuồng cho Bác sĩ (sau BE PR #35)
 
-## Preserve
+- **Mã commit:** `a3c5feb`
+- **Pull Request:** [PR #26](https://github.com/Hung558/SEP490_G38-VCMOS_FE/pull/26) (Merged at `4f8f806`)
+- **Nội dung:**
+  - Tích hợp dropdown chọn chuồng chờ đón (`waitingCageId`) khi Bác sĩ hoàn tất khám SOAP (`SoapForm.tsx`).
+  - Kiểm tra tải trọng chuồng trực tiếp theo cân nặng thú cưng (BR-11), vô hiệu hóa các chuồng quá tải kèm tag cảnh báo.
+  - Mở nút "Chuồng" trong Hàng đợi khám (`StaffQueue/index.tsx`) cho cả Bác sĩ và Groomer để tra cứu vị trí và giải phóng chuồng.
+  - Phân quyền route `/cages` và menu "Quản lý chuồng" cho Bác sĩ và Groomer.
 
-- `POST /appointment-services/online-booking` combined owner booking and its payload whitelist.
-- Active-only service catalog, abort/stale request protection, initial pet/note prefill and existing Dashboard callbacks.
-- Owner-scoped booking reads and assigned-staff display.
-- Walk-in, receptionist check-in, staff assignment, queues, cage assignment management, SOAP field rules, medical history and finalized-record locking.
-- Existing auth/login behavior for guests; do not create a new authentication path.
+### 3. Bằng chứng kiểm thử (Verification Evidence)
 
-## Do not do
-
-- Do not create a Veterinarian cage picker against the currently unauthorized GET `/api/cages` endpoint.
-- Do not rebuild flows listed as already integrated in the coverage matrix.
-- Do not implement AI functionality; the feedback is satisfied by a dedicated Dashboard tab and the current tab already exists.
-- Do not change BE, add dependencies, broaden into unrelated API parity, or claim E2E validation without running it.
-
-## Handoff evidence
-
-Return changed paths, focused test coverage, exact results for tests/typecheck/lint/build, any verified contract divergence, and any deferred item. Keep all changes FE-only and uncommitted.
+- **Unit Tests:** `141/141` passed (`npm test`).
+- **Type Checking:** 0 lỗi TypeScript (`npm run check-types`).
+- **Linter:** 0 lỗi / cảnh báo ESLint (`npm run lint`).
+- **Production Build:** Hoàn tất thành công trong 9.36s (`npm run build`).
+- **Playwright E2E Tests:**
+  - `tests/verify_feedback_parity_e2e.py`: 5/5 kịch bản pass 100%.
+  - `tests/verify_vet_cage_e2e.py`: 3/3 kịch bản pass 100%.
+- **Git Status:** Nhánh `main` của FE và BE sạch sẽ, up-to-date với `origin/main`.
