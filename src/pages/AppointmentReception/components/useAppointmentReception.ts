@@ -8,12 +8,14 @@ import type {
   AppointmentStatus,
   CageAssignment,
   CreateCageAssignmentPayload,
+  ReceptionIntake,
   CreateWalkInBookingResult,
   StaffAppointment,
 } from '@/types';
 import AppointmentOrderService, {
   extractApiError,
   getVietnamTodayString,
+  readReceptionIntake,
 } from '@/services/AppointmentOrderService';
 import CageAssignmentService from '@/services/CageAssignmentService';
 import { useActiveCageAssignments } from './useActiveCageAssignments';
@@ -94,6 +96,7 @@ export const useAppointmentReception = () => {
     null
   );
   const [checkInSubmitting, setCheckInSubmitting] = useState(false);
+  const checkInPendingRef = useRef(false);
 
   // Cancel Appointment State (Receptionist only)
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -388,15 +391,25 @@ export const useAppointmentReception = () => {
     setCheckInTarget(null);
   };
 
-  const confirmCheckIn = async () => {
-    if (!checkInTarget || !isReceptionist || checkInSubmitting) return;
+  const confirmCheckIn = async (intake?: ReceptionIntake) => {
+    if (!checkInTarget || !isReceptionist || checkInPendingRef.current) return;
 
+    checkInPendingRef.current = true;
     setCheckInSubmitting(true);
     try {
       const res = await AppointmentOrderService.checkInAppointment(
-        checkInTarget._id
+        checkInTarget._id,
+        intake
       );
-      toast.success(res.message || 'Tiếp nhận lịch hẹn thành công');
+      const savedIntake = readReceptionIntake(res.data?.intake);
+      if (intake && !savedIntake) {
+        // The order may already be checked in, so refresh rather than resubmitting.
+        toast.warning(
+          'Không xác nhận được phiếu tiếp nhận đã lưu. Vui lòng kiểm tra lại lịch hẹn.'
+        );
+      } else {
+        toast.success(res.message || 'Tiếp nhận lịch hẹn thành công');
+      }
       setCheckInOpen(false);
       setCheckInTarget(null);
       // Refresh current page to preserve page and filters
@@ -414,6 +427,7 @@ export const useAppointmentReception = () => {
         refreshAppointmentList();
       }
     } finally {
+      checkInPendingRef.current = false;
       setCheckInSubmitting(false);
     }
   };
