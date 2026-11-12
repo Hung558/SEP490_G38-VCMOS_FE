@@ -23,7 +23,10 @@ import {
   formatServiceDuration,
   serviceCategoryLabels,
 } from '@/services/ServiceService';
-import { filterActiveServices } from '@/services/AppointmentServiceService';
+import {
+  filterActiveServices,
+  getBookingServiceDuration,
+} from '@/services/AppointmentServiceService';
 
 const { Text } = Typography;
 
@@ -225,7 +228,7 @@ const BookingServiceStep: React.FC<BookingServiceStepProps> = ({
   // Calculate totals
   const totalDuration = selectedServices.reduce((acc, curr) => {
     const s = serviceMap.get(curr.serviceId);
-    return acc + (s?.defaultDuration || 0);
+    return acc + getBookingServiceDuration(s?.defaultDuration);
   }, 0);
 
   const totalPrice = selectedServices.reduce((acc, curr) => {
@@ -306,14 +309,12 @@ const BookingServiceStep: React.FC<BookingServiceStepProps> = ({
                                   s.category}
                               </Tag>
                             )}
-                            {s?.defaultDuration && (
-                              <span>
-                                <ClockCircleOutlined
-                                  style={{ marginRight: 4 }}
-                                />
-                                {formatServiceDuration(s.defaultDuration)}
-                              </span>
-                            )}
+                            <span>
+                              <ClockCircleOutlined style={{ marginRight: 4 }} />
+                              {formatServiceDuration(
+                                getBookingServiceDuration(s?.defaultDuration)
+                              )}
+                            </span>
                             {s?.basePrice !== undefined && (
                               <span>
                                 <DollarOutlined style={{ marginRight: 4 }} />

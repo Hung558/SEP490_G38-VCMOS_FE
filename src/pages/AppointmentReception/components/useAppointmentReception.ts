@@ -84,6 +84,7 @@ export const useAppointmentReception = () => {
     null
   );
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [serviceRefreshTrigger, setServiceRefreshTrigger] = useState(0);
 
   // Cage Assignments State (Receptionist only)
   const [assignments, setAssignments] = useState<CageAssignment[]>([]);
@@ -429,6 +430,9 @@ export const useAppointmentReception = () => {
       setCancelOpen(false);
       setCancelTarget(null);
       fetchAppointments();
+      if (selectedAppointmentRef.current?._id === cancelTarget._id) {
+        setServiceRefreshTrigger(count => count + 1);
+      }
     } catch (err: unknown) {
       const { message, status } = extractApiError(err, 'Hủy lịch hẹn thất bại');
       toast.error(message);
@@ -436,6 +440,9 @@ export const useAppointmentReception = () => {
         setCancelOpen(false);
         setCancelTarget(null);
         fetchAppointments();
+        if (selectedAppointmentRef.current?._id === cancelTarget._id) {
+          setServiceRefreshTrigger(count => count + 1);
+        }
       }
     } finally {
       setCancelSubmitting(false);
@@ -616,6 +623,7 @@ export const useAppointmentReception = () => {
     // Cancel (Receptionist)
     cancelOpen,
     cancelTarget,
+    serviceRefreshTrigger,
     cancelSubmitting,
     openCancel,
     closeCancel,

@@ -169,6 +169,8 @@ const AppointmentReceptionPage = () => {
           canAssignStaff={state.isReceptionist}
           onClose={state.closeDetail}
           onUpdated={state.handleDetailUpdated}
+          onCancelAppointment={state.openCancel}
+          serviceRefreshTrigger={state.serviceRefreshTrigger}
         />
 
         {state.isReceptionist && (

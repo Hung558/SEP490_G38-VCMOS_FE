@@ -43,6 +43,8 @@ import AppointmentOrderService, {
   getAppointmentStatusLabel,
   getAppointmentStatusColor,
   extractApiError,
+  canOwnerCancelAppointment,
+  OWNER_CANCEL_DEADLINE_MESSAGE,
 } from '@/services/AppointmentOrderService';
 import type { OnlineAppointment, AppointmentStatus } from '@/types';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
@@ -516,7 +518,13 @@ const DashboardPage: React.FC = () => {
   }, [fetchAppointments]);
 
   const handleConfirmCancelAppointment = async (reason: string) => {
-    if (!appointmentToCancel || cancelSubmitting) return;
+    if (!appointmentToCancel || !isPetOwner || cancelSubmitting) return;
+    if (!canOwnerCancelAppointment(appointmentToCancel)) {
+      setIsCancelModalOpen(false);
+      setAppointmentToCancel(null);
+      toast.warning(OWNER_CANCEL_DEADLINE_MESSAGE);
+      return;
+    }
     setCancelSubmitting(true);
     try {
       const res = await AppointmentOrderService.cancelAppointment(
@@ -762,7 +770,7 @@ const DashboardPage: React.FC = () => {
                 Thêm dịch vụ
               </Button>
             )}
-            {isPetOwner && record.derivedStatus === 'Booked' && (
+            {isPetOwner && canOwnerCancelAppointment(record) && (
               <Button
                 type="link"
                 size="small"
@@ -774,6 +782,10 @@ const DashboardPage: React.FC = () => {
                   lineHeight: 1.4,
                 }}
                 onClick={() => {
+                  if (!canOwnerCancelAppointment(record)) {
+                    toast.warning(OWNER_CANCEL_DEADLINE_MESSAGE);
+                    return;
+                  }
                   setAppointmentToCancel(record);
                   setIsCancelModalOpen(true);
                 }}
