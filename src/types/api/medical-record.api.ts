@@ -81,7 +81,7 @@ export interface SaveMedicalRecordPayload {
 
 /** POST /medical-records/service/:id/complete; needs all four SOAP fields (BR-13) */
 export interface CompleteMedicalRecordPayload extends SaveMedicalRecordPayload {
-  waitingCageId?: string;
+  waitingCageId?: string | null;
 }
 
 export interface StartConsultationResponse {

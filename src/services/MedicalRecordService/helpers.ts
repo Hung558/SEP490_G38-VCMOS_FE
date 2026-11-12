@@ -1,4 +1,5 @@
 import type {
+  CompleteMedicalRecordPayload,
   MedicalRecord,
   MedicalRecordServiceRef,
   Prescription,
@@ -109,6 +110,15 @@ export const buildMedicalRecordPayload = (
   }
   return payload;
 };
+
+/** Hoàn tất với dữ liệu hiện tại; null nghĩa là không xếp chuồng chờ đón. */
+export const buildCompleteMedicalRecordPayload = (
+  values: MedicalRecordFormValues,
+  waitingCageId?: string
+): CompleteMedicalRecordPayload => ({
+  ...buildMedicalRecordPayload(values),
+  waitingCageId: waitingCageId ?? null,
+});
 
 /** Các phần SOAP còn trống (BR-13) */
 export const findMissingSoapFields = (

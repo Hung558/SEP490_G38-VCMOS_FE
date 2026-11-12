@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Button,
@@ -23,7 +23,6 @@ import { toast } from 'sonner';
 import type {
   AppointmentServiceStatus,
   CompleteConsultationResponse,
-  CompleteMedicalRecordPayload,
   MedicalRecord,
 } from '@/types';
 import type { Product } from '@/services/ProductService';
@@ -39,6 +38,7 @@ import MedicalRecordService, {
   PRESCRIPTION_TEXT_MAX,
   SOAP_FIELDS,
   SOAP_TEXT_MAX,
+  buildCompleteMedicalRecordPayload,
   buildMedicalRecordPayload,
   findMissingSoapFields,
   recordToFormValues,
@@ -68,12 +68,10 @@ interface SoapFormProps {
   products: Product[];
   productsError: boolean;
   serviceStatus: AppointmentServiceStatus;
-  /** Finalized: chỉ xem */
-  locked: boolean;
   onSaved: (record: MedicalRecord) => void;
   onCompleted: (result: CompleteConsultationResponse) => void;
-  /** 409 hoặc ca khám đổi ở nơi khác: tải lại trạng thái từ BE */
-  onStale: () => void;
+  /** Kiểm tra lại trạng thái mà không đặt lại form đang nhập. */
+  onConflict: () => Promise<void>;
 }
 
 /** Form bệnh án SOAP và đơn thuốc; mount khi đã có dữ liệu nên mỗi lần mở là giá trị mới */
@@ -84,16 +82,16 @@ const SoapForm = ({
   products,
   productsError,
   serviceStatus,
-  locked,
   onSaved,
   onCompleted,
-  onStale,
+  onConflict,
 }: SoapFormProps) => {
   const [form] = Form.useForm<MedicalRecordFormValues>();
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const writing = useRef(false);
   const [serverError, setServerError] = useState<{
     message: string;
     details: string[];
@@ -102,6 +100,8 @@ const SoapForm = ({
   // Chuồng chờ đón sau khám (BR-10, BR-11, UC-27)
   const [availableCages, setAvailableCages] = useState<Cage[]>([]);
   const [loadingCages, setLoadingCages] = useState(false);
+  const [cagesError, setCagesError] = useState(false);
+  const [cageLoadAttempt, setCageLoadAttempt] = useState(0);
   const [selectedWaitingCageId, setSelectedWaitingCageId] = useState<
     string | undefined
   >(undefined);
@@ -120,31 +120,32 @@ const SoapForm = ({
         : undefined;
 
   useEffect(() => {
-    if (!confirmOpen) {
-      setSelectedWaitingCageId(undefined);
-      return;
-    }
+    if (!confirmOpen) return;
     const ctrl = new AbortController();
+    setAvailableCages([]);
+    setCagesError(false);
     setLoadingCages(true);
     CageService.listCages(
       { status: 'Available', limit: 100 },
       { signal: ctrl.signal }
     )
       .then(res => {
-        setAvailableCages(res.data?.items || []);
+        if (ctrl.signal.aborted) return;
+        setAvailableCages(
+          (res.data?.items || []).filter(c => c.status === 'Available')
+        );
       })
       .catch(() => {
-        setAvailableCages([]);
+        if (!ctrl.signal.aborted) setCagesError(true);
       })
       .finally(() => {
-        setLoadingCages(false);
+        if (!ctrl.signal.aborted) setLoadingCages(false);
       });
     return () => ctrl.abort();
-  }, [confirmOpen]);
+  }, [confirmOpen, cageLoadAttempt]);
 
-  const canComplete = serviceStatus === 'InProgress' && !locked;
-  const editable =
-    !locked && (serviceStatus === 'InProgress' || serviceStatus === 'Done');
+  const canComplete = serviceStatus === 'InProgress';
+  const editable = canComplete || serviceStatus === 'Done';
   const busy = saving || completing;
 
   // Ask before leaving the tab with unsaved notes
@@ -181,7 +182,7 @@ const SoapForm = ({
     return options;
   }, [products, record]);
 
-  const applyServerError = (err: unknown, fallback: string) => {
+  const applyServerError = async (err: unknown, fallback: string) => {
     const { message, statusCode, fieldErrors } = extractApiError(err, fallback);
     const details: string[] = [];
     const fields: { name: (string | number)[]; errors: string[] }[] = [];
@@ -195,16 +196,22 @@ const SoapForm = ({
     setServerError({ message, details });
     toast.error(message);
     if (statusCode === 409 || statusCode === 404 || statusCode === 403) {
-      onStale();
+      try {
+        await onConflict();
+      } catch {
+        // A failed status check must not hide the original error or reset input.
+      }
     }
   };
 
   const handleSave = async () => {
-    if (busy) return;
+    if (!editable || writing.current) return;
+    writing.current = true;
     let values: MedicalRecordFormValues;
     try {
       values = await form.validateFields();
     } catch {
+      writing.current = false;
       return;
     }
     setSaving(true);
@@ -218,14 +225,15 @@ const SoapForm = ({
       toast.success('Đã lưu nháp bệnh án');
       onSaved(saved);
     } catch (err: unknown) {
-      applyServerError(err, 'Không thể lưu nháp bệnh án');
+      await applyServerError(err, 'Không thể lưu nháp bệnh án');
     } finally {
+      writing.current = false;
       setSaving(false);
     }
   };
 
   const askComplete = async () => {
-    if (busy) return;
+    if (!canComplete || writing.current) return;
     let values: MedicalRecordFormValues;
     try {
       values = await form.validateFields();
@@ -243,19 +251,24 @@ const SoapForm = ({
       toast.error(MSG_SOAP_REQUIRED);
       return;
     }
+    if (writing.current) return;
+    setSelectedWaitingCageId(undefined);
+    setAvailableCages([]);
+    setCagesError(false);
+    setLoadingCages(true);
     setConfirmOpen(true);
   };
 
   const handleComplete = async () => {
+    if (!canComplete || !confirmOpen || writing.current) return;
+    writing.current = true;
     setCompleting(true);
     setServerError(null);
     try {
-      const payload: CompleteMedicalRecordPayload = {
-        ...buildMedicalRecordPayload(form.getFieldsValue(true)),
-        ...(selectedWaitingCageId
-          ? { waitingCageId: selectedWaitingCageId }
-          : {}),
-      };
+      const payload = buildCompleteMedicalRecordPayload(
+        form.getFieldsValue(true),
+        selectedWaitingCageId
+      );
       const result = await MedicalRecordService.completeConsultation(
         appointmentServiceId,
         payload
@@ -277,23 +290,16 @@ const SoapForm = ({
       onCompleted(result);
     } catch (err: unknown) {
       setConfirmOpen(false);
-      applyServerError(err, 'Không thể hoàn tất ca khám');
+      await applyServerError(err, 'Không thể hoàn tất ca khám');
     } finally {
+      writing.current = false;
       setCompleting(false);
     }
   };
 
   return (
     <>
-      {locked && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="Bệnh án đã khóa sau khi thanh toán (BR-14), chỉ xem được."
-        />
-      )}
-      {!locked && serviceStatus === 'Done' && (
+      {serviceStatus === 'Done' && (
         <Alert
           type="success"
           showIcon
@@ -597,7 +603,7 @@ const SoapForm = ({
             <span>Hoàn tất ca khám?</span>
           </Space>
         }
-        open={confirmOpen}
+        open={confirmOpen && canComplete}
         onCancel={() => !completing && setConfirmOpen(false)}
         onOk={handleComplete}
         okText="Hoàn tất"
@@ -640,7 +646,8 @@ const SoapForm = ({
                   : 'Chọn chuồng cho thú cưng chờ chủ đón (nếu cần)'
               }
               loading={loadingCages}
-              disabled={completing}
+              aria-label="Chuồng chờ đón sau khám"
+              disabled={completing || loadingCages || cagesError}
               value={selectedWaitingCageId}
               onChange={val => setSelectedWaitingCageId(val)}
               style={{ width: '100%' }}
@@ -669,6 +676,23 @@ const SoapForm = ({
                   : 'Không có chuồng trống nào'
               }
             />
+            {cagesError && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginTop: 8 }}
+                message="Không thể tải chuồng trống. Bạn vẫn có thể hoàn tất mà không chọn chuồng."
+                action={
+                  <Button
+                    size="small"
+                    disabled={completing}
+                    onClick={() => setCageLoadAttempt(n => n + 1)}
+                  >
+                    Tải lại chuồng
+                  </Button>
+                }
+              />
+            )}
             {typeof effectiveWeight === 'number' && effectiveWeight > 0 && (
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
                 Cân nặng thú cưng: <strong>{effectiveWeight} kg</strong>. Hệ
