@@ -8,3 +8,11 @@ Base: `origin/main` (`c0fa77c`); không chỉnh BE, không gộp PR #30 vào nh�
 4. **Chuyên môn:** hợp nhất phần lọc bác sĩ do nhánh phụ trách; không suy chuyên môn từ tên hoặc tự xác nhận ca đã chuyển nếu API thất bại.
 
 Kiểm tra: unit helper, Playwright Chrome với API giả lập, lint, typecheck và production build. Sau khi BE hỗ trợ, chạy kiểm thử live cho phiếu tiếp nhận và chuyển ca trước khi bật flag.
+
+## Kết quả kiểm thử
+
+- `npm test`: 151/151; `npm run lint` và `npm run build` (gồm TypeScript) đều đạt.
+- `tests/verify_reception_list_feedback_e2e.py`: 5/5 trên Chrome khi flag tắt.
+- QA độc lập trên Chromium: `tests/verify_reception_intake_e2e.py` đạt 10/10 khi bật và 6/6 khi tắt (4 ca riêng của flag được bỏ qua). Cả hai bộ dùng API giả lập; chưa xác nhận lưu phiếu/chuyên môn với BE thật.
+
+Chạy lại bộ QA độc lập: khởi động Vite trên một cổng rảnh `31xx` với `VITE_API_ROOT=/api` và `VITE_ENABLE_RECEPTION_INTAKE=true` (hoặc `false`). Đặt `VCMOS_QA_BASE=http://127.0.0.1:<port>` và `VCMOS_QA_INTAKE=on` (hoặc `off` tương ứng), rồi chạy `python tests/verify_reception_intake_e2e.py`.

@@ -15,11 +15,11 @@
 ## 3. Phiếu triệu chứng và tình trạng ban đầu — chờ BE
 
 - Hợp đồng đề xuất: `PATCH /appointment-orders/:id/check-in` gửi `{ intake: { symptoms, initialCondition } }`; response và `GET /appointment-orders` trả `intake` nếu đã ghi nhận. BE phải validate và lưu phiếu trước khi báo check-in thành công.
-- Phiếu là dữ liệu tiếp nhận, không phải SOAP. Hai trường không được chỉ chứa khoảng trắng. Giữ input khi BE trả lỗi sửa được, không lưu phiếu giả trong trình duyệt. Cần chốt giới hạn trường và chính sách walk-in trước khi bật.
+- Phiếu là dữ liệu tiếp nhận, không phải SOAP. Hai trường không được chỉ chứa khoảng trắng; FE giới hạn 500 ký tự mỗi trường. Giữ input khi BE trả lỗi sửa được, không lưu phiếu giả trong trình duyệt. Nếu PATCH trả thành công nhưng không có phiếu hợp lệ, báo chưa xác nhận lưu phiếu và tải lại danh sách. Cần đồng bộ giới hạn với BE và chốt chính sách walk-in trước khi bật; PR này chỉ thêm phiếu vào thao tác check-in lịch hẹn.
 - `VITE_ENABLE_RECEPTION_INTAKE` mặc định tắt: giữ check-in hiện tại khi BE chưa nhận/lưu/trả phiếu.
 
 ## 4. Phân công theo chuyên môn — chờ BE
 
-- Đề xuất `GET /users/staff` trả/lọc theo mã `specialty` đã thống nhất và dịch vụ cung cấp mã chuyên môn cần thiết. Chỉ cho chọn bác sĩ hoạt động đúng chuyên môn; không thay chuyên môn bằng nhóm dịch vụ hoặc tên hiển thị. Grooming vẫn theo luồng Groomer.
-- Tái sử dụng `PATCH /appointment-services/:id/assign-staff`; BE phải validate đúng chuyên môn và chịu trách nhiệm trạng thái hàng đợi. Khi không có bác sĩ phù hợp, báo rõ thay vì lùi về người sai chuyên môn.
+- Đề xuất `GET /users/staff` trả `specialty` cho bác sĩ. Sau khi phiếu đã được lưu, Lễ tân chọn chuyên môn cho ca dựa trên phiếu, rồi chọn bác sĩ hoạt động khớp chuyên môn. FE không tự suy chuyên môn từ tên hay nhóm dịch vụ. Grooming vẫn theo luồng Groomer.
+- FE tái sử dụng `PATCH /appointment-services/:id/assign-staff` với `assignedStaffId`. Trước khi bật production, BE cần hợp đồng để biết chuyên môn yêu cầu của ca, xác thực người nhận phù hợp và chịu trách nhiệm trạng thái hàng đợi. Khi không có bác sĩ phù hợp, báo rõ thay vì lùi về người sai chuyên môn.
 - Không bật luồng phụ thuộc dữ liệu chuyên môn trên BE hiện tại; dùng cấu hình mặc định tắt cho phần tích hợp chờ hợp đồng.
