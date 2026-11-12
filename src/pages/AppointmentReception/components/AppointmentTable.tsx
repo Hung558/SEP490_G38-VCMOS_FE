@@ -20,6 +20,7 @@ const { Text } = Typography;
 
 interface AppointmentTableProps {
   appointments: StaffAppointment[];
+  activeCageOrderIds: ReadonlySet<string>;
   total: number;
   page: number;
   limit: number;
@@ -34,6 +35,7 @@ interface AppointmentTableProps {
 
 const AppointmentTable = ({
   appointments,
+  activeCageOrderIds,
   total,
   page,
   limit,
@@ -124,12 +126,22 @@ const AppointmentTable = ({
             {getAppointmentStatusLabel(status)}
           </Tag>
         );
-        if (status === 'Cancelled' && record.cancelReason) {
-          return (
-            <Tooltip title={`Lý do hủy: ${record.cancelReason}`}>{tag}</Tooltip>
-          );
-        }
-        return tag;
+        return (
+          <Space direction="vertical" size={2}>
+            {status === 'Cancelled' && record.cancelReason ? (
+              <Tooltip title={`Lý do hủy: ${record.cancelReason}`}>
+                {tag}
+              </Tooltip>
+            ) : (
+              tag
+            )}
+            {isReceptionist && activeCageOrderIds.has(record._id) && (
+              <Tag color="cyan" icon={<BuildOutlined />}>
+                Đã phân chuồng
+              </Tag>
+            )}
+          </Space>
+        );
       },
     },
     {
