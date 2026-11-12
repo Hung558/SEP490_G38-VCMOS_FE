@@ -12,6 +12,7 @@ import {
   buildBookingFilterQuery,
   buildStaffAppointmentFilterQuery,
 } from './helpers';
+import { buildCheckInPayload } from './intake';
 import type {
   CancelAppointmentPayload,
   CancelAppointmentResponse,
@@ -23,6 +24,7 @@ import type {
   ListStaffAppointmentsParams,
   ListStaffAppointmentsResponse,
   OnlineBookingDetailResponse,
+  ReceptionIntake,
 } from '@/types';
 
 /**
@@ -82,12 +84,15 @@ const listStaffAppointments = (
 /**
  * Tiếp nhận / check-in lịch hẹn (dành riêng cho Receptionist, Booked -> CheckedIn)
  * PATCH /api/appointment-orders/:id/check-in
- * Không gửi request body
+ * Luồng cũ không gửi body; khi có phiếu tiếp nhận, gửi { intake }.
  */
-const checkInAppointment = (
-  id: string
+const checkInAppointment = async (
+  id: string,
+  intake?: ReceptionIntake
 ): Promise<CheckInAppointmentResponse> => {
-  return api.patch(apiCheckInAppointment(id));
+  const url = apiCheckInAppointment(id);
+  const payload = buildCheckInPayload(intake);
+  return payload ? api.patch(url, payload) : api.patch(url);
 };
 
 /**
@@ -114,4 +119,5 @@ const AppointmentOrderService = {
 
 export * from './urls';
 export * from './helpers';
+export * from './intake';
 export default AppointmentOrderService;

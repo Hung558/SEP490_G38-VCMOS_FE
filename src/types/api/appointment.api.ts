@@ -84,6 +84,12 @@ export interface PopulatedOwnerRef {
   phone: string;
 }
 
+/** Phiếu tiếp nhận của lễ tân, tách riêng khỏi bệnh án SOAP. */
+export interface ReceptionIntake {
+  symptoms: string;
+  initialCondition: string;
+}
+
 export interface StaffAppointment {
   _id: string;
   code: string;
@@ -96,6 +102,7 @@ export interface StaffAppointment {
   isOnline: boolean;
   derivedStatus: AppointmentStatus;
   checkedInAt?: string | null;
+  intake?: ReceptionIntake | null;
   cancelReason?: string | null;
   cancelledAt?: string | null;
   cancelledBy?:
