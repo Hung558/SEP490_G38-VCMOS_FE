@@ -15,6 +15,7 @@ import {
   getAppointmentStatusLabel,
 } from '@/services/AppointmentOrderService';
 import { ActionsWrapper } from './styles';
+import { getReceptionNextAction } from './receptionToday';
 
 const { Text } = Typography;
 
@@ -164,50 +165,60 @@ const AppointmentTable = ({
       width: 280,
       fixed: 'right',
       render: (_, record) => {
-        const canCheckIn = isReceptionist && record.derivedStatus === 'Booked';
+        const nextAction = isReceptionist
+          ? getReceptionNextAction(record.derivedStatus)
+          : undefined;
         const canCancel =
           isReceptionist &&
           record.derivedStatus === 'Booked' &&
           Boolean(onCancelAppointment);
 
         return (
-          <ActionsWrapper>
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => onViewDetail(record)}
-            >
-              Chi tiết
-            </Button>
-            {canCheckIn && (
+          <Space direction="vertical" size={4}>
+            <ActionsWrapper>
+              {nextAction?.kind === 'checkIn' && (
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<CheckCircleOutlined aria-hidden />}
+                  onClick={() => onCheckIn(record)}
+                >
+                  Check-in
+                </Button>
+              )}
               <Button
                 size="small"
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                onClick={() => onCheckIn(record)}
+                type={nextAction?.kind === 'detail' ? 'primary' : 'default'}
+                icon={<EyeOutlined aria-hidden />}
+                onClick={() => onViewDetail(record)}
               >
-                Check-in
+                Chi tiết
               </Button>
+              {isReceptionist && (
+                <Button
+                  size="small"
+                  icon={<BuildOutlined />}
+                  onClick={() => onAssignCage(record)}
+                >
+                  Phân chuồng
+                </Button>
+              )}
+              {canCancel && (
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => onCancelAppointment?.(record)}
+                >
+                  Hủy hẹn
+                </Button>
+              )}
+            </ActionsWrapper>
+            {nextAction?.kind === 'detail' && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {nextAction.hint}
+              </Text>
             )}
-            {isReceptionist && (
-              <Button
-                size="small"
-                icon={<BuildOutlined />}
-                onClick={() => onAssignCage(record)}
-              >
-                Phân chuồng
-              </Button>
-            )}
-            {canCancel && (
-              <Button
-                size="small"
-                danger
-                onClick={() => onCancelAppointment?.(record)}
-              >
-                Hủy hẹn
-              </Button>
-            )}
-          </ActionsWrapper>
+          </Space>
         );
       },
     },

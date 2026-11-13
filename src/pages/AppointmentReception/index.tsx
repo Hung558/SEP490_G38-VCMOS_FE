@@ -18,6 +18,7 @@ import CageAssignmentModal from './components/CageAssignmentModal';
 import CageAssignmentDetailModal from './components/CageAssignmentDetailModal';
 import CustomerLookupPanel from './components/CustomerLookupPanel';
 import WalkInModal from './components/WalkInModal';
+import ReceptionTodayOverview from './components/ReceptionTodayOverview';
 
 const { Title, Text } = Typography;
 
@@ -26,6 +27,16 @@ const AppointmentReceptionPage = () => {
 
   const appointmentContent = (
     <>
+      {state.isReceptionist && (
+        <ReceptionTodayOverview
+          date={state.today.date}
+          counts={state.today.counts}
+          error={state.today.error}
+          selected={state.selectedTodayGroup}
+          onSelect={state.selectTodayGroup}
+          onRetry={state.today.refresh}
+        />
+      )}
       <AppointmentFilters
         status={state.filterStatus}
         isOnline={state.filterIsOnline}
@@ -194,7 +205,7 @@ const AppointmentReceptionPage = () => {
           appointment={state.selectedAppointment}
           canAssignStaff={state.isReceptionist}
           onClose={state.closeDetail}
-          onUpdated={state.handleDetailUpdated}
+          onUpdated={state.refreshAppointmentList}
           onCancelAppointment={state.openCancel}
           serviceRefreshTrigger={state.serviceRefreshTrigger}
         />
