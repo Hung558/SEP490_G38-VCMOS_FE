@@ -246,15 +246,13 @@ class GroomerFlowE2E(unittest.TestCase):
                     button(dialog, label).click()
                 chooser.value.set_files(payload)
 
+    def close_note(self):
+        modal = self.page.get_by_role('dialog', name='Xem ghi chú spa')
+        button(modal, 'Đóng').click()
+        expect(modal).to_have_count(0)
+
     def complete(self):
-        before = len(self.writes)
         button(self.row(), 'Hoàn thành spa').click()
-        popup = self.page.locator('[role=dialog]:visible, .ant-popconfirm:visible').filter(has_text=re.compile('hoàn thành', re.I))
-        result = self.page.get_by_text(re.compile(r'^Cập nhật trạng thái dịch vụ thành công$|^Chỉ có thể hoàn thành dịch vụ'))
-        # Wait for either a confirmation or a response reflected by the UI.
-        popup.or_(result).first.wait_for(state='visible')
-        if len(self.writes) == before:
-            popup.get_by_role('button', name=re.compile(r'(?:^| )(Xác nhận|Hoàn thành(?: spa)?|Đồng ý|OK)$', re.I)).click()
 
     def test_waiting_starts_via_existing_patch_and_completes_without_note(self):
         self.service_status, self.order_status = 'Waiting', 'CheckedIn'
@@ -271,6 +269,7 @@ class GroomerFlowE2E(unittest.TestCase):
         self.assertEqual(response.value.status, 200)
         self.filter_rows('Đã xong')
         expect(self.row().get_by_text('Hoàn tất', exact=True)).to_be_visible()
+        expect(self.row().get_by_text(re.compile('Chờ chủ đón'))).to_be_visible()
         expect(button(self.row(), 'Tạo ghi chú spa')).to_be_visible()
         expect(button(self.row(), 'Hoàn thành spa')).to_have_count(0)
         self.assertEqual(self.writes, [('PATCH', START, None, {}), ('PATCH', COMPLETE, None, {})])
@@ -288,19 +287,25 @@ class GroomerFlowE2E(unittest.TestCase):
         self.assertTrue(response.value.request.headers['content-type'].startswith('application/json'))
         self.assertEqual(self.writes, [('POST', NOTE, {'beforeNote': 'Lông hơi rối',
             'afterNote': 'Đã cắt tỉa', 'recommendations': 'Chải lông mỗi ngày'}, {})])
+        expect(self.page.get_by_text('Đã lưu ghi chú spa.', exact=True)).to_be_visible()
         expect(button(self.row(), 'Tạo ghi chú spa')).to_have_count(0)
+        self.close_note()
         with self.page.expect_response(lambda r: r.request.method == 'GET' and urlsplit(r.url).path == NOTE):
             button(self.row(), 'Xem ghi chú spa').click()
         view = self.page.get_by_role('dialog')
         expect(view.get_by_text('Đã cắt tỉa', exact=True)).to_be_visible()
         expect(view.get_by_text('Chải lông mỗi ngày', exact=True)).to_be_visible()
-        self.page.keyboard.press('Escape')
-        expect(view).to_have_count(0)
+        self.close_note()
         with self.page.expect_response(lambda r: r.request.method == 'GET' and urlsplit(r.url).path == HISTORY) as response:
             button(self.page, 'Lịch sử ghi chú spa').click()
         self.assertEqual(urlsplit(response.value.url).query, '')
-        expect(self.page.get_by_text(ORDER_CODE, exact=True).last).to_be_visible()
-        expect(self.page.get_by_text('APT-GROOM-OLDER', exact=True)).to_be_visible()
+        history = self.page.get_by_role('dialog', name='Lịch sử ghi chú spa')
+        entries = history.locator('[aria-expanded]').filter(has_text='APT-GROOM-')
+        expect(entries).to_have_count(2)
+        expect(entries.nth(0)).to_contain_text(ORDER_CODE)
+        expect(entries.nth(1)).to_contain_text('APT-GROOM-OLDER')
+        entries.nth(1).click()
+        expect(history.get_by_text(self.older_note['afterNote'], exact=True)).to_be_visible()
 
     def test_multipart_photos_from_done_with_upload_retry(self):
         self.service_status, self.order_status = 'Done', 'WaitOwner'
@@ -324,10 +329,13 @@ class GroomerFlowE2E(unittest.TestCase):
         wanted = ('POST', NOTE, {'afterNote': 'Ảnh QA'}, {'beforePhoto': ('before.png', 'image/png', PHOTO),
                                                         'afterPhoto': ('after.png', 'image/png', PHOTO)})
         self.assertEqual(self.writes, [wanted, wanted])
-        button(self.row(), 'Xem ghi chú spa').click()
+        self.close_note()
+        with self.page.expect_response(lambda r: r.request.method == 'GET' and urlsplit(r.url).path == NOTE):
+            button(self.row(), 'Xem ghi chú spa').click()
         for name in ('beforePhoto', 'afterPhoto'):
             image = self.page.get_by_role('dialog').locator(f'img[src="{PHOTO_HOST}/{name}.png"]')
             expect(image).to_be_visible()
+            self.page.wait_for_function('(src) => [...document.images].some(img => img.src === src && img.naturalWidth > 0)', arg=f'{PHOTO_HOST}/{name}.png')
 
     def test_note_409_shows_server_note_without_duplicate_write(self):
         saved = {'afterNote': 'Ghi chú đã lưu từ nơi khác QA', 'createdAt': NOW}
@@ -336,14 +344,13 @@ class GroomerFlowE2E(unittest.TestCase):
         dialog = self.open_note()
         dialog.get_by_label('Ghi chú sau khi spa', exact=True).fill('Bản nhập bị xung đột QA')
         button(dialog, 'Lưu ghi chú').click()
-        expect(self.page.get_by_text(NOTE_CONFLICT, exact=True).first).to_be_visible()
+        existing = self.page.get_by_role('dialog', name='Xem ghi chú spa')
+        expect(existing.get_by_text(re.compile(rf'^{re.escape(NOTE_CONFLICT)}'))).to_be_visible()
+        expect(existing.get_by_text(saved['afterNote'], exact=True)).to_be_visible()
+        expect(button(existing, 'Lưu ghi chú')).to_have_count(0)
         expect(self.page.locator('[data-sonner-toast][data-type=success]')).to_have_count(0)
-        self.assertEqual(len(self.writes), 1)
-        # Allow dismissal if the conflict leaves the form open for review.
-        if dialog.is_visible():
-            self.page.keyboard.press('Escape')
-        button(self.row(), 'Xem ghi chú spa').click()
-        expect(self.page.get_by_role('dialog').get_by_text(saved['afterNote'], exact=True)).to_be_visible()
+        self.close_note()
+        expect(button(self.row(), 'Xem ghi chú spa')).to_be_visible()
         self.assertEqual(len(self.writes), 1)
 
     def test_complete_409_reconciles_done_without_false_success(self):
