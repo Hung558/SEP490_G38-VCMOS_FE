@@ -48,7 +48,7 @@ import { serviceCategoryLabels } from '@/services/ServiceService';
 import type { ServiceCategory } from '@/services/ServiceService';
 import { getRoleLabel } from '@/constants/roles';
 import { OrderServiceCard } from './styles';
-import { isReceptionIntakeEnabled } from './receptionIntakeFeature';
+import { isReceptionSpecialtyRoutingEnabled } from './receptionIntakeFeature';
 
 const { Text } = Typography;
 
@@ -56,7 +56,7 @@ const { Text } = Typography;
 const MSG23 = 'Hiện không có nhân viên nào rảnh cho dịch vụ này.';
 
 const usesSpecialtyRouting = (item: OnlineAppointmentService) =>
-  isReceptionIntakeEnabled &&
+  isReceptionSpecialtyRoutingEnabled &&
   getRequiredStaffRole(getServiceRefCategory(item.serviceId)) ===
     'Veterinarian';
 
@@ -120,9 +120,9 @@ const AppointmentServicesPanel = ({
   const orderStatus = appointment.derivedStatus;
   const orderBlockReason = getAssignStaffBlockReason(undefined, orderStatus);
   const hasIntake =
-    isReceptionIntakeEnabled &&
+    isReceptionSpecialtyRoutingEnabled &&
     Boolean(readReceptionIntake(appointment.intake));
-  const specialtyAssignment = isReceptionIntakeEnabled
+  const specialtyAssignment = isReceptionSpecialtyRoutingEnabled
     ? pickSpecialtyAssignment(onDutyStaff, staff, selectedSpecialty)
     : undefined;
 
@@ -545,7 +545,7 @@ const AppointmentServicesPanel = ({
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           {isQueueingOrder(orderStatus)
             ? 'Khách đã check-in: dịch vụ được phân công sẽ vào hàng đợi của người phụ trách ngay.'
-            : isReceptionIntakeEnabled
+            : isReceptionSpecialtyRoutingEnabled
               ? 'Khách chưa check-in: có thể phân công Groomer trước. Ca khám cần có phiếu tiếp nhận để phân công.'
               : 'Khách chưa check-in: có thể phân công trước, dịch vụ sẽ tự vào hàng đợi khi khách check-in.'}
         </Text>

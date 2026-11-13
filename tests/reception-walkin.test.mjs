@@ -138,6 +138,49 @@ test('findDuplicateServiceRows flags each repeat of a service, not its first row
   assert.deepEqual(walkIn.findDuplicateServiceRows(undefined), []);
 });
 
+test('walk-in intake is optional and independent of note, pet and customer mode', () => {
+  const base = {
+    phone: '0988111222',
+    services: [{ serviceId: SVC_EXAM }],
+    note: ' Nhắc gọi lại ',
+  };
+  const fields = {
+    symptoms: ' Ho nhẹ ',
+    initialCondition: '\nTỉnh táo ',
+    recordedBy: VET,
+    recordedAt: '2026-11-13T02:00:00Z',
+  };
+  for (const mode of [
+    { isNewCustomer: false, petMode: 'existing', petId: PET },
+    { isNewCustomer: false, petMode: 'new', petInfo: { name: 'Milo' } },
+    {
+      isNewCustomer: true,
+      fullName: 'Khách QA',
+      petMode: 'new',
+      petInfo: { name: 'Milo' },
+    },
+  ]) {
+    const values = { ...base, ...mode };
+    assert.equal('intake' in walkIn.buildWalkInPayload(values), false);
+    const result = walkIn.buildWalkInPayload({ ...values, intake: fields });
+    assert.deepEqual(result.intake, {
+      symptoms: 'Ho nhẹ',
+      initialCondition: 'Tỉnh táo',
+    });
+    assert.equal(result.note, 'Nhắc gọi lại');
+    for (const invalid of [
+      null,
+      {},
+      { ...fields, symptoms: ' ' },
+      { ...fields, initialCondition: 'a'.repeat(501) },
+    ]) {
+      assert.throws(() =>
+        walkIn.buildWalkInPayload({ ...values, intake: invalid })
+      );
+    }
+  }
+});
+
 test('toWalkInFieldPath maps BE error keys onto the form fields', () => {
   assert.deepEqual(walkIn.toWalkInFieldPath('phone'), ['phone']);
   assert.deepEqual(walkIn.toWalkInFieldPath('petInfo.name'), [
@@ -145,13 +188,29 @@ test('toWalkInFieldPath maps BE error keys onto the form fields', () => {
     'name',
   ]);
   assert.deepEqual(walkIn.toWalkInFieldPath('petInfo.dob'), ['petInfo', 'dob']);
+  assert.deepEqual(walkIn.toWalkInFieldPath('intake.symptoms'), [
+    'intake',
+    'symptoms',
+  ]);
+  assert.deepEqual(walkIn.toWalkInFieldPath('intake.initialCondition'), [
+    'intake',
+    'initialCondition',
+  ]);
   assert.deepEqual(walkIn.toWalkInFieldPath('services[1].assignedStaffId'), [
     'services',
     1,
     'assignedStaffId',
   ]);
   // Errors about the whole request have no field and are listed in the alert
-  for (const key of ['pet', 'services', 'services[0]', 'body', 'petInfo']) {
+  for (const key of [
+    'pet',
+    'services',
+    'services[0]',
+    'body',
+    'petInfo',
+    'intake',
+    'intake.recordedBy',
+  ]) {
     assert.equal(walkIn.toWalkInFieldPath(key), null, key);
   }
 });

@@ -36,13 +36,18 @@ import AppointmentServiceService, {
   getQueueOrder,
 } from '@/services/AppointmentServiceService';
 import MedicalRecordService, {
+  getRecordServiceRef,
   isMedicalRecordLocked,
 } from '@/services/MedicalRecordService';
 import ProductService, { type Product } from '@/services/ProductService';
-import { getAppointmentStatusLabel } from '@/services/AppointmentOrderService';
+import {
+  getAppointmentStatusLabel,
+  readReceptionIntake,
+} from '@/services/AppointmentOrderService';
 import { describeWalkInPet } from '@/services/WalkInService';
 import MedicalRecordView from '@/components/medical/MedicalRecordView';
 import PetMedicalHistory from '@/components/medical/PetMedicalHistory';
+import ReceptionIntakeDetails from '@/components/appointment/ReceptionIntakeDetails';
 import {
   PageHeader,
   PageWrapper,
@@ -257,6 +262,13 @@ const ExamRecordCase = ({
   }
 
   const order = getQueueOrder(item);
+  const recordOrderRef = record ? getRecordServiceRef(record)?.orderId : null;
+  const recordOrder =
+    typeof recordOrderRef === 'object' ? recordOrderRef : null;
+  const intake =
+    readReceptionIntake(recordOrder?.intake) ??
+    readReceptionIntake(order?.intake);
+  const appointmentNote = recordOrder?.note ?? order?.note;
   const status = item.status as AppointmentServiceStatus;
   const examAction = getExamAction(item, role);
   const renderBody = () => {
@@ -413,10 +425,15 @@ const ExamRecordCase = ({
             {pet ? describeWalkInPet(pet) : '—'}
           </Descriptions.Item>
           <Descriptions.Item label="Ghi chú lịch hẹn">
-            {order?.note || <Text type="secondary">Không có</Text>}
+            {appointmentNote || <Text type="secondary">Không có</Text>}
           </Descriptions.Item>
         </Descriptions>
 
+        {intake && (
+          <div style={{ marginBottom: 16 }}>
+            <ReceptionIntakeDetails intake={intake} />
+          </div>
+        )}
         {renderBody()}
       </Card>
 

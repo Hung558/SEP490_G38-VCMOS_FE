@@ -587,6 +587,7 @@ test('buildCreateOnlineBookingPayload adheres strictly to whitelist and omits em
     ownerId: '6ad96d4a9664da6b2c0d8a01',
     code: 'APT-123456',
     isOnline: true,
+    intake: { symptoms: 'Ho nhẹ', initialCondition: 'Tỉnh táo' },
   });
 
   assert.equal(payload.petId, '6ad96d4a9664da6b2c0d8d70');
@@ -601,6 +602,7 @@ test('buildCreateOnlineBookingPayload adheres strictly to whitelist and omits em
   assert.equal('ownerId' in payload, false);
   assert.equal('code' in payload, false);
   assert.equal('isOnline' in payload, false);
+  assert.equal('intake' in payload, false);
 });
 
 test('buildCreateOnlineBookingPayload supports optional slotStart in whitelist', () => {

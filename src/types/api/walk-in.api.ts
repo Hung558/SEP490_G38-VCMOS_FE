@@ -1,7 +1,11 @@
 // Walk-in at the reception desk (SCR-18, UC-19…21, BR-04):
 // GET  /api/appointment-orders/walk-in/customer-lookup?phone=
 // POST /api/appointment-orders/walk-in
-import type { OnlineAppointment } from './appointment.api';
+import type {
+  OnlineAppointment,
+  ReceptionIntake,
+  RecordedReceptionIntake,
+} from './appointment.api';
 import type { OnlineAppointmentService } from './appointment-service.api';
 import type { CageAssignment } from './cage-assignment.api';
 import type { Pet } from './pet.api';
@@ -56,6 +60,7 @@ export interface CreateWalkInBookingPayload {
   petId?: string;
   petInfo?: WalkInPetInfo;
   note?: string;
+  intake?: ReceptionIntake;
   services: WalkInServiceItem[];
   cageId?: string;
 }
@@ -66,7 +71,7 @@ export interface CreateWalkInBookingResult {
   isNewPet: boolean;
   pet: Pet;
   /** Starts as CheckedIn, isOnline false */
-  appointment: OnlineAppointment;
+  appointment: OnlineAppointment & { intake?: RecordedReceptionIntake | null };
   services: OnlineAppointmentService[];
   cageAssignment: CageAssignment | null;
 }
