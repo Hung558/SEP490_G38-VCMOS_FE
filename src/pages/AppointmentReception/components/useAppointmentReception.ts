@@ -15,11 +15,13 @@ import type {
 } from '@/types';
 import AppointmentOrderService, {
   extractApiError,
-  getVietnamTodayString,
   readReceptionIntake,
 } from '@/services/AppointmentOrderService';
 import CageAssignmentService from '@/services/CageAssignmentService';
 import { useActiveCageAssignments } from './useActiveCageAssignments';
+import { getSelectedReceptionTodayGroup } from './receptionToday';
+import type { ReceptionTodayGroup } from './receptionToday';
+import { useReceptionToday } from './useReceptionToday';
 
 interface StoredUserInfo {
   role?: string;
@@ -41,6 +43,8 @@ export const useAppointmentReception = () => {
   const [activeTab, setActiveTab] = useState<
     'appointments' | 'assignments' | 'lookup'
   >('appointments');
+  const today = useReceptionToday(isReceptionist, activeTab === 'appointments');
+  const refreshToday = today.refresh;
 
   const {
     activeCageByOrderId,
@@ -78,6 +82,7 @@ export const useAppointmentReception = () => {
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [listRevision, setListRevision] = useState(0);
 
   // Appointment Filters
   const [filterStatus, setFilterStatus] = useState<
@@ -85,15 +90,21 @@ export const useAppointmentReception = () => {
   >();
   const [filterIsOnline, setFilterIsOnline] = useState<boolean | undefined>();
   const [filterCode, setFilterCode] = useState<string | undefined>();
-  const [openedDate] = useState(getVietnamTodayString);
   // Undefined means use the role's default; an empty object explicitly clears the date.
   const [dateFilter, setDateFilter] = useState<{
     from?: string;
     to?: string;
   }>();
-  const defaultDate = isReceptionist ? openedDate : undefined;
+  const defaultDate = isReceptionist ? today.date : undefined;
   const filterFrom = dateFilter ? dateFilter.from : defaultDate;
   const filterTo = dateFilter ? dateFilter.to : defaultDate;
+  const selectedTodayGroup = getSelectedReceptionTodayGroup(today.date, {
+    from: filterFrom,
+    to: filterTo,
+    status: filterStatus,
+    code: filterCode,
+    isOnline: filterIsOnline,
+  });
 
   const hasFilters = Boolean(
     filterStatus ||
@@ -162,37 +173,6 @@ export const useAppointmentReception = () => {
 
   // Ref tracking currently opened appointment in detail modal for real-time synchronization
   const selectedAppointmentRef = useRef<StaffAppointment | null>(null);
-  selectedAppointmentRef.current = selectedAppointment;
-
-  // Refresh single selected appointment from server to keep detail modal in sync
-  const refreshSelectedAppointment = useCallback(
-    async (targetCode?: string) => {
-      const code = targetCode || selectedAppointmentRef.current?.code;
-      const currentId = selectedAppointmentRef.current?._id;
-      if (!code) return;
-
-      try {
-        const res = await AppointmentOrderService.listStaffAppointments({
-          code,
-          page: 1,
-          limit: 1,
-        });
-        const fresh =
-          (res.data || []).find(a =>
-            currentId ? a._id === currentId : a.code === code
-          ) || res.data?.[0];
-        if (fresh) {
-          setSelectedAppointment(fresh);
-          setAppointments(prev =>
-            prev.map(item => (item._id === fresh._id ? fresh : item))
-          );
-        }
-      } catch {
-        // Keep current state on error
-      }
-    },
-    []
-  );
 
   // Fetch appointments list
   const fetchAppointments = useCallback(async () => {
@@ -220,7 +200,11 @@ export const useAppointmentReception = () => {
         { signal: controller.signal }
       );
 
-      if (currentReqId !== appointmentRequestIdRef.current) return;
+      if (
+        controller.signal.aborted ||
+        currentReqId !== appointmentRequestIdRef.current
+      )
+        return;
 
       const items = res.data || [];
       setAppointments(items);
@@ -230,11 +214,27 @@ export const useAppointmentReception = () => {
       const currentSelected = selectedAppointmentRef.current;
       if (currentSelected) {
         const matched = items.find(a => a._id === currentSelected._id);
-        if (matched) {
-          setSelectedAppointment(matched);
-        } else if (currentSelected.code) {
-          // If filtered out from current list/page, refresh by code to keep modal content up-to-date
-          refreshSelectedAppointment(currentSelected.code);
+        if (matched) setSelectedAppointment(matched);
+        else if (currentSelected.code) {
+          // One lookup only when the open appointment is no longer on this page.
+          void AppointmentOrderService.listStaffAppointments(
+            { code: currentSelected.code, page: 1, limit: 1 },
+            { signal: controller.signal }
+          )
+            .then(response => {
+              if (
+                controller.signal.aborted ||
+                selectedAppointmentRef.current !== currentSelected
+              )
+                return;
+              const fresh = response.data?.find(
+                item => item._id === currentSelected._id
+              );
+              if (fresh) setSelectedAppointment(fresh);
+            })
+            .catch(() => {
+              // Keep the open detail if its refresh fails.
+            });
         }
       }
     } catch (err: unknown) {
@@ -244,7 +244,11 @@ export const useAppointmentReception = () => {
       ) {
         return;
       }
-      if (currentReqId !== appointmentRequestIdRef.current) return;
+      if (
+        controller.signal.aborted ||
+        currentReqId !== appointmentRequestIdRef.current
+      )
+        return;
 
       const { message } = extractApiError(
         err,
@@ -253,7 +257,10 @@ export const useAppointmentReception = () => {
       setListError(message);
       toast.error(message);
     } finally {
-      if (currentReqId === appointmentRequestIdRef.current) {
+      if (
+        !controller.signal.aborted &&
+        currentReqId === appointmentRequestIdRef.current
+      ) {
         setLoading(false);
       }
     }
@@ -265,7 +272,6 @@ export const useAppointmentReception = () => {
     filterTo,
     page,
     limit,
-    refreshSelectedAppointment,
   ]);
 
   useEffect(() => {
@@ -275,12 +281,14 @@ export const useAppointmentReception = () => {
         appointmentAbortRef.current.abort();
       }
     };
-  }, [fetchAppointments]);
+  }, [fetchAppointments, listRevision]);
 
   const refreshAppointmentList = useCallback(() => {
-    void fetchAppointments();
+    // A mutation may finish after filters changed; let the effect use the latest query.
+    setListRevision(current => current + 1);
     void fetchActiveCages(true);
-  }, [fetchAppointments, fetchActiveCages]);
+    refreshToday();
+  }, [fetchActiveCages, refreshToday]);
 
   // Fetch cage assignments (Receptionist only)
   const fetchAssignments = useCallback(async () => {
@@ -376,6 +384,15 @@ export const useAppointmentReception = () => {
     setPage(1);
   };
 
+  const selectTodayGroup = (status: ReceptionTodayGroup['status']) => {
+    if (!isReceptionist) return;
+    setFilterStatus(status);
+    setFilterIsOnline(undefined);
+    setFilterCode(undefined);
+    setDateFilter(undefined);
+    setPage(1);
+  };
+
   const handlePageChange = (newPage: number, newLimit: number) => {
     setPage(newPage);
     setLimit(newLimit);
@@ -383,19 +400,16 @@ export const useAppointmentReception = () => {
 
   // Detail Modal
   const openDetail = (appointment: StaffAppointment) => {
+    selectedAppointmentRef.current = appointment;
     setSelectedAppointment(appointment);
     setDetailOpen(true);
   };
 
   const closeDetail = () => {
+    selectedAppointmentRef.current = null;
     setDetailOpen(false);
     setSelectedAppointment(null);
   };
-
-  const handleDetailUpdated = useCallback(() => {
-    refreshAppointmentList();
-    refreshSelectedAppointment();
-  }, [refreshAppointmentList, refreshSelectedAppointment]);
 
   // Check-In Actions (Receptionist only)
   const openCheckIn = (appointment: StaffAppointment) => {
@@ -668,6 +682,9 @@ export const useAppointmentReception = () => {
     resetFilters,
     handlePageChange,
     refreshAppointmentList,
+    today,
+    selectedTodayGroup,
+    selectTodayGroup,
     activeCageByOrderId,
     activeCageError,
     activeCageLoading,
@@ -677,8 +694,6 @@ export const useAppointmentReception = () => {
     selectedAppointment,
     openDetail,
     closeDetail,
-    refreshSelectedAppointment,
-    handleDetailUpdated,
     // Check-In
     checkInOpen,
     checkInTarget,
