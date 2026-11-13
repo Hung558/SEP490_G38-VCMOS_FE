@@ -146,8 +146,11 @@ class ReceptionTodayE2E(unittest.TestCase):
     def row(self, number):
         return self.page.get_by_role('row').filter(has_text=f'APT-{number:06d}')
 
+    def overview(self):
+        return self.page.get_by_role('region', name='Lịch hẹn hôm nay')
+
     def metric(self, group):
-        return self.page.get_by_role('button', name=re.compile(re.escape(METRICS[group]), re.I))
+        return self.overview().get_by_role('button', name=re.compile(re.escape(METRICS[group]), re.I))
 
     def expect_metric(self, group, value):
         ctl = self.metric(group)
@@ -155,7 +158,7 @@ class ReceptionTodayE2E(unittest.TestCase):
         number = re.compile(rf'(?<!\d){value}(?!\d)')
         with self.subTest(metric=group, expected=value):
             # Accept a number in the button content or in its accessible name.
-            match = ctl.filter(has_text=number).or_(self.page.get_by_role('button', name=re.compile(
+            match = ctl.filter(has_text=number).or_(self.overview().get_by_role('button', name=re.compile(
                 rf'(?=.*{re.escape(METRICS[group])})(?=.*(?<!\d){value}(?!\d))', re.I)))
             expect(match).to_be_visible()
 
@@ -177,6 +180,8 @@ class ReceptionTodayE2E(unittest.TestCase):
         self.open()
         expect(self.row(100)).to_be_visible()
         expect(self.row(119)).to_have_count(0)
+        expect(self.overview().locator('time')).to_have_attribute('datetime', TODAY)
+        expect(self.overview().get_by_text('Mọi trạng thái, kể cả lịch đã hủy', exact=True)).to_be_visible()
         self.expect_totals()
         queries = [q for q in self.queries if self.is_summary(q)]
         self.assertEqual({q.get('status', 'all') for q in queries}, set(METRICS))
@@ -210,6 +215,8 @@ class ReceptionTodayE2E(unittest.TestCase):
         self.assertNotIn('isOnline', q)
         expect(self.row(100)).to_be_visible()
         expect(self.row(103)).to_have_count(0)
+        expect(self.metric('Booked')).to_have_attribute('aria-pressed', 'true')
+        expect(self.metric('all')).to_have_attribute('aria-pressed', 'false')
         expect(self.page).to_have_url(origin_url)
 
         code = self.page.get_by_placeholder(re.compile('Mã lịch hẹn'))
@@ -223,9 +230,11 @@ class ReceptionTodayE2E(unittest.TestCase):
         expect(code).to_have_value('')
         expect(self.row(103)).to_be_visible()
         expect(self.row(100)).to_have_count(0)
+        expect(self.metric('WaitOwner')).to_have_attribute('aria-pressed', 'true')
         with self.page.expect_response(lambda r: self.table_response(r, status=None, page='1')) as changed:
             self.metric('all').click()
         self.assertEqual(read_query(changed.value.url).get('from'), TODAY)
+        expect(self.metric('all')).to_have_attribute('aria-pressed', 'true')
         expect(self.row(100)).to_be_visible()
         expect(self.row(103)).to_be_visible()
 
@@ -255,17 +264,25 @@ class ReceptionTodayE2E(unittest.TestCase):
         self.summary_fails = True
         self.open()
         expect(self.row(100)).to_be_visible()
-        retry = button(self.page, 'Thử lại')
-        expect(retry.first).to_be_visible()
+        retry = button(self.overview(), 'Thử lại')
+        expect(self.overview().get_by_role('alert')).to_be_visible()
+        expect(retry).to_be_visible()
         for group in METRICS:
             zero = re.compile(r'(?<!\d)0(?!\d)')
             expect(self.metric(group).filter(has_text=zero)).to_have_count(0)
         self.summary_fails = False
         with self.page.expect_response(lambda r: urlsplit(r.url).path == LIST and self.is_summary(read_query(r.url)) and r.status == 200):
-            retry.first.click()
+            retry.click()
         self.expect_totals()
         expect(retry).to_have_count(0)
         expect(self.row(100)).to_be_visible()
+
+    def test_zero_counts_only_after_successful_summary_responses(self):
+        self.orders = [row for row in self.orders if row['date'] != TODAY]
+        self.open()
+        self.expect_totals(total=0, booked=0, checked=0, wait=0)
+        expect(self.overview().get_by_role('alert')).to_have_count(0)
+        self.assertEqual({q.get('status', 'all') for q in self.queries if self.is_summary(q)}, set(METRICS))
 
     def test_checkin_refreshes_summary_and_switches_cta_without_intake(self):
         self.open()
