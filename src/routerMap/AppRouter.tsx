@@ -28,8 +28,10 @@ import CagesPage from '@/pages/Cages';
 import AppointmentReceptionPage from '@/pages/AppointmentReception';
 import StaffQueuePage from '@/pages/StaffQueue';
 import ExamRecordPage from '@/pages/ExamRecord';
+import { useScrollTopOnNavigate } from '@/hooks/Common/useScrollTopOnNavigate';
 
 const AppRouter = () => {
+  useScrollTopOnNavigate();
   const elements = useRoutes([
     {
       path: ROUTER.HOME,

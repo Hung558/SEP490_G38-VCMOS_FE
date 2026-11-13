@@ -10,13 +10,21 @@ export const getActiveCageOrderId = (
   return typeof id === 'string' && id.trim() ? id.trim() : undefined;
 };
 
-export const collectActiveCageOrderIds = (
+/**
+ * Open assignments keyed by order ID. `GET /cage-assignments` sorts by
+ * assignedAt descending, so the first assignment seen for an order is its latest.
+ */
+export const indexActiveCagesByOrder = (
   assignments: readonly CageAssignment[]
-): ReadonlySet<string> => {
-  const orderIds = new Set<string>();
+): ReadonlyMap<string, CageAssignment> => {
+  const byOrder = new Map<string, CageAssignment>();
   for (const assignment of assignments) {
     const orderId = getActiveCageOrderId(assignment);
-    if (orderId) orderIds.add(orderId);
+    if (orderId && !byOrder.has(orderId)) byOrder.set(orderId, assignment);
   }
-  return orderIds;
+  return byOrder;
 };
+
+export const collectActiveCageOrderIds = (
+  assignments: readonly CageAssignment[]
+): ReadonlySet<string> => new Set(indexActiveCagesByOrder(assignments).keys());
