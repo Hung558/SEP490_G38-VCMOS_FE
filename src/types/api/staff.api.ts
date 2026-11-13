@@ -11,6 +11,7 @@ export interface StaffMember {
   fullName: string;
   role: ClinicalStaffRole;
   status: StaffAccountStatus;
+  specialty?: string | null;
 }
 
 export interface ListStaffParams {

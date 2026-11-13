@@ -19,6 +19,7 @@ interface AppointmentFiltersProps {
   status?: AppointmentStatus;
   isOnline?: boolean;
   code?: string;
+  singleDate: boolean;
   from?: string;
   to?: string;
   loading: boolean;
@@ -35,6 +36,7 @@ const AppointmentFilters = ({
   status,
   isOnline,
   code,
+  singleDate,
   from,
   to,
   loading,
@@ -100,22 +102,37 @@ const AppointmentFilters = ({
             ]}
           />
 
-          <RangePicker
-            format="YYYY-MM-DD"
-            value={rangeValue}
-            onChange={dates => {
-              if (dates && dates[0] && dates[1]) {
-                onDateRangeChange(
-                  dates[0].format('YYYY-MM-DD'),
-                  dates[1].format('YYYY-MM-DD')
-                );
-              } else {
-                onDateRangeChange(undefined, undefined);
-              }
-            }}
-            placeholder={['Từ ngày', 'Đến ngày']}
-            style={{ width: 250 }}
-          />
+          {singleDate ? (
+            <DatePicker
+              aria-label="Ngày hẹn"
+              placeholder="Ngày hẹn"
+              format="YYYY-MM-DD"
+              allowClear
+              value={from ? dayjs(from) : null}
+              onChange={date => {
+                const day = date?.format('YYYY-MM-DD');
+                onDateRangeChange(day, day);
+              }}
+              style={{ width: 150 }}
+            />
+          ) : (
+            <RangePicker
+              format="YYYY-MM-DD"
+              value={rangeValue}
+              onChange={dates => {
+                if (dates && dates[0] && dates[1]) {
+                  onDateRangeChange(
+                    dates[0].format('YYYY-MM-DD'),
+                    dates[1].format('YYYY-MM-DD')
+                  );
+                } else {
+                  onDateRangeChange(undefined, undefined);
+                }
+              }}
+              placeholder={['Từ ngày', 'Đến ngày']}
+              style={{ width: 250 }}
+            />
+          )}
         </Space>
 
         <Space wrap size="middle">

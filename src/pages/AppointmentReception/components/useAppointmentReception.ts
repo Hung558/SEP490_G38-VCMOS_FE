@@ -8,13 +8,17 @@ import type {
   AppointmentStatus,
   CageAssignment,
   CreateCageAssignmentPayload,
+  ReceptionIntake,
   CreateWalkInBookingResult,
   StaffAppointment,
 } from '@/types';
 import AppointmentOrderService, {
   extractApiError,
+  getVietnamTodayString,
+  readReceptionIntake,
 } from '@/services/AppointmentOrderService';
 import CageAssignmentService from '@/services/CageAssignmentService';
+import { useActiveCageAssignments } from './useActiveCageAssignments';
 
 interface StoredUserInfo {
   role?: string;
@@ -37,6 +41,14 @@ export const useAppointmentReception = () => {
     'appointments' | 'assignments' | 'lookup'
   >('appointments');
 
+  const {
+    activeCageOrderIds,
+    activeCageError,
+    activeCageLoading,
+    fetchActiveCages,
+    recordActiveCage,
+  } = useActiveCageAssignments(isReceptionist, activeTab === 'appointments');
+
   // Walk-in modal (Receptionist only); the phone is pre-filled from the lookup tab
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInPhone, setWalkInPhone] = useState<string | undefined>();
@@ -55,15 +67,22 @@ export const useAppointmentReception = () => {
   >();
   const [filterIsOnline, setFilterIsOnline] = useState<boolean | undefined>();
   const [filterCode, setFilterCode] = useState<string | undefined>();
-  const [filterFrom, setFilterFrom] = useState<string | undefined>();
-  const [filterTo, setFilterTo] = useState<string | undefined>();
+  const [openedDate] = useState(getVietnamTodayString);
+  // Undefined means use the role's default; an empty object explicitly clears the date.
+  const [dateFilter, setDateFilter] = useState<{
+    from?: string;
+    to?: string;
+  }>();
+  const defaultDate = isReceptionist ? openedDate : undefined;
+  const filterFrom = dateFilter ? dateFilter.from : defaultDate;
+  const filterTo = dateFilter ? dateFilter.to : defaultDate;
 
   const hasFilters = Boolean(
     filterStatus ||
       filterIsOnline !== undefined ||
       (filterCode && filterCode.trim()) ||
-      filterFrom ||
-      filterTo
+      filterFrom !== defaultDate ||
+      filterTo !== defaultDate
   );
 
   // Detail Modal State
@@ -77,6 +96,7 @@ export const useAppointmentReception = () => {
     null
   );
   const [checkInSubmitting, setCheckInSubmitting] = useState(false);
+  const checkInPendingRef = useRef(false);
 
   // Cancel Appointment State (Receptionist only)
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -239,6 +259,11 @@ export const useAppointmentReception = () => {
     };
   }, [fetchAppointments]);
 
+  const refreshAppointmentList = useCallback(() => {
+    void fetchAppointments();
+    void fetchActiveCages(true);
+  }, [fetchAppointments, fetchActiveCages]);
+
   // Fetch cage assignments (Receptionist only)
   const fetchAssignments = useCallback(async () => {
     if (!isReceptionist) return;
@@ -321,8 +346,7 @@ export const useAppointmentReception = () => {
   };
 
   const handleFilterDateRange = (from?: string, to?: string) => {
-    setFilterFrom(from);
-    setFilterTo(to);
+    setDateFilter({ from, to });
     setPage(1);
   };
 
@@ -330,8 +354,7 @@ export const useAppointmentReception = () => {
     setFilterStatus(undefined);
     setFilterIsOnline(undefined);
     setFilterCode(undefined);
-    setFilterFrom(undefined);
-    setFilterTo(undefined);
+    setDateFilter(undefined);
     setPage(1);
   };
 
@@ -352,9 +375,9 @@ export const useAppointmentReception = () => {
   };
 
   const handleDetailUpdated = useCallback(() => {
-    fetchAppointments();
+    refreshAppointmentList();
     refreshSelectedAppointment();
-  }, [fetchAppointments, refreshSelectedAppointment]);
+  }, [refreshAppointmentList, refreshSelectedAppointment]);
 
   // Check-In Actions (Receptionist only)
   const openCheckIn = (appointment: StaffAppointment) => {
@@ -369,19 +392,29 @@ export const useAppointmentReception = () => {
     setCheckInTarget(null);
   };
 
-  const confirmCheckIn = async () => {
-    if (!checkInTarget || !isReceptionist || checkInSubmitting) return;
+  const confirmCheckIn = async (intake?: ReceptionIntake) => {
+    if (!checkInTarget || !isReceptionist || checkInPendingRef.current) return;
 
+    checkInPendingRef.current = true;
     setCheckInSubmitting(true);
     try {
       const res = await AppointmentOrderService.checkInAppointment(
-        checkInTarget._id
+        checkInTarget._id,
+        intake
       );
-      toast.success(res.message || 'Tiếp nhận lịch hẹn thành công');
+      const savedIntake = readReceptionIntake(res.data?.intake);
+      if (intake && !savedIntake) {
+        // The order may already be checked in, so refresh rather than resubmitting.
+        toast.warning(
+          'Không xác nhận được phiếu tiếp nhận đã lưu. Vui lòng kiểm tra lại lịch hẹn.'
+        );
+      } else {
+        toast.success(res.message || 'Tiếp nhận lịch hẹn thành công');
+      }
       setCheckInOpen(false);
       setCheckInTarget(null);
       // Refresh current page to preserve page and filters
-      fetchAppointments();
+      refreshAppointmentList();
     } catch (err: unknown) {
       const { message, status } = extractApiError(
         err,
@@ -392,9 +425,10 @@ export const useAppointmentReception = () => {
       if (status === 409 || status === 404) {
         setCheckInOpen(false);
         setCheckInTarget(null);
-        fetchAppointments();
+        refreshAppointmentList();
       }
     } finally {
+      checkInPendingRef.current = false;
       setCheckInSubmitting(false);
     }
   };
@@ -429,7 +463,7 @@ export const useAppointmentReception = () => {
       toast.success(res.message || 'Hủy lịch hẹn thành công');
       setCancelOpen(false);
       setCancelTarget(null);
-      fetchAppointments();
+      refreshAppointmentList();
       if (selectedAppointmentRef.current?._id === cancelTarget._id) {
         setServiceRefreshTrigger(count => count + 1);
       }
@@ -439,7 +473,7 @@ export const useAppointmentReception = () => {
       if (status === 409 || status === 404) {
         setCancelOpen(false);
         setCancelTarget(null);
-        fetchAppointments();
+        refreshAppointmentList();
         if (selectedAppointmentRef.current?._id === cancelTarget._id) {
           setServiceRefreshTrigger(count => count + 1);
         }
@@ -471,10 +505,9 @@ export const useAppointmentReception = () => {
       toast.success(res.message || 'Phân công chuồng thành công');
       setCreateAssignmentOpen(false);
       setTargetAppointmentForCage(null);
-      // Refresh assignments if in tab, and refresh appointments
-      if (activeTab === 'assignments') {
-        fetchAssignments();
-      }
+      recordActiveCage(res.data);
+      void fetchActiveCages(true);
+      if (activeTab === 'assignments') fetchAssignments();
     } catch (err: unknown) {
       const { message, status } = extractApiError(
         err,
@@ -483,7 +516,8 @@ export const useAppointmentReception = () => {
       toast.error(message);
       // If 409 conflict (cage occupied), refresh assignment list
       if (status === 409) {
-        fetchAssignments();
+        void fetchActiveCages(true);
+        if (activeTab === 'assignments') fetchAssignments();
       }
     } finally {
       setCreateAssignmentSubmitting(false);
@@ -577,8 +611,10 @@ export const useAppointmentReception = () => {
   // assignments, so the new walk-in and its cage show up at once
   const handleWalkInCreated = (result: CreateWalkInBookingResult) => {
     setWalkInOpen(false);
-    fetchAppointments();
-    if (result.cageAssignment) fetchAssignments();
+    recordActiveCage(result.cageAssignment);
+    refreshAppointmentList();
+    if (result.cageAssignment && activeTab === 'assignments')
+      fetchAssignments();
   };
 
   return {
@@ -605,7 +641,11 @@ export const useAppointmentReception = () => {
     handleFilterDateRange,
     resetFilters,
     handlePageChange,
-    fetchAppointments,
+    refreshAppointmentList,
+    activeCageOrderIds,
+    activeCageError,
+    activeCageLoading,
+    fetchActiveCages,
     // Detail
     detailOpen,
     selectedAppointment,

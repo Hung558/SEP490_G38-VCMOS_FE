@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import MedicalRecordModal from '@/components/medical/MedicalRecordModal';
 import CancelReasonModal from '@/components/appointment/CancelReasonModal';
 import { isMedicalServiceCategory } from '@/services/MedicalRecordService';
+import { readReceptionIntake } from '@/services/AppointmentOrderService';
 import type {
   OnlineAppointmentService,
   StaffAppointment,
@@ -42,15 +43,36 @@ import StaffService, {
   getRequiredStaffRole,
   pickAssignableStaff,
 } from '@/services/StaffService';
+import { pickSpecialtyAssignment } from '@/services/StaffService/specialty';
 import { serviceCategoryLabels } from '@/services/ServiceService';
 import type { ServiceCategory } from '@/services/ServiceService';
 import { getRoleLabel } from '@/constants/roles';
 import { OrderServiceCard } from './styles';
+import { isReceptionIntakeEnabled } from './receptionIntakeFeature';
 
 const { Text } = Typography;
 
 // SRS MSG23
 const MSG23 = 'Hiện không có nhân viên nào rảnh cho dịch vụ này.';
+
+const usesSpecialtyRouting = (item: OnlineAppointmentService) =>
+  isReceptionIntakeEnabled &&
+  getRequiredStaffRole(getServiceRefCategory(item.serviceId)) ===
+    'Veterinarian';
+
+const getSpecialtyStatus = (
+  routing: ReturnType<typeof pickSpecialtyAssignment>,
+  selectedSpecialty?: string
+): string | undefined => {
+  if (!routing.hasVeterinarians) return MSG23;
+  if (routing.specialties.length === 0) {
+    return 'Danh sách bác sĩ chưa có thông tin chuyên môn.';
+  }
+  if (!selectedSpecialty)
+    return 'Chọn chuyên môn của ca khám trước khi chọn bác sĩ.';
+  if (routing.staff.length === 0)
+    return 'Không có bác sĩ phù hợp với chuyên môn đã chọn.';
+};
 
 const isAbort = (err: unknown) =>
   axios.isCancel(err) ||
@@ -85,6 +107,7 @@ const AppointmentServicesPanel = ({
   const [staffError, setStaffError] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedStaffId, setSelectedStaffId] = useState<string>();
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>();
   const [savingId, setSavingId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -96,6 +119,12 @@ const AppointmentServicesPanel = ({
   const orderId = appointment._id;
   const orderStatus = appointment.derivedStatus;
   const orderBlockReason = getAssignStaffBlockReason(undefined, orderStatus);
+  const hasIntake =
+    isReceptionIntakeEnabled &&
+    Boolean(readReceptionIntake(appointment.intake));
+  const specialtyAssignment = isReceptionIntakeEnabled
+    ? pickSpecialtyAssignment(onDutyStaff, staff, selectedSpecialty)
+    : undefined;
 
   const handleConfirmCancelService = async (reason: string) => {
     if (
@@ -180,12 +209,18 @@ const AppointmentServicesPanel = ({
 
   const startEditing = (item: OnlineAppointmentService) => {
     setEditingId(item._id);
-    setSelectedStaffId(getStaffRefId(item.assignedStaffId));
+    setSelectedSpecialty(undefined);
+    setSelectedStaffId(
+      usesSpecialtyRouting(item)
+        ? undefined
+        : getStaffRefId(item.assignedStaffId)
+    );
   };
 
   const stopEditing = () => {
     setEditingId(null);
     setSelectedStaffId(undefined);
+    setSelectedSpecialty(undefined);
   };
 
   const submitAssignment = async (
@@ -193,6 +228,18 @@ const AppointmentServicesPanel = ({
     staffId?: string
   ) => {
     if (!staffId || savingId) return;
+    if (
+      usesSpecialtyRouting(item) &&
+      (!canAssign ||
+        editingId !== item._id ||
+        !hasIntake ||
+        staffLoading ||
+        staffError ||
+        !canSubmitAssignment(item, orderStatus, staffId) ||
+        !specialtyAssignment?.staff.some(s => s._id === staffId))
+    ) {
+      return;
+    }
     setSavingId(item._id);
     try {
       const res = await AppointmentServiceService.assignStaff(
@@ -225,28 +272,82 @@ const AppointmentServicesPanel = ({
     }
 
     const currentStaffId = getStaffRefId(item.assignedStaffId);
+    const specialtyRouting = usesSpecialtyRouting(item)
+      ? specialtyAssignment
+      : undefined;
+
+    if (specialtyRouting && !hasIntake) {
+      return (
+        <Text type="warning" style={{ display: 'block', marginTop: 6 }}>
+          Cần có phiếu tiếp nhận đã lưu để phân công hoặc chuyển ca khám.
+        </Text>
+      );
+    }
 
     if (editingId === item._id) {
       const role = getRequiredStaffRole(getServiceRefCategory(item.serviceId));
-      const { staff: options, onDutyOnly } = pickAssignableStaff(
-        onDutyStaff,
-        staff,
-        role
-      );
+      const { staff: options, onDutyOnly } =
+        specialtyRouting ?? pickAssignableStaff(onDutyStaff, staff, role);
+      const specialtyStatus = specialtyRouting
+        ? getSpecialtyStatus(specialtyRouting, selectedSpecialty)
+        : undefined;
+      const eligibleSelection =
+        !specialtyRouting ||
+        (!staffLoading &&
+          !staffError &&
+          options.some(s => s._id === selectedStaffId));
       return (
         <>
+          {specialtyRouting && (
+            <div className="assign-row">
+              <Select
+                autoFocus
+                aria-label="Chuyên môn của ca khám"
+                placeholder="Chọn chuyên môn của ca khám"
+                showSearch
+                allowClear
+                optionFilterProp="label"
+                value={selectedSpecialty}
+                loading={staffLoading}
+                disabled={
+                  staffLoading ||
+                  staffError ||
+                  savingId === item._id ||
+                  specialtyRouting.specialties.length === 0
+                }
+                onChange={value => {
+                  setSelectedSpecialty(value);
+                  setSelectedStaffId(undefined);
+                }}
+                options={specialtyRouting.specialties}
+              />
+            </div>
+          )}
           <div className="assign-row">
             <Select
-              autoFocus
+              autoFocus={!specialtyRouting}
+              aria-label={
+                role === 'Groomer' ? 'Groomer phụ trách' : 'Bác sĩ phụ trách'
+              }
               showSearch
               optionFilterProp="label"
               loading={staffLoading}
-              value={selectedStaffId}
+              value={eligibleSelection ? selectedStaffId : undefined}
+              disabled={
+                Boolean(specialtyRouting) &&
+                (staffLoading ||
+                  staffError ||
+                  !selectedSpecialty ||
+                  options.length === 0 ||
+                  savingId === item._id)
+              }
               onChange={setSelectedStaffId}
               placeholder={
                 role === 'Groomer' ? 'Chọn groomer' : 'Chọn bác sĩ thú y'
               }
-              notFoundContent={staffLoading ? 'Đang tải...' : MSG23}
+              notFoundContent={
+                staffLoading ? 'Đang tải...' : (specialtyStatus ?? MSG23)
+              }
               options={options.map(s => ({
                 value: s._id,
                 label: formatStaffOption(s),
@@ -256,6 +357,7 @@ const AppointmentServicesPanel = ({
               type="primary"
               loading={savingId === item._id}
               disabled={
+                !eligibleSelection ||
                 !canSubmitAssignment(item, orderStatus, selectedStaffId)
               }
               onClick={() => submitAssignment(item, selectedStaffId)}
@@ -271,19 +373,24 @@ const AppointmentServicesPanel = ({
               Không tải được danh sách nhân sự.
             </Text>
           )}
-          {!staffLoading && !staffError && options.length === 0 && (
-            <Text type="warning" style={{ display: 'block', marginTop: 6 }}>
-              {MSG23}
-            </Text>
-          )}
+          {!staffLoading &&
+            !staffError &&
+            (specialtyStatus ||
+              (!specialtyRouting && options.length === 0)) && (
+              <Text type="warning" style={{ display: 'block', marginTop: 6 }}>
+                {specialtyStatus ?? MSG23}
+              </Text>
+            )}
           {!staffLoading &&
             !staffError &&
             options.length > 0 &&
             !onDutyOnly && (
               <Text type="secondary" style={{ display: 'block', marginTop: 6 }}>
                 Chưa có ai trong vai trò này có lịch làm việc ngày{' '}
-                {dayjs(orderDate).format('DD/MM/YYYY')}, nên đang hiện mọi nhân
-                sự đang hoạt động.
+                {dayjs(orderDate).format('DD/MM/YYYY')}, nên đang hiện{' '}
+                {specialtyRouting
+                  ? 'bác sĩ đúng chuyên môn đang hoạt động.'
+                  : 'mọi nhân sự đang hoạt động.'}
               </Text>
             )}
         </>
@@ -438,7 +545,9 @@ const AppointmentServicesPanel = ({
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           {isQueueingOrder(orderStatus)
             ? 'Khách đã check-in: dịch vụ được phân công sẽ vào hàng đợi của người phụ trách ngay.'
-            : 'Khách chưa check-in: có thể phân công trước, dịch vụ sẽ tự vào hàng đợi khi khách check-in.'}
+            : isReceptionIntakeEnabled
+              ? 'Khách chưa check-in: có thể phân công Groomer trước. Ca khám cần có phiếu tiếp nhận để phân công.'
+              : 'Khách chưa check-in: có thể phân công trước, dịch vụ sẽ tự vào hàng đợi khi khách check-in.'}
         </Text>
       )}
       {canAssign && orderBlockReason && (

@@ -1,5 +1,6 @@
 import { Descriptions, Modal, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
+import styled from 'styled-components';
 import type { StaffAppointment } from '@/types';
 import {
   getAppointmentOwnerName,
@@ -7,10 +8,17 @@ import {
   getAppointmentPetName,
   getAppointmentStatusColor,
   getAppointmentStatusLabel,
+  readReceptionIntake,
 } from '@/services/AppointmentOrderService';
 import AppointmentServicesPanel from './AppointmentServicesPanel';
+import { isReceptionIntakeEnabled } from './receptionIntakeFeature';
 
 const { Text } = Typography;
+
+const IntakeText = styled.span`
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+`;
 
 interface AppointmentDetailModalProps {
   open: boolean;
@@ -33,6 +41,9 @@ const AppointmentDetailModal = ({
   serviceRefreshTrigger,
 }: AppointmentDetailModalProps) => {
   if (!appointment) return null;
+  const intake = isReceptionIntakeEnabled
+    ? readReceptionIntake(appointment.intake)
+    : undefined;
 
   return (
     <Modal
@@ -137,6 +148,31 @@ const AppointmentDetailModal = ({
             : '-'}
         </Descriptions.Item>
       </Descriptions>
+
+      {isReceptionIntakeEnabled && (
+        <Descriptions
+          title="Phiếu tiếp nhận"
+          bordered
+          column={1}
+          size="small"
+          style={{ marginTop: 16 }}
+        >
+          {intake ? (
+            <>
+              <Descriptions.Item label="Triệu chứng">
+                <IntakeText>{intake.symptoms}</IntakeText>
+              </Descriptions.Item>
+              <Descriptions.Item label="Tình trạng ban đầu">
+                <IntakeText>{intake.initialCondition}</IntakeText>
+              </Descriptions.Item>
+            </>
+          ) : (
+            <Descriptions.Item label="Trạng thái">
+              <Text type="secondary">Chưa có phiếu tiếp nhận đã lưu.</Text>
+            </Descriptions.Item>
+          )}
+        </Descriptions>
+      )}
 
       <AppointmentServicesPanel
         key={appointment._id}

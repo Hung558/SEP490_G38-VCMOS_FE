@@ -30,6 +30,7 @@ const AppointmentReceptionPage = () => {
         status={state.filterStatus}
         isOnline={state.filterIsOnline}
         code={state.filterCode}
+        singleDate={state.isReceptionist}
         from={state.filterFrom}
         to={state.filterTo}
         loading={state.loading}
@@ -39,7 +40,7 @@ const AppointmentReceptionPage = () => {
         onCodeChange={state.handleFilterCode}
         onDateRangeChange={state.handleFilterDateRange}
         onReset={state.resetFilters}
-        onRefresh={state.fetchAppointments}
+        onRefresh={state.refreshAppointmentList}
       />
 
       {state.listError && (
@@ -48,7 +49,7 @@ const AppointmentReceptionPage = () => {
           showIcon
           message={state.listError}
           action={
-            <Button size="small" onClick={state.fetchAppointments}>
+            <Button size="small" onClick={state.refreshAppointmentList}>
               Thử lại
             </Button>
           }
@@ -56,7 +57,32 @@ const AppointmentReceptionPage = () => {
         />
       )}
 
+      {state.activeCageLoading && (
+        <Text
+          type="secondary"
+          role="status"
+          style={{ display: 'block', marginBottom: 8 }}
+        >
+          Đang tải trạng thái phân chuồng…
+        </Text>
+      )}
+      {state.activeCageError && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Chưa xác định trạng thái phân chuồng"
+          description={state.activeCageError}
+          action={
+            <Button size="small" onClick={() => state.fetchActiveCages()}>
+              Tải lại chuồng
+            </Button>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       <AppointmentTable
+        activeCageOrderIds={state.activeCageOrderIds}
         appointments={state.appointments}
         total={state.total}
         page={state.page}
@@ -180,7 +206,7 @@ const AppointmentReceptionPage = () => {
               initialPhone={state.walkInPhone}
               onClose={state.closeWalkIn}
               onCreated={state.handleWalkInCreated}
-              onSubmitFailed={state.fetchAppointments}
+              onSubmitFailed={state.refreshAppointmentList}
             />
 
             <CheckInConfirmModal
