@@ -156,6 +156,8 @@ class ReceptionListFeedbackTests(unittest.TestCase):
         self.assertEqual(self.active_cage_reads, 0)
 
     def test_assignment_response_updates_badge_before_get_and_release_removes_it(self):
+        # FE #34 only allows cage assignment after the pet has arrived.
+        self.orders[0]['derivedStatus'] = 'CheckedIn'
         self.login('Receptionist')
         expect(self.row('APT-TODAY')).to_be_visible()
         expect(self.page.get_by_text('Đang tải trạng thái phân chuồng…')).to_have_count(0)
@@ -168,7 +170,7 @@ class ReceptionListFeedbackTests(unittest.TestCase):
         self.page.locator('.ant-select-item-option').filter(has_text='C01').click()
         with self.page.expect_request(is_active_cage_list):
             modal.get_by_role('button', name='Xác nhận phân chuồng').click()
-        expect(self.row('APT-TODAY').get_by_text('Đã đặt')).to_be_visible()
+        expect(self.row('APT-TODAY').get_by_text('Đã tiếp nhận')).to_be_visible()
         expect(self.row('APT-TODAY').get_by_text(BADGE)).to_be_visible()
         self.assertEqual(self.assignments_created, [{'cageId': CAGE, 'orderId': ORDER}])
         self.assertEqual(len(self.held_cage_routes), 2)
