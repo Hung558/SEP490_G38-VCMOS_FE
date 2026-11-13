@@ -336,16 +336,16 @@ export const buildCreateOnlineBookingPayload = (
 /**
  * Lấy ngày hiện tại theo giờ Việt Nam (Asia/Ho_Chi_Minh) dạng YYYY-MM-DD
  */
-export const getVietnamTodayString = (): string => {
+export const getVietnamTodayString = (now = new Date()): string => {
   try {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-    }).format(new Date());
+    }).format(now);
   } catch {
-    const d = new Date();
+    const d = now;
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
@@ -354,50 +354,113 @@ export const getVietnamTodayString = (): string => {
 /**
  * Lấy giờ hiện tại theo giờ Việt Nam (Asia/Ho_Chi_Minh) dạng HH:mm
  */
-export const getVietnamCurrentTime = (): string => {
+export const getVietnamCurrentTime = (now = new Date()): string => {
   try {
     return new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Asia/Ho_Chi_Minh',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-    }).format(new Date());
+    }).format(now);
   } catch {
-    const d = new Date();
+    const d = now;
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 };
 
-/**
- * Validate giờ bắt đầu đặt lịch (slotStart):
- * - Tùy chọn (nếu không truyền => hợp lệ)
- * - Đúng định dạng HH:mm
- * - Nằm trong giờ mở cửa phòng khám: 08:00 đến trước 18:00 (tức <= 17:30)
- * - Nếu đặt cho ngày hôm nay, không được ở trong quá khứ
- */
+const CLINIC_OPEN_MINUTES = 8 * 60;
+const CLINIC_CLOSE_MINUTES = 18 * 60;
+const BOOKING_SLOT_STEP = 30;
+const DEFAULT_SERVICE_DURATION = 30;
+const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const PAST_SLOT_ERROR = 'Giờ hẹn không được ở trong quá khứ';
+const LATE_END_ERROR = 'Tổng thời lượng dịch vụ vượt quá giờ đóng cửa (18:00)';
+
+const toMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const toHHmm = (minutes: number): string =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(Math.floor(minutes % 60)).padStart(2, '0')}`;
+
+// Keep the estimate consistent with the duration fallback in the booking API.
+export const getBookingServiceDuration = (raw: unknown): number => {
+  const duration =
+    typeof raw === 'number' || typeof raw === 'string' ? Number(raw) : NaN;
+  return Number.isFinite(duration) && duration > 0
+    ? duration
+    : DEFAULT_SERVICE_DURATION;
+};
+
+const getTodayCutoff = (date: string | undefined, now: Date): string =>
+  date?.trim() === getVietnamTodayString(now) ? getVietnamCurrentTime(now) : '';
+
+const getSlotAvailabilityError = (
+  start: string,
+  duration: number,
+  cutoff: string
+) => {
+  if (cutoff && start <= cutoff) return PAST_SLOT_ERROR;
+  if (toMinutes(start) + duration > CLINIC_CLOSE_MINUTES) return LATE_END_ERROR;
+  return undefined;
+};
+
+/** Validate a supplied time. Older API callers may still omit it. */
 export const validateSlotStart = (
   slotStart?: string,
-  date?: string
+  date?: string,
+  {
+    totalDuration = 0,
+    now = new Date(),
+  }: { totalDuration?: number; now?: Date } = {}
 ): string | undefined => {
-  if (!slotStart || typeof slotStart !== 'string' || !slotStart.trim()) {
-    return undefined;
-  }
-  const trimmed = slotStart.trim();
-  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(trimmed)) {
-    return 'Khung giờ phải đúng định dạng HH:mm';
-  }
-  if (trimmed < '08:00' || trimmed >= '18:00') {
+  const start = typeof slotStart === 'string' ? slotStart.trim() : '';
+  if (!start) return undefined;
+  if (!TIME_PATTERN.test(start)) return 'Khung giờ phải đúng định dạng HH:mm';
+  const minutes = toMinutes(start);
+  if (minutes < CLINIC_OPEN_MINUTES || minutes >= CLINIC_CLOSE_MINUTES) {
     return 'Giờ hẹn phải nằm trong khung giờ làm việc (08:00 - 18:00)';
   }
-  const todayStr = getVietnamTodayString();
-  if (date && date.trim() === todayStr) {
-    const currentHHmm = getVietnamCurrentTime();
-    if (trimmed <= currentHHmm) {
-      return 'Giờ hẹn không được ở trong quá khứ';
-    }
-  }
-  return undefined;
+  return getSlotAvailabilityError(
+    start,
+    totalDuration,
+    getTodayCutoff(date, now)
+  );
+};
+
+export const getClinicBookingSlots = (
+  date: string,
+  totalDuration: number,
+  now = new Date()
+) => {
+  const cutoff = getTodayCutoff(date, now);
+  const count =
+    (CLINIC_CLOSE_MINUTES - CLINIC_OPEN_MINUTES) / BOOKING_SLOT_STEP;
+  return Array.from({ length: count }, (_, index) => {
+    const value = toHHmm(CLINIC_OPEN_MINUTES + index * BOOKING_SLOT_STEP);
+    const error = getSlotAvailabilityError(value, totalDuration, cutoff);
+    const reason =
+      error === PAST_SLOT_ERROR ? 'Đã qua giờ này' : 'Kết thúc sau 18:00';
+    return {
+      value,
+      label: error ? `${value} (${reason})` : value,
+      disabled: Boolean(error),
+    };
+  });
+};
+
+export const getEstimatedBookingEnd = (
+  start: string,
+  duration: number
+): string | undefined => {
+  if (duration <= 0 || !TIME_PATTERN.test(start)) return undefined;
+  const minutes = toMinutes(start);
+  const end = minutes + duration;
+  if (minutes < CLINIC_OPEN_MINUTES || end > CLINIC_CLOSE_MINUTES)
+    return undefined;
+  return toHHmm(end);
 };
 
 /**
@@ -418,7 +481,10 @@ export const validateCancelReason = (reason?: unknown): string | undefined => {
 /**
  * Validate ngày đặt lịch: đúng định dạng YYYY-MM-DD, là ngày thật và không ở quá khứ
  */
-export const validateBookingDate = (date?: string): string | undefined => {
+export const validateBookingDate = (
+  date?: string,
+  now = new Date()
+): string | undefined => {
   if (!date || typeof date !== 'string' || !date.trim()) {
     return 'Ngày hẹn là bắt buộc';
   }
@@ -437,7 +503,7 @@ export const validateBookingDate = (date?: string): string | undefined => {
     return 'Ngày phải đúng định dạng YYYY-MM-DD và hợp lệ';
   }
 
-  const todayStr = getVietnamTodayString();
+  const todayStr = getVietnamTodayString(now);
   if (trimmed < todayStr) {
     return 'Ngày hẹn không được ở trong quá khứ';
   }
@@ -480,13 +546,19 @@ export interface OnlineBookingFormValidationResult {
 /**
  * Kiểm tra hợp lệ dữ liệu form đặt lịch online kèm dịch vụ trước khi submit
  */
-export const validateOnlineBookingForm = (values: {
-  petId?: unknown;
-  date?: unknown;
-  slotStart?: unknown;
-  note?: unknown;
-  services?: unknown;
-}): OnlineBookingFormValidationResult => {
+export const validateOnlineBookingForm = (
+  values: {
+    petId?: unknown;
+    date?: unknown;
+    slotStart?: unknown;
+    note?: unknown;
+    services?: unknown;
+  },
+  {
+    totalDuration = 0,
+    now = new Date(),
+  }: { totalDuration?: number; now?: Date } = {}
+): OnlineBookingFormValidationResult => {
   const errors: OnlineBookingFormValidationResult['errors'] = {};
 
   // 1. petId
@@ -498,15 +570,17 @@ export const validateOnlineBookingForm = (values: {
 
   // 2. date
   const dateStr = typeof values.date === 'string' ? values.date : '';
-  const dateErr = validateBookingDate(dateStr);
+  const dateErr = validateBookingDate(dateStr, now);
   if (dateErr) {
     errors.date = dateErr;
   }
 
-  // 3. slotStart (optional)
+  // 3. slotStart (required on the new booking form, not on the legacy API)
   const slotStartStr =
-    typeof values.slotStart === 'string' ? values.slotStart : undefined;
-  const slotErr = validateSlotStart(slotStartStr, dateStr);
+    typeof values.slotStart === 'string' ? values.slotStart.trim() : '';
+  const slotErr = slotStartStr
+    ? validateSlotStart(slotStartStr, dateStr, { totalDuration, now })
+    : 'Vui lòng chọn giờ hẹn';
   if (slotErr) {
     errors.slotStart = slotErr;
   }

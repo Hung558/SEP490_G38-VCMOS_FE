@@ -9,7 +9,7 @@ Synchronize the FE with the current BE contract for:
 
 1. Whole appointment cancellation.
 2. Individual appointment-service cancellation.
-3. Online booking with an optional start time.
+3. Online booking with a required start time on the new form; the API remains backward compatible.
 4. Appointment cancellation/scheduling metadata display.
 5. Waiting-cage selection during SOAP completion, now that Veterinarian and Groomer can read cages.
 
@@ -144,8 +144,9 @@ Extend service item types with `scheduledStart`, `scheduledEnd`, and cancellatio
 
 In `QuickBookingSection`:
 
-- Add a time selector for `slotStart` without reverting the current one-form flow.
-- Disable/omit times outside clinic hours and past times for today.
+- Require `slotStart` on the existing single form. The API payload type remains optional for legacy callers.
+- Offer 30-minute starts from `08:00` to `17:30`; disable elapsed starts today (Vietnam time) and starts that end after `18:00`.
+- Estimate the end from the sum of service durations (30 minutes when a duration is missing or nonpositive), show the range and total, and revalidate against the latest time and selection on submit.
 - Include `slotStart` in the booking request.
 - Map BE time/duration errors to the time field or a clear form-level message.
 - Display the returned start/end time after success or in appointment detail.
@@ -209,3 +210,16 @@ If `SoapForm` still lacks the flow:
 - **Production Build:** `npm run build` completed successfully in 12.40s.
 - **Preservation Check:** `tests/verify_vet_cage_e2e.py` was kept pristine and untouched.
 - **Status:** All acceptance criteria satisfied and ready for merge into `main`.
+
+## 8. Follow-up — Feedback tab 11/11/2026
+
+1. Verify booking estimate, required slot, same-day cutoff, exact closing boundary, and request whitelist. If date or services invalidate the selection, preserve all inputs, show the time error, and require a new valid start.
+2. Gate owner whole-order and service cancellation at the two-hour boundary using Vietnam time. Use `scheduledStart` before order `slotStart` for a service; for older appointments without either, compare dates.
+3. Gate reception actions on actual service statuses and refresh the open service panel after whole-order cancellation.
+4. Run unit tests plus `tests/verify_appointment_feedback_e2e.py` and `tests/verify_soap_feedback_e2e.py` against Vite with mocked API, then lint and build. A live BE/DB run is separate.
+
+### Other tabs checked against the repo
+
+- Auth illustrations and layout, email reminder, pet controls and admin UI were shipped in PRs #8, #10 and #12. Admin services and role profiles were shipped in #11 and #15. This follow-up does not change or re-approve those visuals.
+- The owner dashboard tabs, single booking form, staff assignment display, and reception walk-in exist in the prior FE changes (including #23, #24 and #25). The AI tab exists separately; live AI functionality was not part of the feedback contract.
+- The SOAP fixes use the BE record status. The feedback says to finalize at completion, but the current BE finalizes at payment; FE does not pretend the record was finalized. See the SOAP spec for details.

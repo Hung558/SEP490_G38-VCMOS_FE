@@ -167,7 +167,7 @@ const AppointmentTable = ({
         const canCheckIn = isReceptionist && record.derivedStatus === 'Booked';
         const canCancel =
           isReceptionist &&
-          ['Booked', 'CheckedIn'].includes(record.derivedStatus) &&
+          record.derivedStatus === 'Booked' &&
           Boolean(onCancelAppointment);
 
         return (

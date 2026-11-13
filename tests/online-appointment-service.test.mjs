@@ -431,6 +431,7 @@ test('validateOnlineBookingForm validates petId, date, services, and duplicate s
   assert.equal(emptyRes.isValid, false);
   assert.match(emptyRes.errors.petId || '', /bắt buộc/);
   assert.match(emptyRes.errors.date || '', /bắt buộc/);
+  assert.match(emptyRes.errors.slotStart, /chọn giờ hẹn/);
   assert.match(emptyRes.errors.services || '', /ít nhất một dịch vụ/);
 
   // Empty services array
@@ -461,6 +462,7 @@ test('validateOnlineBookingForm validates petId, date, services, and duplicate s
   const validRes = helpers.validateOnlineBookingForm({
     petId: '6ad96d4a9664da6b2c0d8d70',
     date: '2026-12-15',
+    slotStart: '09:00',
     note: 'Khám răng',
     services: [
       { serviceId: '6ad96d4a9664da6b2c0d8e01', sequenceNo: 1, isEmergency: false },
@@ -644,7 +646,7 @@ test('validateCancelReason requires non-empty string and caps length at 200', ()
   assert.match(helpers.validateCancelReason('a'.repeat(201)), /tối đa 200/);
 });
 
-test('validateOnlineBookingForm validates slotStart when provided', () => {
+test('validateOnlineBookingForm validates the required slotStart', () => {
   const validRes = helpers.validateOnlineBookingForm({
     petId: '6ad96d4a9664da6b2c0d8d70',
     date: '2099-12-25',
@@ -668,7 +670,86 @@ test('validateOnlineBookingForm validates slotStart when provided', () => {
   assert.match(invalidSlotRes.errors.slotStart, /khung giờ làm việc/);
 });
 
+test('booking slots use Vietnam time and allow an exact 18:00 end', () => {
+  const now = new Date('2026-11-11T19:00:00Z'); // Nov 12 02:00 in Vietnam
+  assert.equal(helpers.getVietnamTodayString(now), '2026-11-12');
+  const morning = new Date('2026-11-12T02:30:00Z'); // 09:30 in Vietnam
+  const duration = [60, undefined]
+    .map(helpers.getBookingServiceDuration)
+    .reduce((a, b) => a + b, 0);
+  assert.equal(duration, 90);
+  const todaySlots = helpers.getClinicBookingSlots(
+    '2026-11-12',
+    duration,
+    morning
+  );
+  const tomorrowSlots = helpers.getClinicBookingSlots(
+    '2026-11-13',
+    duration,
+    morning
+  );
+  assert.equal(todaySlots.length, 20);
+  assert.equal(todaySlots[0].value, '08:00');
+  assert.equal(todaySlots.at(-1).value, '17:30');
+  assert.equal(todaySlots.find(slot => slot.value === '09:30').disabled, true);
+  assert.equal(todaySlots.find(slot => slot.value === '10:00').disabled, false);
+  assert.equal(todaySlots.find(slot => slot.value === '16:30').disabled, false);
+  assert.equal(todaySlots.find(slot => slot.value === '17:00').disabled, true);
+  assert.equal(
+    tomorrowSlots.find(slot => slot.value === '09:30').disabled,
+    false
+  );
+  assert.equal(helpers.getEstimatedBookingEnd('16:30', duration), '18:00');
+  assert.equal(helpers.getEstimatedBookingEnd('17:00', duration), undefined);
+  assert.equal(helpers.getEstimatedBookingEnd('08:00', 0), undefined);
+  assert.ok(
+    helpers
+      .getClinicBookingSlots('2026-11-12', 601, morning)
+      .every(slot => slot.disabled)
+  );
+  assert.ok(
+    helpers
+      .getClinicBookingSlots('2026-11-12', 30, new Date('2026-11-12T10:30:00Z'))
+      .every(slot => slot.disabled)
+  );
+});
 
+test('booking duration falls back to 30 minutes when missing or nonpositive', () => {
+  for (const raw of [undefined, null, '', 0, -1, NaN, Infinity, 'invalid']) {
+    assert.equal(helpers.getBookingServiceDuration(raw), 30);
+  }
+  assert.equal(helpers.getBookingServiceDuration(15), 15);
+  assert.equal(helpers.getBookingServiceDuration('45'), 45);
+});
 
-
-
+test('booking form revalidates the required slot using current time and duration at submit', () => {
+  const now = new Date('2026-11-12T02:30:00Z');
+  const options = { now, totalDuration: 90 };
+  const form = {
+    petId: '6ad96d4a9664da6b2c0d8d70',
+    date: '2026-11-12',
+    services: [{ serviceId: '6ad96d4a9664da6b2c0d8e01' }],
+  };
+  for (const slotStart of [undefined, '  ']) {
+    assert.match(
+      helpers.validateOnlineBookingForm({ ...form, slotStart }, options).errors
+        .slotStart,
+      /chọn giờ hẹn/
+    );
+  }
+  assert.match(
+    helpers.validateOnlineBookingForm({ ...form, slotStart: '09:30' }, options)
+      .errors.slotStart,
+    /quá khứ/
+  );
+  assert.match(
+    helpers.validateOnlineBookingForm({ ...form, slotStart: '17:00' }, options)
+      .errors.slotStart,
+    /đóng cửa/
+  );
+  assert.equal(
+    helpers.validateOnlineBookingForm({ ...form, slotStart: '16:30' }, options)
+      .isValid,
+    true
+  );
+});

@@ -27,6 +27,8 @@ interface AppointmentDetailModalProps {
   canAssignStaff: boolean;
   onClose: () => void;
   onUpdated?: () => void;
+  onCancelAppointment?: (appointment: StaffAppointment) => void;
+  serviceRefreshTrigger?: number;
 }
 
 const AppointmentDetailModal = ({
@@ -35,6 +37,8 @@ const AppointmentDetailModal = ({
   canAssignStaff,
   onClose,
   onUpdated,
+  onCancelAppointment,
+  serviceRefreshTrigger,
 }: AppointmentDetailModalProps) => {
   if (!appointment) return null;
   const intake = isReceptionIntakeEnabled
@@ -175,6 +179,8 @@ const AppointmentDetailModal = ({
         appointment={appointment}
         canAssign={canAssignStaff}
         onUpdated={onUpdated}
+        onCancelAppointment={onCancelAppointment}
+        refreshTrigger={serviceRefreshTrigger}
       />
     </Modal>
   );

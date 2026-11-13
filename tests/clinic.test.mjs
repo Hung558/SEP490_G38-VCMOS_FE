@@ -424,18 +424,26 @@ test('cage weight limits and canCageHoldPet enforce BR-11 for Vet and Groomer wa
   const mediumCage = { size: 'M', isIsolated: false, zone: 'ExaminationZone' };
   assert.equal(cages.canCageHoldPet(mediumCage, 8.5, false), true);
   assert.equal(cages.canCageHoldPet(mediumCage, 18.0, false), false);
+});
 
-  // Complete consultation payload with waitingCageId
-  const completePayload = {
-    ...medical.buildMedicalRecordPayload({
-      subjectiveNote: 'S',
-      objectiveNote: 'O',
-      assessment: 'A',
-      plan: 'P',
-      weight: 8.5,
-    }),
-    waitingCageId: '6ad96d4a9664da6b2c0d8c01',
+test('completion sends the current SOAP values and a cage ID or explicit null', () => {
+  const values = {
+    subjectiveNote: ' S ',
+    objectiveNote: 'O',
+    assessment: 'A',
+    plan: 'P',
+    weight: 8.5,
   };
-  assert.equal(completePayload.waitingCageId, '6ad96d4a9664da6b2c0d8c01');
-  assert.equal(completePayload.weight, 8.5);
+  const draft = medical.buildMedicalRecordPayload(values);
+  const cageId = '6ad96d4a9664da6b2c0d8c01';
+  assert.equal(draft.subjectiveNote, 'S');
+  assert.equal('waitingCageId' in draft, false);
+  assert.deepEqual(medical.buildCompleteMedicalRecordPayload(values), {
+    ...draft,
+    waitingCageId: null,
+  });
+  assert.deepEqual(medical.buildCompleteMedicalRecordPayload(values, cageId), {
+    ...draft,
+    waitingCageId: cageId,
+  });
 });

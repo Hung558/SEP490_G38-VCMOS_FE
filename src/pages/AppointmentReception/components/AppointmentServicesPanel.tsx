@@ -34,6 +34,10 @@ import AppointmentServiceService, {
   getStaffRefId,
   isQueueingOrder,
 } from '@/services/AppointmentServiceService';
+import {
+  canReceptionCancelAppointment,
+  canReceptionCancelService,
+} from '@/services/AppointmentOrderService';
 import StaffService, {
   formatStaffOption,
   getRequiredStaffRole,
@@ -79,6 +83,8 @@ interface AppointmentServicesPanelProps {
   /** Chỉ Lễ tân được phân công; Admin chỉ xem */
   canAssign: boolean;
   onUpdated?: () => void;
+  onCancelAppointment?: (appointment: StaffAppointment) => void;
+  refreshTrigger?: number;
 }
 
 /** Dịch vụ của một lịch hẹn và người phụ trách (SCR-16) */
@@ -86,6 +92,8 @@ const AppointmentServicesPanel = ({
   appointment,
   canAssign,
   onUpdated,
+  onCancelAppointment,
+  refreshTrigger,
 }: AppointmentServicesPanelProps) => {
   const [items, setItems] = useState<OnlineAppointmentService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,7 +127,13 @@ const AppointmentServicesPanel = ({
     : undefined;
 
   const handleConfirmCancelService = async (reason: string) => {
-    if (!serviceToCancel || cancelSubmitting) return;
+    if (
+      !canAssign ||
+      !serviceToCancel ||
+      cancelSubmitting ||
+      !canReceptionCancelService(orderStatus, serviceToCancel)
+    )
+      return;
     setCancelSubmitting(true);
     try {
       const res = await AppointmentServiceService.cancelAppointmentService(
@@ -157,7 +171,7 @@ const AppointmentServicesPanel = ({
       const res = await AppointmentServiceService.listOrderServices(orderId, {
         signal: controller.signal,
       });
-      setItems(res.data || []);
+      if (!controller.signal.aborted) setItems(res.data || []);
     } catch (err: unknown) {
       if (isAbort(err)) return;
       setError(
@@ -172,7 +186,7 @@ const AppointmentServicesPanel = ({
   useEffect(() => {
     fetchServices();
     return () => abortRef.current?.abort();
-  }, [fetchServices]);
+  }, [fetchServices, orderStatus, refreshTrigger]);
 
   const orderDate = appointment.date;
 
@@ -490,7 +504,7 @@ const AppointmentServicesPanel = ({
               </Button>
             )}
 
-          {canAssign && ['Booked', 'Waiting'].includes(item.status) && (
+          {canAssign && canReceptionCancelService(orderStatus, item) && (
             <Button
               type="link"
               size="small"
@@ -511,6 +525,20 @@ const AppointmentServicesPanel = ({
       <Space style={{ marginBottom: 8 }}>
         <TeamOutlined style={{ color: '#1677ff' }} />
         <Text strong>Dịch vụ và người phụ trách</Text>
+        {canAssign &&
+          onCancelAppointment &&
+          orderStatus === 'CheckedIn' &&
+          !loading &&
+          !error &&
+          canReceptionCancelAppointment(orderStatus, items) && (
+            <Button
+              size="small"
+              danger
+              onClick={() => onCancelAppointment(appointment)}
+            >
+              Hủy hẹn
+            </Button>
+          )}
       </Space>
 
       {canAssign && !orderBlockReason && (
