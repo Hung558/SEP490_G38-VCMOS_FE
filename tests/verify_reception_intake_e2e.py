@@ -11,8 +11,9 @@ from playwright.async_api import async_playwright, expect
 
 BASE = os.environ.get('VCMOS_QA_BASE', '').rstrip('/')
 FLAG = os.environ.get('VCMOS_QA_INTAKE')
-if not re.fullmatch(r'http://127\.0\.0\.1:31[0-9]{2}', BASE) or FLAG not in ('off', 'on'):
-    raise SystemExit('Set VCMOS_QA_BASE to the dedicated loopback Vite URL (:31xx) and VCMOS_QA_INTAKE=on|off.')
+LOCAL_3000 = {'http://127.0.0.1:3000', 'http://127.0.0.2:3000', 'http://[::1]:3000'}
+if (BASE not in LOCAL_3000 and not re.fullmatch(r'http://127\.0\.0\.1:31[0-9]{2}', BASE)) or FLAG not in ('off', 'on'):
+    raise SystemExit('Set VCMOS_QA_BASE to the dedicated loopback Vite URL (:3000 or :31xx) and VCMOS_QA_INTAKE=on|off.')
 ON = FLAG == 'on'
 DAY, OTHER = '2026-11-12', '2026-11-13'
 ORD, ORD2, CAGE, ASSIGN, SVC, CAT, REC, OWN, PET, VETA, VETB, GROOM = [f'{i:024x}' for i in range(101, 113)]

@@ -69,6 +69,7 @@ const AppointmentFilters = ({
           />
 
           <Select
+            aria-label="Trạng thái"
             placeholder="Trạng thái"
             allowClear
             value={status}
@@ -81,6 +82,7 @@ const AppointmentFilters = ({
           />
 
           <Select
+            aria-label="Hình thức đặt"
             placeholder="Hình thức đặt"
             allowClear
             value={

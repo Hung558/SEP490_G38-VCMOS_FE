@@ -139,7 +139,8 @@ class ReceptionTodayE2E(unittest.TestCase):
         self.role = role
         user = {'_id': oid(904), 'fullName': 'Tiếp nhận QA', 'role': role, 'status': 'Active', 'isEmailVerified': True}
         self.ctx.add_init_script(f"localStorage.setItem('user-info', {json.dumps(json.dumps(user))});"
-                                 f"localStorage.setItem('token', {json.dumps(TOKEN)});")
+                                 f"localStorage.setItem('token', {json.dumps(TOKEN)});"
+                                 "sessionStorage.setItem('hasLoadedBefore', 'true');")
         self.page.goto(f'{BASE}/clinic/appointments')
         expect(self.page.get_by_text('Tiếp nhận lịch hẹn phòng khám', exact=True)).to_be_visible()
 
@@ -173,7 +174,7 @@ class ReceptionTodayE2E(unittest.TestCase):
             field.press('Enter')
 
     def select_online(self):
-        self.page.get_by_text('Hình thức đặt', exact=True).click()
+        self.page.get_by_role('combobox', name='Hình thức đặt', exact=True).click()
         self.page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter(has_text='Đặt trực tuyến (Online)').click()
 
     def test_summary_uses_vietnam_day_and_paginated_total_even_with_other_table_filters(self):
@@ -299,6 +300,18 @@ class ReceptionTodayE2E(unittest.TestCase):
         self.expect_totals(booked=9, checked=6)
         self.assertGreater(len([q for q in self.queries if self.is_summary(q)]), before)
         self.assertEqual(self.writes, [('PATCH', f'{LIST}/{oid(100)}/check-in', None)])
+
+    def test_manual_refresh_shows_order_newly_waiting_for_pickup(self):
+        self.open()
+        self.expect_totals()
+        self.orders[2]['derivedStatus'] = 'WaitOwner'
+        button(self.page, 'Làm mới').click()
+        self.expect_totals(wait=4)
+        expect(self.row(102).get_by_text('Kiểm tra trước khi bàn giao', exact=True)).to_be_visible()
+        self.metric('WaitOwner').click()
+        expect(self.row(102)).to_be_visible()
+        expect(self.row(100)).to_have_count(0)
+        self.assertEqual(self.writes, [])
 
     def test_admin_has_no_summary_no_summary_requests_and_no_reception_ctas(self):
         self.open('Admin')
