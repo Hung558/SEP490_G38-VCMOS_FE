@@ -82,7 +82,7 @@ const AppointmentReceptionPage = () => {
       )}
 
       <AppointmentTable
-        activeCageOrderIds={state.activeCageOrderIds}
+        activeCageByOrderId={state.activeCageByOrderId}
         appointments={state.appointments}
         total={state.total}
         page={state.page}
@@ -93,6 +93,7 @@ const AppointmentReceptionPage = () => {
         onViewDetail={state.openDetail}
         onCheckIn={state.openCheckIn}
         onAssignCage={state.openCreateAssignment}
+        onViewCage={state.openAssignmentDetail}
         onCancelAppointment={state.openCancel}
       />
     </>

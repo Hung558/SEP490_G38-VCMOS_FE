@@ -3,8 +3,8 @@ import { extractApiError } from '@/services/AppointmentOrderService';
 import CageAssignmentService from '@/services/CageAssignmentService';
 import type { CageAssignment } from '@/types';
 import {
-  collectActiveCageOrderIds,
   getActiveCageOrderId,
+  indexActiveCagesByOrder,
 } from './activeCageAssignments';
 
 const POLL_INTERVAL_MS = 30_000;
@@ -13,9 +13,9 @@ export const useActiveCageAssignments = (
   isReceptionist: boolean,
   isListVisible: boolean
 ) => {
-  const [activeCageOrderIds, setOrderIds] = useState<ReadonlySet<string>>(
-    () => new Set()
-  );
+  const [activeCageByOrderId, setByOrder] = useState<
+    ReadonlyMap<string, CageAssignment>
+  >(() => new Map());
   const [activeCageError, setError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
@@ -32,12 +32,12 @@ export const useActiveCageAssignments = (
           { signal: controller.signal }
         );
         if (controller.signal.aborted) return;
-        setOrderIds(collectActiveCageOrderIds(res.data));
+        setByOrder(indexActiveCagesByOrder(res.data));
         setError(null);
       } catch (error: unknown) {
         if (controller.signal.aborted) return;
         // A failed refresh is not evidence that a previously open cage is still assigned.
-        setOrderIds(new Set());
+        setByOrder(new Map());
         setError(
           extractApiError(error, 'Không thể kiểm tra tình trạng phân chuồng')
             .message
@@ -54,12 +54,14 @@ export const useActiveCageAssignments = (
 
   const recordActiveCage = useCallback((assignment?: CageAssignment | null) => {
     const orderId = getActiveCageOrderId(assignment);
-    if (orderId) setOrderIds(prev => new Set([...prev, orderId]));
+    if (assignment && orderId) {
+      setByOrder(prev => new Map(prev).set(orderId, assignment));
+    }
   }, []);
 
   useEffect(() => {
     if (!isReceptionist) {
-      setOrderIds(new Set());
+      setByOrder(new Map());
       setError(null);
       setHasLoaded(false);
     }
@@ -86,7 +88,7 @@ export const useActiveCageAssignments = (
   }, [fetchActiveCages, isReceptionist, isListVisible]);
 
   return {
-    activeCageOrderIds,
+    activeCageByOrderId,
     activeCageError,
     activeCageLoading: isReceptionist && !hasLoaded,
     fetchActiveCages,

@@ -17,11 +17,14 @@ export const FilterCard = styled.div`
   margin-bottom: 16px;
 `;
 
+// Row actions stay on one line; the column width is sized for the widest row
+// (Booked: Chi tiết + Check-in + Hủy hẹn)
 export const ActionsWrapper = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 `;
 
 export const ResponsiveFilterRow = styled.div`

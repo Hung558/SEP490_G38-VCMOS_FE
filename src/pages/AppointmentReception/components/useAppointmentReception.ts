@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { useAuth } from '@/contexts/routerProvider/authContext';
@@ -42,7 +43,7 @@ export const useAppointmentReception = () => {
   >('appointments');
 
   const {
-    activeCageOrderIds,
+    activeCageByOrderId,
     activeCageError,
     activeCageLoading,
     fetchActiveCages,
@@ -52,6 +53,23 @@ export const useAppointmentReception = () => {
   // Walk-in modal (Receptionist only); the phone is pre-filled from the lookup tab
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInPhone, setWalkInPhone] = useState<string | undefined>();
+
+  // "Đặt lịch khám" on the home page links here with ?walkin=new. Open the form
+  // once and drop the param, so a reload or back does not reopen it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (!isReceptionist || !searchParams.has('walkin')) return;
+    setWalkInPhone(undefined);
+    setWalkInOpen(true);
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('walkin');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [isReceptionist, searchParams, setSearchParams]);
 
   // Appointments List State
   const [appointments, setAppointments] = useState<StaffAppointment[]>([]);
@@ -498,6 +516,14 @@ export const useAppointmentReception = () => {
 
   const handleCreateAssignment = async (data: CreateCageAssignmentPayload) => {
     if (!isReceptionist || createAssignmentSubmitting) return;
+    // POST /cage-assignments does not reject an order that already holds a cage,
+    // so a second submit would occupy two cages for one pet.
+    if (activeCageByOrderId.has(data.orderId)) {
+      toast.error(
+        'Lịch hẹn này đã được phân chuồng. Hãy giải phóng chuồng cũ trước khi phân chuồng khác.'
+      );
+      return;
+    }
 
     setCreateAssignmentSubmitting(true);
     try {
@@ -642,7 +668,7 @@ export const useAppointmentReception = () => {
     resetFilters,
     handlePageChange,
     refreshAppointmentList,
-    activeCageOrderIds,
+    activeCageByOrderId,
     activeCageError,
     activeCageLoading,
     fetchActiveCages,
