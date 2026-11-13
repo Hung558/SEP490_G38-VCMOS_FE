@@ -154,3 +154,116 @@ test('extractApiError extracts status, message, and fieldErrors', () => {
   assert.deepEqual(fallbackRes.fieldErrors, {});
 });
 
+test('owner cancellation uses Vietnam time and allows the exact 2-hour boundary', () => {
+  const now = new Date('2026-11-12T02:30:00Z'); // 09:30 in Vietnam
+  const order = {
+    date: '2026-11-12',
+    derivedStatus: 'Booked',
+    slotStart: '11:30',
+  };
+  assert.equal(helpers.canOwnerCancelAppointment(order, undefined, now), true);
+  assert.equal(
+    helpers.canOwnerCancelAppointment(
+      { ...order, date: '2026-11-12T00:00:00.000Z' },
+      undefined,
+      now
+    ),
+    true
+  );
+  assert.equal(
+    helpers.canOwnerCancelAppointment(
+      { ...order, slotStart: '11:29' },
+      undefined,
+      now
+    ),
+    false
+  );
+  assert.equal(
+    helpers.canOwnerCancelAppointment(
+      { ...order, derivedStatus: 'CheckedIn' },
+      undefined,
+      now
+    ),
+    false
+  );
+  assert.equal(
+    helpers.canOwnerCancelAppointment(
+      { ...order, slotStart: '10:00' },
+      { status: 'Booked', scheduledStart: '12:00' },
+      now
+    ),
+    true
+  );
+  assert.equal(
+    helpers.canOwnerCancelAppointment(
+      order,
+      { status: 'Booked', scheduledStart: '11:00' },
+      now
+    ),
+    false
+  );
+  assert.equal(
+    helpers.canOwnerCancelAppointment(order, { status: 'Booked' }, now),
+    true
+  );
+  assert.equal(
+    helpers.canOwnerCancelAppointment(order, { status: 'Waiting' }, now),
+    false
+  );
+  assert.equal(
+    helpers.canOwnerCancelAppointment(
+      { ...order, slotStart: null },
+      undefined,
+      now
+    ),
+    true
+  );
+  assert.equal(
+    helpers.canOwnerCancelAppointment(
+      { ...order, date: '2026-11-11', slotStart: null },
+      undefined,
+      now
+    ),
+    false
+  );
+});
+
+test('reception can cancel checked-in orders only after confirming no service started', () => {
+  assert.equal(helpers.canReceptionCancelAppointment('Booked'), true);
+  assert.equal(helpers.canReceptionCancelAppointment('CheckedIn'), false);
+  assert.equal(
+    helpers.canReceptionCancelAppointment('CheckedIn', [
+      { status: 'Waiting' },
+      { status: 'Cancelled' },
+    ]),
+    true
+  );
+  for (const status of ['InProgress', 'Done']) {
+    assert.equal(
+      helpers.canReceptionCancelAppointment('CheckedIn', [
+        { status: 'Waiting' },
+        { status },
+      ]),
+      false
+    );
+  }
+  assert.equal(helpers.canReceptionCancelAppointment('WaitOwner', []), false);
+  assert.equal(
+    helpers.canReceptionCancelService('CheckedIn', { status: 'Waiting' }),
+    true
+  );
+  assert.equal(
+    helpers.canReceptionCancelService('InProgress', { status: 'Booked' }),
+    true
+  );
+  assert.equal(
+    helpers.canReceptionCancelService('Booked', { status: 'Done' }),
+    false
+  );
+  for (const orderStatus of ['Done', 'Cancelled', 'Overdue']) {
+    assert.equal(
+      helpers.canReceptionCancelService(orderStatus, { status: 'Waiting' }),
+      false
+    );
+  }
+});

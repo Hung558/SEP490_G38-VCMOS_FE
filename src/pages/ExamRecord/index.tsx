@@ -61,6 +61,19 @@ const ExamRecordPage = () => {
   const { appointmentServiceId = '' } = useParams<{
     appointmentServiceId: string;
   }>();
+  return (
+    <ExamRecordCase
+      key={appointmentServiceId}
+      appointmentServiceId={appointmentServiceId}
+    />
+  );
+};
+
+const ExamRecordCase = ({
+  appointmentServiceId,
+}: {
+  appointmentServiceId: string;
+}) => {
   const navigate = useNavigate();
 
   const [item, setItem] = useState<MyQueueItem | null>(null);
@@ -76,26 +89,32 @@ const ExamRecordPage = () => {
   // Bumped after every load so the form remounts with the server's values
   const [formKey, setFormKey] = useState(0);
 
+  const fetchCase = useCallback(async () => {
+    const queue = await AppointmentServiceService.listMyQueue();
+    const mine = (queue.data || []).find(i => i._id === appointmentServiceId);
+    if (!mine) return null;
+
+    const saved = await MedicalRecordService.getByService(
+      appointmentServiceId
+    ).catch((err: unknown) => {
+      // A visit that has not started has no record yet.
+      if (extractApiError(err).statusCode === 404) return null;
+      throw err;
+    });
+    return { mine, saved };
+  }, [appointmentServiceId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     setNotMine(false);
     try {
-      const [queue, saved] = await Promise.all([
-        AppointmentServiceService.listMyQueue(),
-        MedicalRecordService.getByService(appointmentServiceId).catch(
-          (err: unknown) => {
-            // 404: the exam has not started, so there is no record yet
-            if (extractApiError(err).statusCode === 404) return null;
-            throw err;
-          }
-        ),
-      ]);
-      const mine = (queue.data || []).find(i => i._id === appointmentServiceId);
-      if (!mine) {
+      const snapshot = await fetchCase();
+      if (!snapshot) {
         setNotMine(true);
         return;
       }
+      const { mine, saved } = snapshot;
       setItem(mine);
       setRecord(saved);
       if (saved && typeof saved.petId === 'object') {
@@ -113,7 +132,19 @@ const ExamRecordPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [appointmentServiceId]);
+  }, [fetchCase]);
+
+  // Unlike a full reload, this does not remount an editable form.
+  const refreshAfterConflict = async () => {
+    const snapshot = await fetchCase();
+    if (!snapshot) {
+      setNotMine(true);
+      return;
+    }
+    const { mine, saved } = snapshot;
+    setItem(mine);
+    if (saved) setRecord(saved);
+  };
 
   useEffect(() => {
     load();
@@ -134,10 +165,16 @@ const ExamRecordPage = () => {
       }),
     ])
       .then(([medicines, vaccines]) =>
-        setProducts([
-          ...(medicines.data?.items || []),
-          ...(vaccines.data?.items || []),
-        ])
+        setProducts(
+          [
+            ...(medicines.data?.items || []),
+            ...(vaccines.data?.items || []),
+          ].filter(
+            p =>
+              p.status === 'Active' &&
+              (p.category === 'Medicine' || p.category === 'Vaccine')
+          )
+        )
       )
       .catch(() => setProductsError(true));
   }, []);
@@ -214,9 +251,20 @@ const ExamRecordPage = () => {
 
   const order = getQueueOrder(item);
   const status = item.status as AppointmentServiceStatus;
-  const locked = isMedicalRecordLocked(record);
-
   const renderBody = () => {
+    if (record && isMedicalRecordLocked(record)) {
+      return (
+        <>
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="Bệnh án đã khóa sau khi thanh toán (BR-14), chỉ xem được."
+          />
+          <MedicalRecordView record={record} />
+        </>
+      );
+    }
     if (status === 'Booked') {
       return (
         <Alert
@@ -257,25 +305,36 @@ const ExamRecordPage = () => {
           products={products}
           productsError={productsError}
           serviceStatus={status}
-          locked={locked}
           onSaved={saved => {
             setRecord(saved);
             if (saved && typeof saved.petId === 'object') setPet(saved.petId);
           }}
           onCompleted={result => {
-            setRecord(result.medicalRecord);
-            setItem(prev =>
-              prev
-                ? { ...prev, status: result.appointmentService.status }
-                : prev
-            );
+            const saved = result.medicalRecord;
+            setRecord(saved);
+            if (typeof saved.petId === 'object') setPet(saved.petId);
+            setItem(prev => {
+              if (!prev) return prev;
+              const orderRef = getQueueOrder(prev);
+              return {
+                ...prev,
+                status: result.appointmentService.status,
+                orderId:
+                  orderRef && result.appointmentOrder
+                    ? {
+                        ...orderRef,
+                        derivedStatus: result.appointmentOrder.derivedStatus,
+                      }
+                    : prev.orderId,
+              };
+            });
             if (result.appointmentOrder?.derivedStatus === 'WaitOwner') {
               toast.info(
                 'Mọi dịch vụ của lịch hẹn đã xong: lịch chuyển sang Chờ chủ đón.'
               );
             }
           }}
-          onStale={load}
+          onConflict={refreshAfterConflict}
         />
       );
     }

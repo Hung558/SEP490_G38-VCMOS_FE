@@ -32,6 +32,8 @@ import AppointmentOrderService, {
   getAppointmentStatusLabel,
   getAppointmentStatusColor,
   extractApiError,
+  canOwnerCancelAppointment,
+  OWNER_CANCEL_DEADLINE_MESSAGE,
 } from '@/services/AppointmentOrderService';
 import AppointmentServiceService, {
   isAppointmentEligibleForService,
@@ -163,7 +165,12 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   }, [appointmentId]);
 
   const handleConfirmCancelAppt = async (reason: string) => {
-    if (!appointment || cancelApptLoading) return;
+    if (!appointment || !resolvedIsPetOwner || cancelApptLoading) return;
+    if (!canOwnerCancelAppointment(appointment)) {
+      setIsCancelApptOpen(false);
+      toast.warning(OWNER_CANCEL_DEADLINE_MESSAGE);
+      return;
+    }
     setCancelApptLoading(true);
     try {
       const res = await AppointmentOrderService.cancelAppointment(
@@ -190,7 +197,18 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   };
 
   const handleConfirmCancelService = async (reason: string) => {
-    if (!serviceToCancel || cancelServiceLoading) return;
+    if (
+      !appointment ||
+      !serviceToCancel ||
+      !resolvedIsPetOwner ||
+      cancelServiceLoading
+    )
+      return;
+    if (!canOwnerCancelAppointment(appointment, serviceToCancel)) {
+      setServiceToCancel(null);
+      toast.warning(OWNER_CANCEL_DEADLINE_MESSAGE);
+      return;
+    }
     setCancelServiceLoading(true);
     try {
       const res = await AppointmentServiceService.cancelAppointmentService(
@@ -279,7 +297,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
       footer={[
         appointment &&
           resolvedIsPetOwner &&
-          appointment.derivedStatus === 'Booked' && (
+          canOwnerCancelAppointment(appointment) && (
             <Button
               key="cancel-appt"
               danger
@@ -636,8 +654,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                             )}
 
                           {resolvedIsPetOwner &&
-                            appointment.derivedStatus === 'Booked' &&
-                            s.status === 'Booked' && (
+                            canOwnerCancelAppointment(appointment, s) && (
                               <Button
                                 type="link"
                                 size="small"

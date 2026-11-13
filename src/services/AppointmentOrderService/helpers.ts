@@ -48,20 +48,69 @@ export const getAppointmentStatusColor = (status?: string): string => {
 };
 
 /** Lấy ngày hiện tại theo giờ Việt Nam (Asia/Ho_Chi_Minh) dạng YYYY-MM-DD */
-export const getVietnamTodayString = (): string => {
+export const getVietnamTodayString = (now = new Date()): string => {
   try {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-    }).format(new Date());
+    }).format(now);
   } catch {
-    const d = new Date();
+    const d = now;
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 };
+
+const OWNER_CANCELLATION_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+export const OWNER_CANCEL_DEADLINE_MESSAGE =
+  'Đã quá hạn tự hủy trực tuyến. Vui lòng liên hệ phòng khám để được hỗ trợ.';
+
+type CancellableOrder = {
+  derivedStatus: AppointmentStatus;
+  date: string;
+  slotStart?: string | null;
+};
+type CancellableService = { status: string; scheduledStart?: string | null };
+
+export const canOwnerCancelAppointment = (
+  order: CancellableOrder,
+  service?: CancellableService,
+  now = new Date()
+): boolean => {
+  if (
+    order.derivedStatus !== 'Booked' ||
+    (service && service.status !== 'Booked')
+  )
+    return false;
+  // The API uses a clinic-local calendar date. Keep the same date if a legacy response includes an ISO suffix.
+  const date = order.date.slice(0, 10);
+  const start = service?.scheduledStart || order.slotStart;
+  return start
+    ? new Date(`${date}T${start}:00+07:00`).getTime() - now.getTime() >=
+        OWNER_CANCELLATION_WINDOW_MS
+    : date >= getVietnamTodayString(now);
+};
+
+export const canReceptionCancelAppointment = (
+  orderStatus: AppointmentStatus,
+  services?: readonly CancellableService[]
+): boolean =>
+  orderStatus === 'Booked' ||
+  (orderStatus === 'CheckedIn' &&
+    services !== undefined &&
+    !services.some(
+      service => service.status === 'InProgress' || service.status === 'Done'
+    ));
+
+export const canReceptionCancelService = (
+  orderStatus: AppointmentStatus,
+  service: CancellableService
+): boolean =>
+  !['Done', 'Cancelled', 'Overdue'].includes(orderStatus) &&
+  ['Booked', 'Waiting'].includes(service.status);
 
 /** Validate ngày đặt lịch: đúng định dạng YYYY-MM-DD, là ngày thật và không ở quá khứ */
 export const validateBookingDate = (date?: string): string | undefined => {
