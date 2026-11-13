@@ -2,6 +2,7 @@
 // /api/medical-records. These endpoints answer with the object itself, not
 // wrapped in { message, data }.
 import type { AppointmentServiceStatus } from './appointment-service.api';
+import type { RecordedReceptionIntake } from './appointment.api';
 import type { CageAssignment } from './cage-assignment.api';
 import type { Pet } from './pet.api';
 
@@ -42,7 +43,14 @@ export interface MedicalRecordServiceRef {
     | null;
   orderId?:
     | string
-    | { _id: string; code: string; date: string; derivedStatus?: string };
+    | {
+        _id: string;
+        code: string;
+        date: string;
+        derivedStatus?: string;
+        note?: string | null;
+        intake?: RecordedReceptionIntake | null;
+      };
 }
 
 export interface MedicalRecord {

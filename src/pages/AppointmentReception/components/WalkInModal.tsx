@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import type {
   Cage,
   CreateWalkInBookingResult,
+  ReceptionIntake,
   StaffMember,
   WalkInLookupResult,
 } from '@/types';
@@ -43,6 +44,10 @@ import StaffService, {
   pickAssignableStaff,
 } from '@/services/StaffService';
 import CageService, { canCageHoldPet } from '@/services/CageService';
+import {
+  readReceptionIntake,
+  RECEPTION_INTAKE_FIELD_LIMIT,
+} from '@/services/AppointmentOrderService';
 import WalkInService, {
   WALK_IN_EMAIL_REGEX,
   WALK_IN_FULLNAME_MAX,
@@ -71,6 +76,7 @@ import {
   isValidPetWeight,
 } from '@/constants/pet';
 import { ModalFooterBar, SectionBlock, ServiceRowCard } from './styles';
+import { isReceptionIntakeEnabled } from './receptionIntakeFeature';
 
 const { Text } = Typography;
 
@@ -98,6 +104,8 @@ interface WalkInFormFields {
   services?: WalkInServiceRow[];
   cageId?: string;
   note?: string;
+  includeIntake?: boolean;
+  intake?: ReceptionIntake;
 }
 
 const isAbort = (err: unknown) =>
@@ -143,6 +151,10 @@ const WalkInForm = ({
   const newPetWeight = Form.useWatch(['petInfo', 'weight'], form);
   const cageIdValue = Form.useWatch('cageId', form);
   const serviceRows = Form.useWatch('services', form);
+  const includeIntake = Form.useWatch('includeIntake', form);
+  const resetIntake = useCallback(() => {
+    if (isReceptionIntakeEnabled) form.resetFields(['includeIntake', 'intake']);
+  }, [form]);
 
   const today = getVietnamTodayString();
 
@@ -253,6 +265,7 @@ const WalkInForm = ({
         });
         if (requestId !== lookupRequestIdRef.current) return;
         const result = res.data;
+        resetIntake();
         setLookup({ phone, result });
         setPetMode(result.pets.length > 0 ? 'existing' : 'new');
         form.setFieldsValue({
@@ -275,7 +288,7 @@ const WalkInForm = ({
         }
       }
     },
-    [form]
+    [form, resetIntake]
   );
 
   useEffect(() => {
@@ -350,34 +363,59 @@ const WalkInForm = ({
       return;
     }
 
-    const payload = buildWalkInPayload({
-      phone: activeLookup.phone,
-      isNewCustomer,
-      fullName: values.fullName,
-      email: values.email,
-      petMode: usingExistingPet ? 'existing' : 'new',
-      petId: values.petId,
-      petInfo: {
-        ...values.petInfo,
-        dob: values.petInfo?.dob
-          ? values.petInfo.dob.format('YYYY-MM-DD')
-          : undefined,
-      },
-      services: values.services,
-      cageId: values.cageId,
-      note: values.note,
-    });
+    let payload: ReturnType<typeof buildWalkInPayload>;
+    try {
+      payload = buildWalkInPayload({
+        phone: activeLookup.phone,
+        isNewCustomer,
+        fullName: values.fullName,
+        email: values.email,
+        petMode: usingExistingPet ? 'existing' : 'new',
+        petId: values.petId,
+        petInfo: {
+          ...values.petInfo,
+          dob: values.petInfo?.dob
+            ? values.petInfo.dob.format('YYYY-MM-DD')
+            : undefined,
+        },
+        services: values.services,
+        cageId: values.cageId,
+        note: values.note,
+        intake:
+          isReceptionIntakeEnabled && values.includeIntake
+            ? (values.intake ?? { symptoms: '', initialCondition: '' })
+            : undefined,
+      });
+    } catch (err) {
+      setSubmitError({
+        message:
+          err instanceof Error ? err.message : 'Dữ liệu tiếp nhận không hợp lệ',
+        details: [],
+      });
+      return;
+    }
 
     setSubmitting(true);
     setSubmitError(null);
     try {
       const res = await WalkInService.createWalkInBooking(payload);
-      toast.success(
-        res.message || 'Đăng ký khám vãng lai tại quầy thành công',
-        {
-          description: describeCreated(res.data),
-        }
-      );
+      const savedIntake = readReceptionIntake(res.data.appointment.intake);
+      const description = describeCreated(res.data);
+      if (
+        payload.intake &&
+        (savedIntake?.symptoms !== payload.intake.symptoms ||
+          savedIntake?.initialCondition !== payload.intake.initialCondition)
+      ) {
+        toast.warning(
+          'Đã tạo lịch hẹn nhưng chưa xác nhận lưu phiếu tiếp nhận.',
+          { description }
+        );
+      } else {
+        toast.success(
+          res.message || 'Đăng ký khám vãng lai tại quầy thành công',
+          { description }
+        );
+      }
       onCreated(res.data);
     } catch (err: unknown) {
       const { message, statusCode, fieldErrors } = extractApiError(
@@ -388,8 +426,9 @@ const WalkInForm = ({
       const fields: { name: (string | number)[]; errors: string[] }[] = [];
       for (const [key, fieldMessage] of Object.entries(fieldErrors || {})) {
         const path = toWalkInFieldPath(key);
-        if (path) fields.push({ name: path, errors: [fieldMessage] });
-        else details.push(fieldMessage);
+        if (path && (path[0] !== 'intake' || payload.intake)) {
+          fields.push({ name: path, errors: [fieldMessage] });
+        } else details.push(fieldMessage);
       }
       // Paths come from BE error keys, so they are not typed against the form
       if (fields.length > 0) (form as FormInstance).setFields(fields);
@@ -623,7 +662,7 @@ const WalkInForm = ({
             name="petId"
             rules={[{ required: true, message: 'Vui lòng chọn thú cưng' }]}
           >
-            <Radio.Group style={{ width: '100%' }}>
+            <Radio.Group onChange={resetIntake} style={{ width: '100%' }}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 {pets.map(pet => (
                   <Radio key={pet._id} value={pet._id}>
@@ -640,7 +679,10 @@ const WalkInForm = ({
           <Button
             type="dashed"
             icon={<PlusOutlined />}
-            onClick={() => setPetMode('new')}
+            onClick={() => {
+              resetIntake();
+              setPetMode('new');
+            }}
             style={{ marginBottom: 12 }}
           >
             Thêm thú cưng mới
@@ -651,7 +693,10 @@ const WalkInForm = ({
           {pets.length > 0 && (
             <Button
               type="link"
-              onClick={() => setPetMode('existing')}
+              onClick={() => {
+                resetIntake();
+                setPetMode('existing');
+              }}
               style={{ padding: 0, marginBottom: 8 }}
             >
               ← Chọn thú cưng đã có ({pets.length})
@@ -845,6 +890,58 @@ const WalkInForm = ({
           placeholder="Triệu chứng ban đầu, dặn dò đặc biệt khi tiếp nhận..."
         />
       </Form.Item>
+
+      {isReceptionIntakeEnabled && (
+        <>
+          <Form.Item
+            name="includeIntake"
+            valuePropName="checked"
+            preserve={false}
+          >
+            <Checkbox>Ghi phiếu tiếp nhận (không bắt buộc)</Checkbox>
+          </Form.Item>
+          {includeIntake && (
+            <>
+              <Form.Item
+                name={['intake', 'symptoms']}
+                label="Triệu chứng"
+                preserve={false}
+                rules={[
+                  {
+                    required: true,
+                    whitespace: true,
+                    message: 'Vui lòng nhập triệu chứng.',
+                  },
+                ]}
+              >
+                <Input.TextArea
+                  rows={2}
+                  maxLength={RECEPTION_INTAKE_FIELD_LIMIT}
+                  showCount
+                />
+              </Form.Item>
+              <Form.Item
+                name={['intake', 'initialCondition']}
+                label="Tình trạng ban đầu"
+                preserve={false}
+                rules={[
+                  {
+                    required: true,
+                    whitespace: true,
+                    message: 'Vui lòng nhập tình trạng ban đầu.',
+                  },
+                ]}
+              >
+                <Input.TextArea
+                  rows={2}
+                  maxLength={RECEPTION_INTAKE_FIELD_LIMIT}
+                  showCount
+                />
+              </Form.Item>
+            </>
+          )}
+        </>
+      )}
 
       <Form.Item
         name="cageId"

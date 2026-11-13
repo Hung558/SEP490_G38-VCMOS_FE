@@ -90,6 +90,11 @@ export interface ReceptionIntake {
   initialCondition: string;
 }
 
+export interface RecordedReceptionIntake extends ReceptionIntake {
+  recordedBy?: string | null;
+  recordedAt?: string | null;
+}
+
 export interface StaffAppointment {
   _id: string;
   code: string;
@@ -102,7 +107,7 @@ export interface StaffAppointment {
   isOnline: boolean;
   derivedStatus: AppointmentStatus;
   checkedInAt?: string | null;
-  intake?: ReceptionIntake | null;
+  intake?: RecordedReceptionIntake | null;
   cancelReason?: string | null;
   cancelledAt?: string | null;
   cancelledBy?:

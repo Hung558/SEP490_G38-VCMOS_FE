@@ -1,4 +1,7 @@
-import type { OnlineAppointment } from './appointment.api';
+import type {
+  OnlineAppointment,
+  RecordedReceptionIntake,
+} from './appointment.api';
 
 export type AppointmentServiceStatus =
   | 'Booked'
@@ -130,6 +133,7 @@ export interface QueueOrderRef {
   slotStart?: string | null;
   slotEnd?: string | null;
   note?: string | null;
+  intake?: RecordedReceptionIntake | null;
   isOnline: boolean;
   derivedStatus: string;
   checkedInAt?: string | null;
