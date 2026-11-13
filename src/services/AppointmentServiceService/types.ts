@@ -15,6 +15,13 @@ export type {
   QueueOrderRef,
   MyQueueItem,
   ListMyQueueResponse,
+  GroomingNote,
+  GroomingNoteText,
+  GroomingNoteDraft,
+  GroomingNoteService,
+  GroomingNoteResponse,
+  ListMyGroomingNotesResponse,
+  UpdateGroomingServiceResponse,
   CancelAppointmentServicePayload,
   CancelAppointmentServiceResponse,
 } from '../../types/api/appointment-service.api';
