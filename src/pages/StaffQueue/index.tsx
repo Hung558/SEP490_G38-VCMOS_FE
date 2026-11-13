@@ -8,6 +8,7 @@ import {
   Space,
   Switch,
   Table,
+  Tabs,
   Tag,
   Typography,
 } from 'antd';
@@ -58,6 +59,8 @@ import {
 import QueueCageModal from './components/QueueCageModal';
 import GroomingNoteModal from './components/GroomingNoteModal';
 import GroomingNoteHistoryModal from './components/GroomingNoteHistoryModal';
+import AssignedSubtasks from './components/AssignedSubtasks';
+import QueueServiceSubtasks from './components/QueueServiceSubtasks';
 
 const { Title, Text } = Typography;
 
@@ -65,6 +68,7 @@ const { Title, Text } = Typography;
 const POLL_MS = 30000;
 
 interface StoredUserInfo {
+  _id?: string;
   role?: string;
   systemRole?: string;
 }
@@ -83,6 +87,9 @@ const StaffQueuePage = () => {
   );
   const isVet = role === 'Veterinarian';
   const isGroomer = role === 'Groomer';
+  const userId = user?._id ?? storedUser?._id;
+  const [tab, setTab] = useState('services');
+  const [subtaskServiceId, setSubtaskServiceId] = useState<string>();
 
   const [items, setItems] = useState<MyQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -310,6 +317,17 @@ const StaffQueuePage = () => {
         </Button>
       );
     }
+    if (action === 'continue' || action === 'view') {
+      buttons.push(
+        <Button
+          key="subtasks"
+          size="small"
+          onClick={() => setSubtaskServiceId(item._id)}
+        >
+          Cận lâm sàng
+        </Button>
+      );
+    }
     const grooming = getGroomingActions(item, role);
     if (grooming?.waitForCheckIn) {
       buttons.push(
@@ -462,84 +480,120 @@ const StaffQueuePage = () => {
   const cageOrder = cageFor ? getQueueOrder(cageFor) : null;
   const cagePetId = cageOrder?.petId;
   const noteItem = items.find(item => item._id === noteTarget?.id);
+  const subtaskService = items.find(item => item._id === subtaskServiceId);
+  const serviceQueue = (
+    <>
+      <PageHeader>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            {isVet ? 'Hàng đợi khám của tôi' : 'Hàng đợi spa của tôi'}
+          </Title>
+          <Text type="secondary">
+            {isVet
+              ? 'Các ca được lễ tân phân công cho bạn. Ca cấp cứu xếp trước; bấm "Bắt đầu khám" để mở bệnh án SOAP.'
+              : 'Các ca chăm sóc, làm đẹp được phân công cho bạn. Ca cấp cứu xếp trước.'}
+          </Text>
+        </div>
+        <Space wrap>
+          {isGroomer && (
+            <Button
+              icon={<FileTextOutlined aria-hidden />}
+              onClick={() => setHistoryOpen(true)}
+            >
+              Lịch sử ghi chú spa
+            </Button>
+          )}
+          <Button
+            icon={<ReloadOutlined spin={loading} />}
+            disabled={Boolean(groomingUpdate)}
+            onClick={() => fetchQueue()}
+          >
+            Làm mới
+          </Button>
+        </Space>
+      </PageHeader>
+
+      <Space wrap size={16} style={{ marginBottom: 16 }}>
+        <Segmented
+          value={view}
+          onChange={value => setView(value as QueueView)}
+          options={QUEUE_VIEWS.map(v => ({
+            value: v.key,
+            label: `${v.label} (${counts[v.key]})`,
+          }))}
+        />
+        <Space size={8}>
+          <Switch checked={todayOnly} onChange={setTodayOnly} />
+          <Text>Chỉ lịch hẹn hôm nay</Text>
+        </Space>
+      </Space>
+
+      {error && (
+        <Alert
+          type="error"
+          showIcon
+          message={error}
+          style={{ marginBottom: 16 }}
+          action={
+            <Button size="small" onClick={() => fetchQueue()}>
+              Thử lại
+            </Button>
+          }
+        />
+      )}
+
+      <Table
+        columns={columns}
+        dataSource={visible}
+        rowKey="_id"
+        loading={loading}
+        scroll={{ x: 960 }}
+        pagination={{ pageSize: 20, hideOnSinglePage: true }}
+        locale={{
+          emptyText: todayOnly
+            ? 'Không có ca nào trong nhóm này hôm nay.'
+            : 'Không có ca nào trong nhóm này.',
+        }}
+      />
+    </>
+  );
 
   return (
     <PageWrapper>
       <Card>
-        <PageHeader>
-          <div>
-            <Title level={3} style={{ margin: 0 }}>
-              {isVet ? 'Hàng đợi khám của tôi' : 'Hàng đợi spa của tôi'}
-            </Title>
-            <Text type="secondary">
-              {isVet
-                ? 'Các ca được lễ tân phân công cho bạn. Ca cấp cứu xếp trước; bấm "Bắt đầu khám" để mở bệnh án SOAP.'
-                : 'Các ca chăm sóc, làm đẹp được phân công cho bạn. Ca cấp cứu xếp trước.'}
-            </Text>
-          </div>
-          <Space wrap>
-            {isGroomer && (
-              <Button
-                icon={<FileTextOutlined aria-hidden />}
-                onClick={() => setHistoryOpen(true)}
-              >
-                Lịch sử ghi chú spa
-              </Button>
-            )}
-            <Button
-              icon={<ReloadOutlined spin={loading} />}
-              disabled={Boolean(groomingUpdate)}
-              onClick={() => fetchQueue()}
-            >
-              Làm mới
-            </Button>
-          </Space>
-        </PageHeader>
-
-        <Space wrap size={16} style={{ marginBottom: 16 }}>
-          <Segmented
-            value={view}
-            onChange={value => setView(value as QueueView)}
-            options={QUEUE_VIEWS.map(v => ({
-              value: v.key,
-              label: `${v.label} (${counts[v.key]})`,
-            }))}
+        {isVet || isGroomer ? (
+          <Tabs
+            activeKey={tab}
+            onChange={setTab}
+            items={[
+              {
+                key: 'services',
+                label: isVet ? 'Ca khám chính' : 'Ca spa',
+                children: serviceQueue,
+              },
+              {
+                key: 'subtasks',
+                label: 'Việc được giao',
+                children:
+                  tab === 'subtasks' ? (
+                    <AssignedSubtasks userId={userId} />
+                  ) : undefined,
+              },
+            ]}
           />
-          <Space size={8}>
-            <Switch checked={todayOnly} onChange={setTodayOnly} />
-            <Text>Chỉ lịch hẹn hôm nay</Text>
-          </Space>
-        </Space>
-
-        {error && (
-          <Alert
-            type="error"
-            showIcon
-            message={error}
-            style={{ marginBottom: 16 }}
-            action={
-              <Button size="small" onClick={() => fetchQueue()}>
-                Thử lại
-              </Button>
-            }
-          />
+        ) : (
+          serviceQueue
         )}
-
-        <Table
-          columns={columns}
-          dataSource={visible}
-          rowKey="_id"
-          loading={loading}
-          scroll={{ x: 960 }}
-          pagination={{ pageSize: 20, hideOnSinglePage: true }}
-          locale={{
-            emptyText: todayOnly
-              ? 'Không có ca nào trong nhóm này hôm nay.'
-              : 'Không có ca nào trong nhóm này.',
-          }}
-        />
       </Card>
-
+      {isVet && subtaskServiceId && (
+        <QueueServiceSubtasks
+          key={subtaskServiceId}
+          serviceId={subtaskServiceId}
+          requesterId={userId}
+          active={!error && subtaskService?.status === 'InProgress'}
+          onClose={() => setSubtaskServiceId(undefined)}
+        />
+      )}
       <QueueCageModal
         order={cageOrder}
         petName={cagePetId ? pets[cagePetId]?.name : undefined}

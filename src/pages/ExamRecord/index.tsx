@@ -32,6 +32,7 @@ import AppointmentServiceService, {
   getAppointmentServiceName,
   getAppointmentServiceStatusColor,
   getAppointmentServiceStatusLabel,
+  getExamAction,
   getQueueOrder,
 } from '@/services/AppointmentServiceService';
 import MedicalRecordService, {
@@ -47,6 +48,9 @@ import {
   PageWrapper,
 } from '../AppointmentReception/components/styles';
 import SoapForm from './components/SoapForm';
+import ServiceSubtasksModal from '@/components/clinicalSubtasks/ServiceSubtasksModal';
+import { useAuth } from '@/contexts/routerProvider/authContext';
+import { normalizeRole } from '@/constants/roles';
 
 const { Title, Text } = Typography;
 
@@ -75,6 +79,9 @@ const ExamRecordCase = ({
   appointmentServiceId: string;
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role || user?.systemRole);
+  const [subtasksOpen, setSubtasksOpen] = useState(false);
 
   const [item, setItem] = useState<MyQueueItem | null>(null);
   const [record, setRecord] = useState<MedicalRecord | null>(null);
@@ -251,6 +258,7 @@ const ExamRecordCase = ({
 
   const order = getQueueOrder(item);
   const status = item.status as AppointmentServiceStatus;
+  const examAction = getExamAction(item, role);
   const renderBody = () => {
     if (record && isMedicalRecordLocked(record)) {
       return (
@@ -374,6 +382,11 @@ const ExamRecordCase = ({
           </div>
           <Space wrap>
             {backToQueue}
+            {(examAction === 'continue' || examAction === 'view') && (
+              <Button onClick={() => setSubtasksOpen(true)}>
+                Cận lâm sàng
+              </Button>
+            )}
             <Button
               icon={<HistoryOutlined />}
               disabled={!pet}
@@ -407,6 +420,18 @@ const ExamRecordCase = ({
         {renderBody()}
       </Card>
 
+      {subtasksOpen && (examAction === 'continue' || examAction === 'view') && (
+        <ServiceSubtasksModal
+          serviceId={appointmentServiceId}
+          requesterId={user?._id}
+          canCreate={
+            examAction === 'continue' &&
+            Boolean(user?._id) &&
+            !isMedicalRecordLocked(record)
+          }
+          onClose={() => setSubtasksOpen(false)}
+        />
+      )}
       <Drawer
         title={`Tiền sử bệnh${pet ? ` · ${pet.name}` : ''}`}
         open={historyOpen}
