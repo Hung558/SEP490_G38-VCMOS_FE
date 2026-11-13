@@ -4,5 +4,6 @@ export * from './useFetch';
 export * from './useLogout';
 export * from './useMobile';
 export * from './useModal';
+export * from './useScrollTopOnNavigate';
 export * from './useTable';
 export * from './useUpload';

@@ -6,7 +6,8 @@ import ServicesSection from './components/ServicesSection';
 import DoctorsSection from './components/DoctorsSection';
 import CommunitySection from './components/CommunitySection';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
-import ROUTER from '@/routerMap/ROUTER';
+import { useAuth } from '@/contexts/routerProvider/authContext';
+import { getBookingPath, getLandingPath } from '@/routerMap/roleAccess';
 
 const HomePageWrapper = styled.div`
   min-height: 100vh;
@@ -18,13 +19,17 @@ const HomePageWrapper = styled.div`
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { isLogin } = useIsLogin();
+  const { user } = useAuth();
 
   const handleBookingNavigation = () => {
     if (!isLogin) {
       window.dispatchEvent(new CustomEvent('open-vcmos-login'));
       return;
     }
-    navigate(`${ROUTER.DASHBOARD}?tab=appointments&book=new`);
+    // Roles that cannot book go to their own working page, as /dashboard would
+    // redirect them anyway
+    const role = user?.role || user?.systemRole;
+    navigate(getBookingPath(role) ?? getLandingPath(role));
   };
 
   return (

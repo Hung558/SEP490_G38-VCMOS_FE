@@ -5,7 +5,11 @@ import styled from 'styled-components';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import { getRoleLabel } from '@/constants/roles';
-import { getLandingLabel, getLandingPath } from '@/routerMap/roleAccess';
+import {
+  getBookingPath,
+  getLandingLabel,
+  getLandingPath,
+} from '@/routerMap/roleAccess';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import MenuUser from '@/components/layout/Header/components/MenuUser';
@@ -178,6 +182,7 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const bookingPath = getBookingPath(user?.role || user?.systemRole);
 
   useEffect(() => {
     if (location.state?.openLogin && !isLogin) {
@@ -209,10 +214,22 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
     }
   };
 
+  // A link to the page already open does nothing, so on the home page the logo
+  // and "Trang chủ" scroll back to the top instead
+  const backToHomeTop = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (location.pathname !== ROUTER.HOME) return;
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <StyledHeader>
       <div className="left-section">
-        <Link to={ROUTER.DEFAULT} className="brand-link">
+        <Link
+          to={ROUTER.DEFAULT}
+          className="brand-link"
+          onClick={backToHomeTop}
+        >
           <div className="logo-box">
             {/* Veterinary Paw & Medical Cross Icon */}
             <svg
@@ -235,7 +252,7 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
       </div>
 
       <div className="nav-section">
-        <Link to={ROUTER.HOME} className="active">
+        <Link to={ROUTER.HOME} className="active" onClick={backToHomeTop}>
           Trang chủ
         </Link>
         <a
@@ -276,12 +293,14 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
         {isLogin ? (
           <>
             <EmailVerifyBadge />
-            <Button
-              className="btn-booking"
-              onClick={() => scrollToSection('quick-booking')}
-            >
-              Đặt lịch khám
-            </Button>
+            {bookingPath && (
+              <Button
+                className="btn-booking"
+                onClick={() => navigate(bookingPath)}
+              >
+                Đặt lịch khám
+              </Button>
+            )}
             <Popover
               content={<MenuUser />}
               trigger="hover"

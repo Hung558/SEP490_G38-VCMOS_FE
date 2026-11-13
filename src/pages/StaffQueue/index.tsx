@@ -14,6 +14,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import {
   BuildOutlined,
+  CheckCircleOutlined,
   EyeOutlined,
   FileTextOutlined,
   PlayCircleOutlined,
@@ -26,7 +27,7 @@ import { useAuth } from '@/contexts/routerProvider/authContext';
 import { normalizeRole } from '@/constants/roles';
 import { STORAGE, storage } from '@/lib/storage';
 import ROUTER from '@/routerMap/ROUTER';
-import type { MyQueueItem, Pet } from '@/types';
+import type { GroomingNote, MyQueueItem, Pet } from '@/types';
 import AppointmentServiceService, {
   QUEUE_VIEWS,
   countMyQueue,
@@ -36,6 +37,7 @@ import AppointmentServiceService, {
   getAppointmentServiceStatusColor,
   getAppointmentServiceStatusLabel,
   getExamAction,
+  getGroomingActions,
   getQueueOrder,
   getServiceRefCategory,
   getVietnamTodayString,
@@ -54,6 +56,8 @@ import {
   PageWrapper,
 } from '../AppointmentReception/components/styles';
 import QueueCageModal from './components/QueueCageModal';
+import GroomingNoteModal from './components/GroomingNoteModal';
+import GroomingNoteHistoryModal from './components/GroomingNoteHistoryModal';
 
 const { Title, Text } = Typography;
 
@@ -78,6 +82,7 @@ const StaffQueuePage = () => {
     user?.role || user?.systemRole || storedUser?.role || storedUser?.systemRole
   );
   const isVet = role === 'Veterinarian';
+  const isGroomer = role === 'Groomer';
 
   const [items, setItems] = useState<MyQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +93,16 @@ const StaffQueuePage = () => {
   const [pets, setPets] = useState<Record<string, Pet | null>>({});
   const [startingId, setStartingId] = useState<string | null>(null);
   const [cageFor, setCageFor] = useState<MyQueueItem | null>(null);
+  const [groomingUpdate, setGroomingUpdate] = useState<{
+    id: string;
+    action: 'start' | 'complete';
+  } | null>(null);
+  const groomingUpdateRef = useRef(false);
+  const [noteTarget, setNoteTarget] = useState<{
+    id: string;
+    mode: 'create' | 'view';
+  } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const petRequestsRef = useRef(new Set<string>());
 
@@ -103,9 +118,9 @@ const StaffQueuePage = () => {
       const res = await AppointmentServiceService.listMyQueue(undefined, {
         signal: controller.signal,
       });
-      setItems(res.data || []);
+      if (!controller.signal.aborted) setItems(res.data || []);
     } catch (err: unknown) {
-      if (isAbort(err)) return;
+      if (controller.signal.aborted || isAbort(err)) return;
       setError(extractApiError(err, 'Không thể tải hàng đợi làm việc').message);
     } finally {
       if (!controller.signal.aborted) setLoading(false);
@@ -115,7 +130,8 @@ const StaffQueuePage = () => {
   useEffect(() => {
     fetchQueue();
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') fetchQueue(true);
+      if (document.visibilityState === 'visible' && !groomingUpdateRef.current)
+        fetchQueue(true);
     }, POLL_MS);
     return () => {
       window.clearInterval(timer);
@@ -179,6 +195,57 @@ const StaffQueuePage = () => {
     }
   };
 
+  const updateGrooming = async (
+    item: MyQueueItem,
+    action: 'start' | 'complete'
+  ) => {
+    if (
+      groomingUpdateRef.current ||
+      error ||
+      loading ||
+      !getGroomingActions(item, role)?.[action]
+    )
+      return;
+    groomingUpdateRef.current = true;
+    setGroomingUpdate({ id: item._id, action });
+    const isStart = action === 'start';
+    try {
+      const { data } = await (isStart
+        ? AppointmentServiceService.startGrooming(item._id)
+        : AppointmentServiceService.completeGrooming(item._id));
+      if (
+        data?._id !== item._id ||
+        data.status !== (isStart ? 'InProgress' : 'Done')
+      ) {
+        throw new Error('Máy chủ chưa xác nhận trạng thái mới của ca spa.');
+      }
+      toast.success(isStart ? 'Đã bắt đầu spa.' : 'Đã hoàn thành spa.');
+    } catch (err: unknown) {
+      toast.error(
+        extractApiError(
+          err,
+          isStart ? 'Không thể bắt đầu spa' : 'Không thể hoàn thành spa'
+        ).message
+      );
+    } finally {
+      // Chỉ hàng đợi trả lịch hẹn đã populate (bao gồm derivedStatus do BE quyết định).
+      await fetchQueue(true);
+      groomingUpdateRef.current = false;
+      setGroomingUpdate(null);
+    }
+  };
+
+  const syncGroomingNote = async (note?: GroomingNote) => {
+    if (note && noteTarget) {
+      setItems(prev =>
+        prev.map(item =>
+          item._id === noteTarget.id ? { ...item, groomingNote: note } : item
+        )
+      );
+    }
+    await fetchQueue(true);
+  };
+
   const renderPet = (item: MyQueueItem) => {
     const petId = getQueueOrder(item)?.petId;
     if (!petId) return <Text type="secondary">—</Text>;
@@ -240,6 +307,61 @@ const StaffQueuePage = () => {
       buttons.push(
         <Button key="wait" size="small" disabled>
           Chờ khách check-in
+        </Button>
+      );
+    }
+    const grooming = getGroomingActions(item, role);
+    if (grooming?.waitForCheckIn) {
+      buttons.push(
+        <Button key="grooming-wait" size="small" disabled>
+          Chờ khách check-in
+        </Button>
+      );
+    }
+    if (grooming?.start || grooming?.complete) {
+      const groomingAction = grooming.start ? 'start' : 'complete';
+      buttons.push(
+        <Button
+          key={`grooming-${groomingAction}`}
+          type="primary"
+          size="small"
+          icon={
+            grooming.start ? (
+              <PlayCircleOutlined aria-hidden />
+            ) : (
+              <CheckCircleOutlined aria-hidden />
+            )
+          }
+          loading={
+            groomingUpdate?.id === item._id &&
+            groomingUpdate.action === groomingAction
+          }
+          disabled={Boolean(groomingUpdate) || Boolean(error)}
+          onClick={() => updateGrooming(item, groomingAction)}
+        >
+          {grooming.start ? 'Bắt đầu spa' : 'Hoàn thành spa'}
+        </Button>
+      );
+    }
+    if (grooming?.note) {
+      const mode = grooming.note;
+      buttons.push(
+        <Button
+          key="grooming-note"
+          size="small"
+          icon={
+            mode === 'view' ? (
+              <EyeOutlined aria-hidden />
+            ) : (
+              <FileTextOutlined aria-hidden />
+            )
+          }
+          disabled={
+            mode === 'create' && (Boolean(groomingUpdate) || Boolean(error))
+          }
+          onClick={() => setNoteTarget({ id: item._id, mode })}
+        >
+          {mode === 'view' ? 'Xem ghi chú spa' : 'Tạo ghi chú spa'}
         </Button>
       );
     }
@@ -339,6 +461,7 @@ const StaffQueuePage = () => {
 
   const cageOrder = cageFor ? getQueueOrder(cageFor) : null;
   const cagePetId = cageOrder?.petId;
+  const noteItem = items.find(item => item._id === noteTarget?.id);
 
   return (
     <PageWrapper>
@@ -354,12 +477,23 @@ const StaffQueuePage = () => {
                 : 'Các ca chăm sóc, làm đẹp được phân công cho bạn. Ca cấp cứu xếp trước.'}
             </Text>
           </div>
-          <Button
-            icon={<ReloadOutlined spin={loading} />}
-            onClick={() => fetchQueue()}
-          >
-            Làm mới
-          </Button>
+          <Space wrap>
+            {isGroomer && (
+              <Button
+                icon={<FileTextOutlined aria-hidden />}
+                onClick={() => setHistoryOpen(true)}
+              >
+                Lịch sử ghi chú spa
+              </Button>
+            )}
+            <Button
+              icon={<ReloadOutlined spin={loading} />}
+              disabled={Boolean(groomingUpdate)}
+              onClick={() => fetchQueue()}
+            >
+              Làm mới
+            </Button>
+          </Space>
         </PageHeader>
 
         <Space wrap size={16} style={{ marginBottom: 16 }}>
@@ -411,6 +545,24 @@ const StaffQueuePage = () => {
         petName={cagePetId ? pets[cagePetId]?.name : undefined}
         onClose={() => setCageFor(null)}
       />
+      {isGroomer && noteTarget && (
+        <GroomingNoteModal
+          key={noteTarget.id}
+          serviceId={noteTarget.id}
+          mode={noteTarget.mode}
+          queueNote={noteItem?.groomingNote}
+          canCreate={
+            !error &&
+            !!noteItem &&
+            getGroomingActions(noteItem, role)?.note === 'create'
+          }
+          onClose={() => setNoteTarget(null)}
+          onQueueSync={syncGroomingNote}
+        />
+      )}
+      {isGroomer && historyOpen && (
+        <GroomingNoteHistoryModal onClose={() => setHistoryOpen(false)} />
+      )}
     </PageWrapper>
   );
 };

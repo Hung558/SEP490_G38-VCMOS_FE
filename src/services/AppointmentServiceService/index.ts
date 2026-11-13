@@ -6,7 +6,12 @@ import {
   apiAssignStaff,
   apiCancelAppointmentService,
   apiMyQueue,
+  apiStartAppointmentService,
+  apiCompleteAppointmentService,
+  apiGroomingNote,
+  apiMyGroomingNotes,
 } from './urls';
+import { buildGroomingNotePayload } from './grooming';
 import {
   buildCreateOnlineAppointmentServicePayload,
   buildCreateOnlineBookingPayload,
@@ -22,6 +27,10 @@ import type {
   ListMyQueueResponse,
   CancelAppointmentServicePayload,
   CancelAppointmentServiceResponse,
+  GroomingNoteDraft,
+  GroomingNoteResponse,
+  ListMyGroomingNotesResponse,
+  UpdateGroomingServiceResponse,
 } from './types';
 
 /**
@@ -102,6 +111,30 @@ const cancelAppointmentService = (
     reason: (payload?.reason || '').trim(),
   });
 
+const startGrooming = (id: string): Promise<UpdateGroomingServiceResponse> =>
+  api.patch(apiStartAppointmentService(id));
+
+const completeGrooming = (id: string): Promise<UpdateGroomingServiceResponse> =>
+  api.patch(apiCompleteAppointmentService(id));
+
+const createGroomingNote = async (
+  id: string,
+  draft: GroomingNoteDraft
+): Promise<GroomingNoteResponse> =>
+  // Không đặt Content-Type thủ công: Axios interceptor bỏ header JSON cho FormData.
+  api.post(apiGroomingNote(id), buildGroomingNotePayload(draft));
+
+const getGroomingNote = (
+  id: string,
+  options?: { signal?: AbortSignal }
+): Promise<GroomingNoteResponse> =>
+  api.get(apiGroomingNote(id), { signal: options?.signal });
+
+const listMyGroomingNotes = (options?: {
+  signal?: AbortSignal;
+}): Promise<ListMyGroomingNotesResponse> =>
+  api.get(apiMyGroomingNotes, { signal: options?.signal });
+
 const AppointmentServiceService = {
   createOnlineBooking,
   createOnlineAppointmentService,
@@ -109,10 +142,16 @@ const AppointmentServiceService = {
   assignStaff,
   listMyQueue,
   cancelAppointmentService,
+  startGrooming,
+  completeGrooming,
+  createGroomingNote,
+  getGroomingNote,
+  listMyGroomingNotes,
 };
 
 export default AppointmentServiceService;
 export { AppointmentServiceService as AppointmentService };
 export * from './urls';
 export * from './helpers';
+export * from './grooming';
 export * from './types';

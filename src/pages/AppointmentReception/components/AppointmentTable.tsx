@@ -4,9 +4,10 @@ import {
   CheckCircleOutlined,
   EyeOutlined,
   BuildOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { StaffAppointment } from '@/types';
+import type { CageAssignment, StaffAppointment } from '@/types';
 import {
   getAppointmentOwnerName,
   getAppointmentOwnerPhone,
@@ -14,14 +15,21 @@ import {
   getAppointmentStatusColor,
   getAppointmentStatusLabel,
 } from '@/services/AppointmentOrderService';
+import { getAssignmentCageLabel } from '@/services/CageAssignmentService';
 import { ActionsWrapper } from './styles';
-import { getReceptionNextAction } from './receptionToday';
 
 const { Text } = Typography;
 
+// A cage holds a pet that is at the clinic: from check-in until the owner picks it up.
+const CAGE_ASSIGNABLE_STATUSES = new Set([
+  'CheckedIn',
+  'InProgress',
+  'WaitOwner',
+]);
+
 interface AppointmentTableProps {
   appointments: StaffAppointment[];
-  activeCageOrderIds: ReadonlySet<string>;
+  activeCageByOrderId: ReadonlyMap<string, CageAssignment>;
   total: number;
   page: number;
   limit: number;
@@ -31,12 +39,13 @@ interface AppointmentTableProps {
   onViewDetail: (appointment: StaffAppointment) => void;
   onCheckIn: (appointment: StaffAppointment) => void;
   onAssignCage: (appointment: StaffAppointment) => void;
+  onViewCage: (assignment: CageAssignment) => void;
   onCancelAppointment?: (appointment: StaffAppointment) => void;
 }
 
 const AppointmentTable = ({
   appointments,
-  activeCageOrderIds,
+  activeCageByOrderId,
   total,
   page,
   limit,
@@ -46,27 +55,40 @@ const AppointmentTable = ({
   onViewDetail,
   onCheckIn,
   onAssignCage,
+  onViewCage,
   onCancelAppointment,
 }: AppointmentTableProps) => {
+  const getActiveCage = (record: StaffAppointment) =>
+    isReceptionist ? activeCageByOrderId.get(record._id) : undefined;
+
+  // Widths add up to 960 so the table fits a 1366px screen without the fixed
+  // actions column covering the status column
   const columns: ColumnsType<StaffAppointment> = [
     {
       title: 'Mã hẹn',
       dataIndex: 'code',
       key: 'code',
-      width: 130,
-      render: (code: string) => (
-        <Text strong style={{ color: '#0958d9' }}>
-          {code}
-        </Text>
+      width: 125,
+      render: (code: string, record: StaffAppointment) => (
+        <Space direction="vertical" size={4}>
+          <Text strong style={{ color: '#0958d9', whiteSpace: 'nowrap' }}>
+            {code}
+          </Text>
+          {record.isOnline ? (
+            <Tag color="blue">Online</Tag>
+          ) : (
+            <Tag color="purple">Tại chỗ</Tag>
+          )}
+        </Space>
       ),
     },
     {
       title: 'Ngày hẹn',
       dataIndex: 'date',
       key: 'date',
-      width: 130,
+      width: 110,
       render: (date: string, record: StaffAppointment) => (
-        <div>
+        <div style={{ whiteSpace: 'nowrap' }}>
           <Text>{date ? dayjs(date).format('DD/MM/YYYY') : '-'}</Text>
           {record.slotStart && (
             <div style={{ fontSize: 12, color: '#0958d9', fontWeight: 500 }}>
@@ -80,7 +102,7 @@ const AppointmentTable = ({
     {
       title: 'Thú cưng',
       key: 'pet',
-      width: 140,
+      width: 120,
       render: (_, record) => (
         <Text strong>{getAppointmentPetName(record.petId)}</Text>
       ),
@@ -88,7 +110,7 @@ const AppointmentTable = ({
     {
       title: 'Chủ nuôi',
       key: 'owner',
-      width: 180,
+      width: 160,
       render: (_, record) => {
         const name = getAppointmentOwnerName(record.ownerId);
         const phone = getAppointmentOwnerPhone(record.ownerId);
@@ -105,30 +127,19 @@ const AppointmentTable = ({
       },
     },
     {
-      title: 'Hình thức',
-      dataIndex: 'isOnline',
-      key: 'isOnline',
-      width: 110,
-      render: (isOnline: boolean) =>
-        isOnline ? (
-          <Tag color="blue">Online</Tag>
-        ) : (
-          <Tag color="purple">Tại chỗ</Tag>
-        ),
-    },
-    {
       title: 'Trạng thái',
       dataIndex: 'derivedStatus',
       key: 'derivedStatus',
-      width: 140,
+      width: 155,
       render: (status: string, record: StaffAppointment) => {
         const tag = (
           <Tag color={getAppointmentStatusColor(status)}>
             {getAppointmentStatusLabel(status)}
           </Tag>
         );
+        const activeCage = getActiveCage(record);
         return (
-          <Space direction="vertical" size={2}>
+          <Space direction="vertical" size={4}>
             {status === 'Cancelled' && record.cancelReason ? (
               <Tooltip title={`Lý do hủy: ${record.cancelReason}`}>
                 {tag}
@@ -136,89 +147,86 @@ const AppointmentTable = ({
             ) : (
               tag
             )}
-            {isReceptionist && activeCageOrderIds.has(record._id) && (
-              <Tag color="cyan" icon={<BuildOutlined />}>
-                Đã phân chuồng
-              </Tag>
+            {activeCage && (
+              <Tooltip
+                title={`Chuồng ${getAssignmentCageLabel(activeCage.cageId)}`}
+              >
+                <Tag color="cyan" icon={<BuildOutlined />}>
+                  Đã phân chuồng
+                </Tag>
+              </Tooltip>
+            )}
+            {record.checkedInAt && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Check-in {dayjs(record.checkedInAt).format('HH:mm DD/MM')}
+              </Text>
             )}
           </Space>
         );
       },
     },
     {
-      title: 'Check-in lúc',
-      dataIndex: 'checkedInAt',
-      key: 'checkedInAt',
-      width: 160,
-      render: (checkedInAt?: string | null) =>
-        checkedInAt ? (
-          <Text style={{ fontSize: 13 }}>
-            {dayjs(checkedInAt).format('HH:mm DD/MM/YYYY')}
-          </Text>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
-    },
-    {
       title: 'Thao tác',
       key: 'actions',
-      width: 280,
+      width: 290,
       fixed: 'right',
       render: (_, record) => {
-        const nextAction = isReceptionist
-          ? getReceptionNextAction(record.derivedStatus)
-          : undefined;
-        const canCancel =
-          isReceptionist &&
-          record.derivedStatus === 'Booked' &&
-          Boolean(onCancelAppointment);
+        const status = record.derivedStatus;
+        const isBooked = isReceptionist && status === 'Booked';
+        const canCancel = isBooked && Boolean(onCancelAppointment);
+        const activeCage = getActiveCage(record);
+        const canAssignCage =
+          isReceptionist && !activeCage && CAGE_ASSIGNABLE_STATUSES.has(status);
 
         return (
-          <Space direction="vertical" size={4}>
-            <ActionsWrapper>
-              {nextAction?.kind === 'checkIn' && (
-                <Button
-                  size="small"
-                  type="primary"
-                  icon={<CheckCircleOutlined aria-hidden />}
-                  onClick={() => onCheckIn(record)}
-                >
-                  Check-in
-                </Button>
-              )}
+          <ActionsWrapper>
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => onViewDetail(record)}
+            >
+              Chi tiết
+            </Button>
+            {isBooked && (
               <Button
                 size="small"
-                type={nextAction?.kind === 'detail' ? 'primary' : 'default'}
-                icon={<EyeOutlined aria-hidden />}
-                onClick={() => onViewDetail(record)}
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                onClick={() => onCheckIn(record)}
               >
-                Chi tiết
+                Check-in
               </Button>
-              {isReceptionist && (
-                <Button
-                  size="small"
-                  icon={<BuildOutlined />}
-                  onClick={() => onAssignCage(record)}
-                >
-                  Phân chuồng
-                </Button>
-              )}
-              {canCancel && (
-                <Button
-                  size="small"
-                  danger
-                  onClick={() => onCancelAppointment?.(record)}
-                >
-                  Hủy hẹn
-                </Button>
-              )}
-            </ActionsWrapper>
-            {nextAction?.kind === 'detail' && (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {nextAction.hint}
-              </Text>
             )}
-          </Space>
+            {canAssignCage && (
+              <Button
+                size="small"
+                type="primary"
+                ghost
+                icon={<BuildOutlined />}
+                onClick={() => onAssignCage(record)}
+              >
+                Phân chuồng
+              </Button>
+            )}
+            {activeCage && (
+              <Button
+                size="small"
+                icon={<HomeOutlined />}
+                onClick={() => onViewCage(activeCage)}
+              >
+                Xem chuồng
+              </Button>
+            )}
+            {canCancel && (
+              <Button
+                size="small"
+                danger
+                onClick={() => onCancelAppointment?.(record)}
+              >
+                Hủy hẹn
+              </Button>
+            )}
+          </ActionsWrapper>
         );
       },
     },
@@ -230,7 +238,7 @@ const AppointmentTable = ({
       dataSource={appointments}
       rowKey="_id"
       loading={loading}
-      scroll={{ x: 1050 }}
+      scroll={{ x: 960 }}
       pagination={{
         current: page,
         pageSize: limit,

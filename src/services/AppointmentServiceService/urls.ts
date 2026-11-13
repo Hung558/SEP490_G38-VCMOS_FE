@@ -6,3 +6,10 @@ export const apiAssignStaff = (id: string) =>
 export const apiCancelAppointmentService = (id: string) =>
   `/appointment-services/${id}/cancel`;
 export const apiMyQueue = '/appointment-services/my-queue';
+export const apiStartAppointmentService = (id: string) =>
+  `/appointment-services/${id}/start`;
+export const apiCompleteAppointmentService = (id: string) =>
+  `/appointment-services/${id}/complete`;
+export const apiGroomingNote = (id: string) =>
+  `/appointment-services/${id}/grooming-note`;
+export const apiMyGroomingNotes = '/appointment-services/my-grooming-notes';

@@ -31,6 +31,23 @@ export interface PopulatedStaffRef {
 export type ServiceRef = string | PopulatedServiceRef;
 export type StaffRef = string | PopulatedStaffRef | null;
 
+export interface GroomingNoteText {
+  beforeNote?: string;
+  afterNote?: string;
+  recommendations?: string;
+}
+
+export interface GroomingNote extends GroomingNoteText {
+  beforePhotoUrl?: string;
+  afterPhotoUrl?: string;
+  createdAt?: string;
+}
+
+export interface GroomingNoteDraft extends GroomingNoteText {
+  beforePhoto?: File;
+  afterPhoto?: File;
+}
+
 export interface OnlineAppointmentService {
   _id: string;
   orderId: string;
@@ -51,14 +68,7 @@ export interface OnlineAppointmentService {
     | string
     | { _id: string; fullName?: string; role?: string }
     | null;
-  groomingNote?: {
-    beforeNote?: string;
-    afterNote?: string;
-    beforePhotoUrl?: string;
-    afterPhotoUrl?: string;
-    recommendations?: string;
-    createdAt?: string;
-  } | null;
+  groomingNote?: GroomingNote | null;
   createdAt: string;
   updatedAt: string;
   __v?: number;
@@ -135,6 +145,25 @@ export interface MyQueueItem extends Omit<OnlineAppointmentService, 'orderId'> {
 export interface ListMyQueueResponse {
   message: string;
   data: MyQueueItem[];
+}
+
+export interface UpdateGroomingServiceResponse {
+  message: string;
+  data: OnlineAppointmentService;
+}
+
+export interface GroomingNoteService extends MyQueueItem {
+  groomingNote: GroomingNote;
+}
+
+export interface GroomingNoteResponse {
+  message: string;
+  data: GroomingNoteService;
+}
+
+export interface ListMyGroomingNotesResponse {
+  message: string;
+  data: GroomingNoteService[];
 }
 
 export interface CancelAppointmentServicePayload {
