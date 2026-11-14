@@ -145,6 +145,17 @@ class AppointmentFeedbackTests(unittest.TestCase):
             ],
         }])
 
+    def test_link_to_deleted_pet_requires_explicit_selection(self):
+        self.pet['status'] = 'Deleted'
+        self.other_pet = {**self.pet, '_id': '000000000000000000000042', 'name': 'Cún QA', 'status': 'Active'}
+        self.login('PetOwner', f'/dashboard?tab=appointments&book={PET}')
+        expect(self.page.get_by_text('Chọn thú cưng cần đặt lịch', exact=True)).to_be_visible()
+        pet = self.page.get_by_role('combobox', name='Thú cưng cần đặt lịch')
+        pet.press('ArrowDown')
+        expect(self.page.get_by_role('option', name=re.compile('Bé Milo'))).to_have_count(0)
+        expect(self.page.get_by_role('option', name=re.compile('Bé Cún QA'))).to_have_count(1)
+        self.assertEqual(self.bookings, [])
+
     def test_deleted_pet_rejection_clears_only_pet_requires_explicit_selection(self):
         self.deleted_pet_conflict = True
         self.other_pet = {**self.pet, '_id': '000000000000000000000042', 'name': 'Cún QA'}

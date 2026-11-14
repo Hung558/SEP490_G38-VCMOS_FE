@@ -537,14 +537,10 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
           );
           setPets(items);
           // A profile may have been deleted after the user opened the booking link.
-          setSelectedPetId(
-            prev =>
-              (
-                items.find(p => p._id === prev) ||
-                items.find(p => p._id === initialPetId) ||
-                items[0]
-              )?._id || ''
-          );
+          const preferred = initialPetId
+            ? items.find(pet => pet._id === initialPetId)
+            : items[0];
+          setSelectedPetId(preferred?._id || '');
         }
       } catch {
         if (isMounted) {
@@ -1196,7 +1192,10 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
                                 pet => pet.status !== 'Deleted'
                               );
                               setPets(items);
-                              setSelectedPetId(items[0]?._id || '');
+                              const preferred = initialPetId
+                                ? items.find(pet => pet._id === initialPetId)
+                                : items[0];
+                              setSelectedPetId(preferred?._id || '');
                               setPetsError(null);
                             })
                             .catch(() => {
