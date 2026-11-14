@@ -6,6 +6,7 @@ import type {
   PopulatedServiceRef,
   PopulatedStaffRef,
   QueueOrderRef,
+  MyQueueItem,
 } from './types';
 
 const MONGO_OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
@@ -875,6 +876,40 @@ export const countMyQueue = <T extends { status?: string; orderId?: unknown }>(
     },
     {} as Record<QueueView, number>
   );
+
+/** Only known predecessors from the current user's queue; BE checks other staff's work. */
+export const getPreviousUnfinishedService = (
+  item: MyQueueItem,
+  queue: readonly MyQueueItem[]
+): MyQueueItem | undefined => {
+  const orderIdOf = (entry: MyQueueItem) =>
+    typeof entry.orderId === 'string' ? entry.orderId : entry.orderId?._id;
+  const orderId = orderIdOf(item);
+  if (
+    item.status !== 'Waiting' ||
+    !orderId ||
+    !Number.isFinite(item.sequenceNo)
+  ) {
+    return undefined;
+  }
+
+  return queue.reduce<MyQueueItem | undefined>((first, service) => {
+    if (
+      service._id === item._id ||
+      orderIdOf(service) !== orderId ||
+      !Number.isFinite(service.sequenceNo) ||
+      service.sequenceNo >= item.sequenceNo ||
+      service.status === 'Done' ||
+      service.status === 'Cancelled'
+    ) {
+      return first;
+    }
+    return !first || service.sequenceNo < first.sequenceNo ? service : first;
+  }, undefined);
+};
+
+export const getPreviousServiceMessage = (service: MyQueueItem) =>
+  `Chờ dịch vụ #${service.sequenceNo} — ${getAppointmentServiceName(service.serviceId)} hoàn tất hoặc được hủy.`;
 
 export type ExamAction = 'waitCheckIn' | 'start' | 'continue' | 'view';
 

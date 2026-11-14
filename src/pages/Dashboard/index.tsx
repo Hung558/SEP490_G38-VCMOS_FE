@@ -598,16 +598,10 @@ const DashboardPage: React.FC = () => {
 
   // Called by DeletePetModal once the owner has typed the pet's name
   const handleDeletePet = async (pet: Pet) => {
-    try {
-      await PetService.deletePet(pet._id);
-      toast.success(`Đã xóa hồ sơ bé ${pet.name}`);
-      setPetToDelete(null);
-      fetchPets();
-    } catch (error: any) {
-      toast.error(
-        error?.response?.data?.message || 'Không thể xóa hồ sơ thú cưng'
-      );
-    }
+    await PetService.deletePet(pet._id);
+    toast.success(`Đã xóa hồ sơ bé ${pet.name}`);
+    setPetToDelete(null);
+    fetchPets();
   };
 
   // Appointments table columns

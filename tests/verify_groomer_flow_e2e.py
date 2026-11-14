@@ -34,6 +34,8 @@ PHOTO_HOST = 'https://grooming-fixture.invalid'
 NOTE_OK = 'Tạo ghi chú chăm sóc thành công'
 UPLOAD_ERR = 'Không thể tải ảnh lên, vui lòng thử lại sau'
 NOTE_CONFLICT = 'Dịch vụ này đã có ghi chú chăm sóc'
+SEQUENCE_CONFLICT = 'Không thể bắt đầu: Dịch vụ đứng trước "Khám tổng quát QA" (thứ tự #1) chưa hoàn thành'
+CAGE_BY_ORDER = f'/api/cage-assignments/order/{APPT}'
 COMPLETE_CONFLICT = 'Chỉ có thể hoàn thành dịch vụ đang thực hiện (InProgress), hiện tại: "Done"'
 SOAP = {'subjectiveNote': 'Triệu chứng SOAP QA', 'objectiveNote': 'Kết quả SOAP QA',
         'assessment': 'Chẩn đoán SOAP QA', 'plan': 'Kế hoạch SOAP QA'}
@@ -96,6 +98,9 @@ class GroomerFlowE2E(unittest.TestCase):
         self.note = None
         self.note_responses = []
         self.complete_responses = []
+        self.previous_status = None
+        self.start_conflict = False
+        self.in_cage = False
         self.complete_order_status = 'WaitOwner'
         self.older_note = None
         self.requests = []
@@ -120,7 +125,7 @@ class GroomerFlowE2E(unittest.TestCase):
                 'serviceId': {'_id': CATALOG, 'name': 'Dịch vụ QA',
                               'category': 'Examination' if self.role == 'Veterinarian' else 'Grooming'},
                 'assignedStaffId': self.staff(self.assigned), 'status': self.service_status,
-                'sequenceNo': 1, 'queueNo': 2, 'groomingNote': self.note,
+                'sequenceNo': 2, 'queueNo': 2, 'groomingNote': self.note,
                 'scheduledStart': '09:00', 'scheduledEnd': '09:30'}
 
     def record(self):
@@ -146,13 +151,23 @@ class GroomerFlowE2E(unittest.TestCase):
         if req.headers.get('authorization') != f'Bearer {TOKEN}':
             return route.fulfill(status=401, json={'message': 'Chưa đăng nhập'})
         if method == 'GET' and path == f'{PFX}/my-queue':
-            data = {'data': [self.item()] if self.assigned == self.staff()['_id'] else []}
+            items = [self.item()] if self.assigned == self.staff()['_id'] else []
+            if items and self.previous_status:
+                items.append({**self.item(), '_id': OLD, 'status': self.previous_status,
+                              'sequenceNo': 1, 'queueNo': 1,
+                              'serviceId': {**self.item()['serviceId'], 'name': 'Dịch vụ trước QA'}})
+            data = {'data': items}
         elif method == 'GET' and path in ('/api/users/me', '/api/auth/me', '/api/users/profile'):
             data = {'user': self.staff(), 'data': self.staff()}
         elif method == 'GET' and path in (f'/api/pets/{PET}', f'/api/medical-records/pet/{PET}'):
             data = {'data': self.pet, 'pet': self.pet, 'records': []}
         elif method == 'GET' and path == '/api/products':
             data = {'data': {'items': []}}
+        elif method == 'GET' and path == CAGE_BY_ORDER:
+            if self.in_cage:
+                data = {'data': {'_id': OLD, 'cageId': {'label': 'CH-42', 'size': 'M'}, 'assignedAt': NOW}}
+            else:
+                status, data = 404, {'message': 'Không tìm thấy lượt giữ chuồng'}
         elif method == 'GET' and path == VET_RECORD:
             if self.service_status == 'Waiting':
                 status, data = 404, {'message': 'Chưa có bệnh án'}
@@ -167,8 +182,12 @@ class GroomerFlowE2E(unittest.TestCase):
             status, data = 403, {'message': 'Bạn không có quyền thực hiện chức năng này'}
         elif method == 'PATCH' and path == START:
             self.writes.append((method, path, req.post_data_buffer, {}))
-            self.service_status = self.order_status = 'InProgress'
-            data = {'message': 'Cập nhật trạng thái dịch vụ thành công', 'data': self.item(populated=False)}
+            if self.start_conflict:
+                status, data = 409, {'message': SEQUENCE_CONFLICT}
+            else:
+                self.service_status = self.order_status = 'InProgress'
+                self.in_cage = False
+                data = {'message': 'Cập nhật trạng thái dịch vụ thành công', 'data': self.item(populated=False)}
         elif method == 'PATCH' and path == COMPLETE:
             self.writes.append((method, path, req.post_data_buffer, {}))
             if self.complete_responses:
@@ -378,6 +397,55 @@ class GroomerFlowE2E(unittest.TestCase):
         self.page.goto(f'{BASE}/clinic/exam/{SERVICE}')
         expect(self.page).not_to_have_url(re.compile(r'/clinic/exam/'))
         self.assertFalse(any(path == VET_RECORD for _, path, _ in self.requests))
+
+    def test_groomer_known_predecessor_blocks_start_then_server_releases_cage(self):
+        self.service_status, self.order_status = 'Waiting', 'CheckedIn'
+        self.previous_status = 'InProgress'
+        self.in_cage = True
+        self.open_queue()
+        row = self.row().filter(has_text='Thứ tự trong lịch hẹn: 2')
+        expect(row.get_by_text('Chờ dịch vụ #1 — Dịch vụ trước QA hoàn tất hoặc được hủy.')).to_be_visible()
+        expect(button(row, 'Bắt đầu spa')).to_be_disabled()
+        button(row, 'Chuồng').click()
+        dialog = self.page.get_by_role('dialog')
+        expect(dialog.get_by_text('CH-42', exact=False)).to_be_visible()
+        button(dialog, 'Đóng').click()
+        self.assertEqual(self.writes, [])
+
+        self.previous_status = 'Cancelled'
+        button(self.page, 'Làm mới').click()
+        expect(button(row, 'Bắt đầu spa')).to_be_enabled()
+        button(row, 'Bắt đầu spa').click()
+        expect(row.get_by_text('Đang thực hiện', exact=True)).to_be_visible()
+        button(row, 'Chuồng').click()
+        expect(dialog.get_by_text('Milo QA hiện không ở chuồng nào.', exact=False)).to_be_visible()
+        expect(button(dialog, 'Đưa ra khỏi chuồng')).to_have_count(0)
+        self.assertEqual(self.writes, [('PATCH', START, None, {})])
+
+    def test_cross_staff_predecessor_conflict_explains_retry_without_false_success(self):
+        self.service_status, self.order_status = 'Waiting', 'CheckedIn'
+        self.start_conflict = True
+        self.open_queue()
+        button(self.row(), 'Bắt đầu spa').click()
+        expect(self.page.get_by_text(SEQUENCE_CONFLICT, exact=True)).to_be_visible()
+        expect(button(self.row(), 'Hoàn thành spa')).to_have_count(0)
+        expect(self.page.locator('[data-sonner-toast][data-type=success]')).to_have_count(0)
+        expect(button(self.row(), 'Bắt đầu spa')).to_be_enabled()
+        self.assertEqual(self.writes, [('PATCH', START, None, {})])
+
+    def test_vet_direct_exam_refreshes_when_known_predecessor_finishes(self):
+        self.service_status, self.order_status = 'Waiting', 'CheckedIn'
+        self.previous_status = 'InProgress'
+        self.open_queue('Veterinarian')
+        self.page.goto(f'{BASE}/clinic/exam/{SERVICE}')
+        expect(self.page.get_by_text('Chờ dịch vụ #1 — Dịch vụ trước QA hoàn tất hoặc được hủy.')).to_be_visible()
+        expect(button(self.page, 'Bắt đầu khám')).to_have_count(0)
+        self.assertEqual(self.writes, [])
+        self.previous_status = 'Done'
+        button(self.page, 'Làm mới').click()
+        button(self.page, 'Bắt đầu khám').click()
+        self.page.wait_for_function("value => [...document.querySelectorAll('textarea')].some(el => el.value === value)", arg=SOAP['assessment'])
+        self.assertEqual(self.writes, [('POST', f'{VET_RECORD}/start', None, {})])
 
     def test_vet_still_starts_soap_without_groomer_controls(self):
         self.service_status, self.order_status = 'Waiting', 'CheckedIn'

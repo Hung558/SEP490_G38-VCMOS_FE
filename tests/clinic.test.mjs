@@ -447,3 +447,57 @@ test('completion sends the current SOAP values and a cage ID or explicit null', 
     waitingCageId: cageId,
   });
 });
+
+test('only unfinished earlier services from the same order block a waiting appointment service', () => {
+  const { getPreviousUnfinishedService, getPreviousServiceMessage } =
+    orderServices;
+  const current = {
+    _id: 'target',
+    orderId: { _id: ORDER },
+    status: 'Waiting',
+    sequenceNo: 4,
+  };
+  const previous = {
+    _id: 'earliest',
+    orderId: ORDER,
+    status: 'InProgress',
+    sequenceNo: 1,
+    serviceId: { _id: SVC, name: 'Khám tổng quát' },
+  };
+  const laterBlocker = {
+    ...previous,
+    _id: 'later',
+    sequenceNo: 3,
+    status: 'Booked',
+  };
+  const unrelated = [
+    { ...previous, _id: 'other-order', orderId: 'different' },
+    { ...previous, _id: 'done', status: 'Done' },
+    { ...previous, _id: 'cancelled', status: 'Cancelled', sequenceNo: 2 },
+    { ...previous, _id: 'later-in-order', sequenceNo: 5 },
+    { ...previous, _id: 'old-record', sequenceNo: undefined },
+    current,
+  ];
+  assert.equal(getPreviousUnfinishedService(current, unrelated), undefined);
+  assert.equal(
+    getPreviousUnfinishedService(current, [
+      laterBlocker,
+      ...unrelated,
+      previous,
+    ]),
+    previous
+  );
+  assert.match(getPreviousServiceMessage(previous), /#1.*Khám tổng quát/);
+  assert.equal(
+    getPreviousUnfinishedService({ ...current, status: 'InProgress' }, [
+      previous,
+    ]),
+    undefined
+  );
+  assert.equal(
+    getPreviousUnfinishedService({ ...current, orderId: undefined }, [
+      previous,
+    ]),
+    undefined
+  );
+});

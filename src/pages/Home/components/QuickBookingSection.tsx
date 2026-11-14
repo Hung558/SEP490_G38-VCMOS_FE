@@ -532,13 +532,19 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
           limit: 100,
         });
         if (isMounted) {
-          const items = res?.items || [];
+          const items = (res?.items || []).filter(
+            pet => pet.status !== 'Deleted'
+          );
           setPets(items);
-          if (items.length > 0) {
-            // The pet the owner clicked "Đặt lịch" on, when it is still active
-            const preferred = items.find(p => p._id === initialPetId);
-            setSelectedPetId(prev => prev || (preferred || items[0])._id);
-          }
+          // A profile may have been deleted after the user opened the booking link.
+          setSelectedPetId(
+            prev =>
+              (
+                items.find(p => p._id === prev) ||
+                items.find(p => p._id === initialPetId) ||
+                items[0]
+              )?._id || ''
+          );
         }
       } catch {
         if (isMounted) {
@@ -763,7 +769,20 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
         statusCode,
       } = extractApiError(error, 'Không thể đặt lịch hẹn. Vui lòng thử lại.');
 
-      if (statusCode === 409) {
+      if (
+        statusCode === 400 &&
+        message === 'Không thể đặt lịch cho thú cưng đã bị xóa khỏi hồ sơ'
+      ) {
+        const removedPetId = selectedPetId;
+        setPets(current => current.filter(pet => pet._id !== removedPetId));
+        setSelectedPetId('');
+        setFieldErrors(current => ({
+          ...current,
+          petId: 'Vui lòng chọn lại thú cưng còn hoạt động.',
+        }));
+        setServerError(message);
+        toast.error(message);
+      } else if (statusCode === 409) {
         setServerError(
           message || 'Thú cưng này đã có lịch trong ngày đã chọn.'
         );
@@ -1173,10 +1192,11 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
                             limit: 100,
                           })
                             .then(res => {
-                              setPets(res?.items || []);
-                              if (res?.items?.length) {
-                                setSelectedPetId(res.items[0]._id);
-                              }
+                              const items = (res?.items || []).filter(
+                                pet => pet.status !== 'Deleted'
+                              );
+                              setPets(items);
+                              setSelectedPetId(items[0]?._id || '');
                               setPetsError(null);
                             })
                             .catch(() => {
@@ -1244,6 +1264,7 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
                 ) : (
                   <>
                     <Select
+                      aria-label="Thú cưng cần đặt lịch"
                       value={selectedPetId || undefined}
                       onChange={val => {
                         setSelectedPetId(val);
