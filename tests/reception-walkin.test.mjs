@@ -138,6 +138,40 @@ test('findDuplicateServiceRows flags each repeat of a service, not its first row
   assert.deepEqual(walkIn.findDuplicateServiceRows(undefined), []);
 });
 
+test('walk-in carries a true isolation flag only with a selected cage', () => {
+  const base = {
+    phone: '0988111222',
+    isNewCustomer: false,
+    petMode: 'existing',
+    petId: PET,
+    services: [{ serviceId: SVC_EXAM }],
+  };
+  const selected = walkIn.buildWalkInPayload({
+    ...base,
+    cageId: ` ${CAGE} `,
+    requiresIsolation: true,
+  });
+  assert.equal(selected.cageId, CAGE);
+  assert.equal(selected.requiresIsolation, true);
+  assert.equal(
+    'requiresIsolation' in
+      walkIn.buildWalkInPayload({
+        ...base,
+        cageId: CAGE,
+        requiresIsolation: false,
+      }),
+    false
+  );
+  assert.equal(
+    'requiresIsolation' in
+      walkIn.buildWalkInPayload({ ...base, requiresIsolation: true }),
+    false
+  );
+  assert.deepEqual(walkIn.toWalkInFieldPath('requiresIsolation'), [
+    'requiresIsolation',
+  ]);
+});
+
 test('walk-in intake is optional and independent of note, pet and customer mode', () => {
   const base = {
     phone: '0988111222',

@@ -3,8 +3,12 @@ import type {
   WalkInPetInfo,
   WalkInServiceItem,
 } from '../../types/api/walk-in.api';
-import type { ReceptionIntake } from '../../types/api/appointment.api';
+import type {
+  ReceptionCageSelection,
+  ReceptionIntake,
+} from '../../types/api/appointment.api';
 import { buildCheckInPayload } from '../AppointmentOrderService/intake.ts';
+import { buildReceptionCageSelection } from '../AppointmentOrderService/helpers.ts';
 
 // Giới hạn theo BE (walkIn.validator.js). Thú cưng theo SRS chặt hơn BE: tên ≤ 50, ghi chú ≤ 500
 export const WALK_IN_PHONE_REGEX = /^0\d{9}$/;
@@ -23,7 +27,7 @@ export interface WalkInServiceRow {
 }
 
 /** Giá trị của form tiếp nhận walk-in (SCR-18) */
-export interface WalkInFormValues {
+export interface WalkInFormValues extends ReceptionCageSelection {
   phone: string;
   /** SĐT chưa có trong hệ thống: gửi kèm họ tên và email để BE tạo tài khoản Inactive */
   isNewCustomer: boolean;
@@ -41,7 +45,6 @@ export interface WalkInFormValues {
     notes?: string;
   };
   services?: WalkInServiceRow[];
-  cageId?: string;
   note?: string;
   intake?: ReceptionIntake;
 }
@@ -87,6 +90,7 @@ export const buildWalkInPayload = (
   values: WalkInFormValues
 ): CreateWalkInBookingPayload => {
   const payload: CreateWalkInBookingPayload = {
+    ...buildReceptionCageSelection(values),
     phone: normalizeWalkInPhone(values.phone),
     services: (values.services || [])
       .filter(row => trimmed(row?.serviceId))
@@ -130,8 +134,6 @@ export const buildWalkInPayload = (
     payload.petInfo = petInfo;
   }
 
-  const cageId = trimmed(values.cageId);
-  if (cageId) payload.cageId = cageId;
   const note = trimmed(values.note);
   if (note) payload.note = note;
   const checkIn = buildCheckInPayload(values.intake);
@@ -154,7 +156,17 @@ export const toWalkInFieldPath = (key: string): (string | number)[] | null => {
   if (pet) return ['petInfo', pet[1]];
   const intake = /^intake\.(symptoms|initialCondition)$/.exec(key);
   if (intake) return ['intake', intake[1]];
-  if (['phone', 'fullName', 'email', 'petId', 'note', 'cageId'].includes(key)) {
+  if (
+    [
+      'phone',
+      'fullName',
+      'email',
+      'petId',
+      'note',
+      'cageId',
+      'requiresIsolation',
+    ].includes(key)
+  ) {
     return [key];
   }
   return null;

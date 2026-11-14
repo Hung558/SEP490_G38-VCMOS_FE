@@ -8,17 +8,19 @@ import { STORAGE, storage } from '@/lib/storage';
 import type {
   AppointmentStatus,
   CageAssignment,
+  CheckInAppointmentPayload,
   CreateCageAssignmentPayload,
-  ReceptionIntake,
   CreateWalkInBookingResult,
   StaffAppointment,
 } from '@/types';
 import AppointmentOrderService, {
   extractApiError,
+  isReceptionCageError,
   readReceptionIntake,
 } from '@/services/AppointmentOrderService';
 import CageAssignmentService from '@/services/CageAssignmentService';
 import { useActiveCageAssignments } from './useActiveCageAssignments';
+import { matchesActiveCageAssignment } from './activeCageAssignments';
 import { getSelectedReceptionTodayGroup } from './receptionToday';
 import type { ReceptionTodayGroup } from './receptionToday';
 import { useReceptionToday } from './useReceptionToday';
@@ -424,23 +426,49 @@ export const useAppointmentReception = () => {
     setCheckInTarget(null);
   };
 
-  const confirmCheckIn = async (intake?: ReceptionIntake) => {
+  const checkInCageBlockedReason =
+    checkInTarget && activeCageByOrderId.has(checkInTarget._id)
+      ? 'Lịch hẹn này đã có chuồng. Có thể tiếp nhận mà không phân thêm chuồng.'
+      : activeCageLoading || activeCageError
+        ? 'Chưa xác nhận được tình trạng phân chuồng. Có thể tiếp nhận mà không phân chuồng.'
+        : undefined;
+
+  const confirmCheckIn = async (values: CheckInAppointmentPayload) => {
     if (!checkInTarget || !isReceptionist || checkInPendingRef.current) return;
+    if (values.cageId && checkInCageBlockedReason)
+      return { cageError: checkInCageBlockedReason };
 
     checkInPendingRef.current = true;
     setCheckInSubmitting(true);
     try {
       const res = await AppointmentOrderService.checkInAppointment(
         checkInTarget._id,
-        intake
+        values
       );
       const savedIntake = readReceptionIntake(res.data?.intake);
-      if (intake && !savedIntake) {
+      const savedCage = res.data?.cageAssignment;
+      const cageConfirmed =
+        values.cageId &&
+        matchesActiveCageAssignment(
+          savedCage,
+          checkInTarget._id,
+          values.cageId
+        );
+      if (cageConfirmed) {
+        recordActiveCage(savedCage);
+        if (activeTab === 'assignments') void fetchAssignments();
+      }
+      if (values.intake && !savedIntake) {
         // The order may already be checked in, so refresh rather than resubmitting.
         toast.warning(
           'Không xác nhận được phiếu tiếp nhận đã lưu. Vui lòng kiểm tra lại lịch hẹn.'
         );
-      } else {
+      }
+      if (values.cageId && !cageConfirmed) {
+        toast.warning(
+          'Đã tiếp nhận lịch hẹn nhưng chưa xác nhận phân chuồng. Vui lòng kiểm tra lại.'
+        );
+      } else if (!values.intake || savedIntake) {
         toast.success(res.message || 'Tiếp nhận lịch hẹn thành công');
       }
       setCheckInOpen(false);
@@ -448,10 +476,17 @@ export const useAppointmentReception = () => {
       // Refresh current page to preserve page and filters
       refreshAppointmentList();
     } catch (err: unknown) {
-      const { message, status } = extractApiError(
+      const { message, status, fieldErrors } = extractApiError(
         err,
         'Tiếp nhận lịch hẹn thất bại'
       );
+      if (values.cageId && isReceptionCageError(status, message, fieldErrors)) {
+        refreshAppointmentList();
+        return {
+          cageError:
+            fieldErrors.cageId || fieldErrors.requiresIsolation || message,
+        };
+      }
       toast.error(message);
       // If 409 conflict or 404 not found, refresh page to reflect server reality
       if (status === 409 || status === 404) {
@@ -698,6 +733,7 @@ export const useAppointmentReception = () => {
     checkInOpen,
     checkInTarget,
     checkInSubmitting,
+    checkInCageBlockedReason,
     openCheckIn,
     closeCheckIn,
     confirmCheckIn,

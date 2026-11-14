@@ -1,4 +1,5 @@
 import type { OnlineAppointmentService } from './appointment-service.api';
+import type { CageAssignment } from './cage-assignment.api';
 
 export type AppointmentStatus =
   | 'Booked'
@@ -76,6 +77,7 @@ export interface OnlineBookingDetailResponse {
 export interface PopulatedPetRef {
   _id: string;
   name: string;
+  weight?: number | null;
 }
 
 export interface PopulatedOwnerRef {
@@ -136,9 +138,18 @@ export interface ListStaffAppointmentsResponse {
   pagination: AppointmentPagination;
 }
 
+export interface ReceptionCageSelection {
+  cageId?: string;
+  requiresIsolation?: boolean;
+}
+
+export interface CheckInAppointmentPayload extends ReceptionCageSelection {
+  intake?: ReceptionIntake;
+}
+
 export interface CheckInAppointmentResponse {
   message: string;
-  data: StaffAppointment;
+  data: StaffAppointment & { cageAssignment?: CageAssignment | null };
 }
 
 export interface CancelAppointmentPayload {

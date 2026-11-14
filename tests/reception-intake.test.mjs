@@ -6,6 +6,10 @@ import {
   RECEPTION_INTAKE_FIELD_LIMIT,
 } from '../src/services/AppointmentOrderService/intake.ts';
 import { pickSpecialtyAssignment } from '../src/services/StaffService/specialty.ts';
+import {
+  buildCheckInRequest,
+  isReceptionCageError,
+} from '../src/services/AppointmentOrderService/helpers.ts';
 
 test('legacy check-in has no body; intake check-in only sends the two trimmed fields', () => {
   assert.equal(buildCheckInPayload(), undefined);
@@ -44,6 +48,65 @@ test('intake validation rejects blank, malformed or oversized fields', () => {
     }).intake.symptoms,
     maxLength
   );
+});
+
+test('check-in includes a cage and isolation in the same request without changing intake-only or legacy bodies', () => {
+  const cageId = '6ad96d4a9664da6b2c0d9a01';
+  const intake = { symptoms: 'Ho nhẹ', initialCondition: 'Tỉnh táo' };
+  assert.equal(buildCheckInRequest(), undefined);
+  assert.equal(buildCheckInRequest({ requiresIsolation: true }), undefined);
+  assert.deepEqual(buildCheckInRequest({ intake }), { intake });
+  assert.deepEqual(buildCheckInRequest({ cageId, requiresIsolation: false }), {
+    cageId,
+  });
+  assert.deepEqual(
+    buildCheckInRequest({
+      intake,
+      cageId: ` ${cageId} `,
+      requiresIsolation: true,
+      staffId: 'ignored',
+    }),
+    {
+      intake,
+      cageId,
+      requiresIsolation: true,
+    }
+  );
+  assert.throws(() =>
+    buildCheckInRequest({ cageId, intake: { symptoms: 'Ho nhẹ' } })
+  );
+});
+
+test('cage errors are distinct from non-cage order conflicts and general failures', () => {
+  assert.equal(
+    isReceptionCageError(409, 'Chuồng không ở trạng thái trống (Available)'),
+    true
+  );
+  assert.equal(
+    isReceptionCageError(404, 'Không tìm thấy chuồng lưu giữ'),
+    true
+  );
+  assert.equal(
+    isReceptionCageError(400, 'Dữ liệu không hợp lệ', {
+      requiresIsolation: 'Cờ không hợp lệ',
+    }),
+    true
+  );
+  assert.equal(
+    isReceptionCageError(
+      409,
+      'Không thể check-in lịch hẹn đang ở trạng thái "CheckedIn"'
+    ),
+    false
+  );
+  assert.equal(
+    isReceptionCageError(
+      409,
+      'Địa chỉ email này đã được sử dụng bởi tài khoản khác'
+    ),
+    false
+  );
+  assert.equal(isReceptionCageError(500, 'Lỗi hệ thống khi gán chuồng'), false);
 });
 
 const staffMember = (_id, specialty, overrides = {}) => ({

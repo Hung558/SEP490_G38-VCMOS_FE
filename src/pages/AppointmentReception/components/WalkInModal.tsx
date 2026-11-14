@@ -43,8 +43,9 @@ import StaffService, {
   getRequiredStaffRole,
   pickAssignableStaff,
 } from '@/services/StaffService';
-import CageService, { canCageHoldPet } from '@/services/CageService';
+import CageService from '@/services/CageService';
 import {
+  isReceptionCageError,
   readReceptionIntake,
   RECEPTION_INTAKE_FIELD_LIMIT,
 } from '@/services/AppointmentOrderService';
@@ -77,6 +78,8 @@ import {
 } from '@/constants/pet';
 import { ModalFooterBar, SectionBlock, ServiceRowCard } from './styles';
 import { isReceptionIntakeEnabled } from './receptionIntakeFeature';
+import { getReceptionCageChoices, receptionCageLabel } from './receptionCages';
+import { matchesActiveCageAssignment } from './activeCageAssignments';
 
 const { Text } = Typography;
 
@@ -103,6 +106,7 @@ interface WalkInFormFields {
   };
   services?: WalkInServiceRow[];
   cageId?: string;
+  requiresIsolation?: boolean;
   note?: string;
   includeIntake?: boolean;
   intake?: ReceptionIntake;
@@ -111,9 +115,6 @@ interface WalkInFormFields {
 const isAbort = (err: unknown) =>
   axios.isCancel(err) ||
   (err instanceof DOMException && err.name === 'AbortError');
-
-const cageOptionLabel = (cage: Cage) =>
-  `${cage.label} - Size ${cage.size}${cage.isIsolated ? ' [Cách ly]' : ''}`;
 
 /** "APT-K7M2QX · Khám tổng quát: BS An (số 1), Tắm sấy: chưa phân công" */
 const describeCreated = (result: CreateWalkInBookingResult) =>
@@ -150,10 +151,12 @@ const WalkInForm = ({
   const petIdValue = Form.useWatch('petId', form);
   const newPetWeight = Form.useWatch(['petInfo', 'weight'], form);
   const cageIdValue = Form.useWatch('cageId', form);
+  const requiresIsolation = Form.useWatch('requiresIsolation', form) === true;
   const serviceRows = Form.useWatch('services', form);
   const includeIntake = Form.useWatch('includeIntake', form);
-  const resetIntake = useCallback(() => {
+  const resetPetReception = useCallback(() => {
     if (isReceptionIntakeEnabled) form.resetFields(['includeIntake', 'intake']);
+    form.resetFields(['cageId', 'requiresIsolation']);
   }, [form]);
 
   const today = getVietnamTodayString();
@@ -183,15 +186,13 @@ const WalkInForm = ({
   const [petMode, setPetMode] = useState<'existing' | 'new'>('new');
 
   const [submitting, setSubmitting] = useState(false);
+  const submitPendingRef = useRef(false);
   const [submitError, setSubmitError] = useState<{
     message: string;
     details: string[];
   } | null>(null);
 
-  // Resolves with the fresh available cages (undefined if aborted or failed)
-  const loadReferenceData = useCallback(async (): Promise<
-    Cage[] | undefined
-  > => {
+  const loadReferenceData = useCallback(async () => {
     refAbortRef.current?.abort();
     const controller = new AbortController();
     refAbortRef.current = controller;
@@ -225,16 +226,42 @@ const WalkInForm = ({
     } else {
       setStaffError(true);
     }
-    let freshCages: Cage[] | undefined;
     if (cagesRes.status === 'fulfilled') {
-      freshCages = cagesRes.value.data?.items || [];
-      setCages(freshCages);
+      setCages(cagesRes.value.data?.items || []);
     } else {
+      setCages([]);
       setCagesError(true);
     }
     setRefLoading(false);
-    return freshCages;
   }, [today]);
+
+  const cageRefreshRef = useRef<AbortController | null>(null);
+  const [cagesRefreshing, setCagesRefreshing] = useState(false);
+  const refreshWalkInCages = async () => {
+    cageRefreshRef.current?.abort();
+    const controller = new AbortController();
+    cageRefreshRef.current = controller;
+    setCagesRefreshing(true);
+    setCagesError(false);
+    try {
+      const res = await CageService.listCages(
+        { status: 'Available', limit: 100 },
+        { signal: controller.signal }
+      );
+      if (!controller.signal.aborted) {
+        const fresh = res.data?.items || [];
+        setCages(fresh);
+        return fresh;
+      }
+    } catch {
+      if (!controller.signal.aborted) {
+        setCages([]);
+        setCagesError(true);
+      }
+    } finally {
+      if (!controller.signal.aborted) setCagesRefreshing(false);
+    }
+  };
 
   const runLookup = useCallback(
     async (rawPhone?: string) => {
@@ -265,7 +292,7 @@ const WalkInForm = ({
         });
         if (requestId !== lookupRequestIdRef.current) return;
         const result = res.data;
-        resetIntake();
+        resetPetReception();
         setLookup({ phone, result });
         setPetMode(result.pets.length > 0 ? 'existing' : 'new');
         form.setFieldsValue({
@@ -288,7 +315,7 @@ const WalkInForm = ({
         }
       }
     },
-    [form, resetIntake]
+    [form, resetPetReception]
   );
 
   useEffect(() => {
@@ -300,6 +327,7 @@ const WalkInForm = ({
     return () => {
       refAbortRef.current?.abort();
       lookupAbortRef.current?.abort();
+      cageRefreshRef.current?.abort();
     };
   }, [initialPhone, form, loadReferenceData, runLookup]);
 
@@ -324,14 +352,13 @@ const WalkInForm = ({
   const isNewCustomer = Boolean(activeLookup && !activeLookup.result.found);
   const usingExistingPet = pets.length > 0 && petMode === 'existing';
 
-  // BR-11: only cages that will take this pet (BE a1e9760 checks it after it has
-  // already created the walk-in, so a wrong cage must not be offered at all)
+  // BR-11: offer only available holding cages that match weight and isolation.
   const petWeight = usingExistingPet
     ? pets.find(p => p._id === petIdValue)?.weight
     : newPetWeight;
   const suitableCages = useMemo(
-    () => cages.filter(c => canCageHoldPet(c, petWeight, false)),
-    [cages, petWeight]
+    () => getReceptionCageChoices(cages, petWeight, requiresIsolation),
+    [cages, petWeight, requiresIsolation]
   );
   const hiddenCages = cages.length - suitableCages.length;
 
@@ -354,7 +381,7 @@ const WalkInForm = ({
     !submitting;
 
   const handleSubmit = async () => {
-    if (!activeLookup || submitting) return;
+    if (!activeLookup || submitPendingRef.current) return;
 
     let values: WalkInFormFields;
     try {
@@ -362,8 +389,26 @@ const WalkInForm = ({
     } catch {
       return;
     }
+    if (submitPendingRef.current) return;
 
     let payload: ReturnType<typeof buildWalkInPayload>;
+    if (
+      values.cageId &&
+      !getReceptionCageChoices(
+        cages,
+        petWeight,
+        values.requiresIsolation === true
+      ).some(cage => cage._id === values.cageId)
+    ) {
+      form.setFields([
+        {
+          name: 'cageId',
+          value: undefined,
+          errors: ['Chuồng không còn phù hợp. Vui lòng chọn lại.'],
+        },
+      ]);
+      return;
+    }
     try {
       payload = buildWalkInPayload({
         phone: activeLookup.phone,
@@ -380,6 +425,7 @@ const WalkInForm = ({
         },
         services: values.services,
         cageId: values.cageId,
+        requiresIsolation: values.requiresIsolation,
         note: values.note,
         intake:
           isReceptionIntakeEnabled && values.includeIntake
@@ -395,28 +441,43 @@ const WalkInForm = ({
       return;
     }
 
+    submitPendingRef.current = true;
     setSubmitting(true);
     setSubmitError(null);
     try {
       const res = await WalkInService.createWalkInBooking(payload);
       const savedIntake = readReceptionIntake(res.data.appointment.intake);
       const description = describeCreated(res.data);
-      if (
+      const intakeUnconfirmed =
         payload.intake &&
         (savedIntake?.symptoms !== payload.intake.symptoms ||
-          savedIntake?.initialCondition !== payload.intake.initialCondition)
-      ) {
-        toast.warning(
-          'Đã tạo lịch hẹn nhưng chưa xác nhận lưu phiếu tiếp nhận.',
-          { description }
+          savedIntake?.initialCondition !== payload.intake.initialCondition);
+      const cageUnconfirmed =
+        payload.cageId &&
+        !matchesActiveCageAssignment(
+          res.data.cageAssignment,
+          res.data.appointment._id,
+          payload.cageId
         );
+      if (intakeUnconfirmed || cageUnconfirmed) {
+        const unconfirmed = [
+          intakeUnconfirmed && 'lưu phiếu tiếp nhận',
+          cageUnconfirmed && 'phân chuồng',
+        ]
+          .filter(Boolean)
+          .join(' và ');
+        toast.warning(`Đã tạo lịch hẹn nhưng chưa xác nhận ${unconfirmed}.`, {
+          description,
+        });
       } else {
         toast.success(
           res.message || 'Đăng ký khám vãng lai tại quầy thành công',
           { description }
         );
       }
-      onCreated(res.data);
+      onCreated(
+        cageUnconfirmed ? { ...res.data, cageAssignment: null } : res.data
+      );
     } catch (err: unknown) {
       const { message, statusCode, fieldErrors } = extractApiError(
         err,
@@ -433,19 +494,36 @@ const WalkInForm = ({
       // Paths come from BE error keys, so they are not typed against the form
       if (fields.length > 0) (form as FormInstance).setFields(fields);
       setSubmitError({ message, details });
-      // The BE may have created part of the walk-in before failing: refresh the list
+      // Reconcile with the server after a failed submission (rollback is best effort).
       onSubmitFailed();
-      // Another receptionist may have just taken the cage: reload the free cages
-      // and, if it is gone, empty the choice and say why under it
-      if (statusCode === 409 && payload.cageId) {
-        const freshCages = await loadReferenceData();
-        if (freshCages && !freshCages.some(c => c._id === payload.cageId)) {
+      const cageError = isReceptionCageError(statusCode, message, fieldErrors);
+      if (payload.cageId && (cageError || statusCode === 409)) {
+        const freshCages = await refreshWalkInCages();
+        if (
+          cageError ||
+          (freshCages &&
+            !getReceptionCageChoices(
+              freshCages,
+              petWeight,
+              requiresIsolation
+            ).some(c => c._id === payload.cageId))
+        ) {
           form.setFields([
-            { name: 'cageId', value: undefined, errors: [message] },
+            {
+              name: 'cageId',
+              value: undefined,
+              errors: [
+                fieldErrors?.cageId ||
+                  (cageError
+                    ? message
+                    : 'Chuồng vừa chọn không còn trống hoặc không còn phù hợp.'),
+              ],
+            },
           ]);
         }
       }
     } finally {
+      submitPendingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -662,7 +740,7 @@ const WalkInForm = ({
             name="petId"
             rules={[{ required: true, message: 'Vui lòng chọn thú cưng' }]}
           >
-            <Radio.Group onChange={resetIntake} style={{ width: '100%' }}>
+            <Radio.Group onChange={resetPetReception} style={{ width: '100%' }}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 {pets.map(pet => (
                   <Radio key={pet._id} value={pet._id}>
@@ -680,7 +758,7 @@ const WalkInForm = ({
             type="dashed"
             icon={<PlusOutlined />}
             onClick={() => {
-              resetIntake();
+              resetPetReception();
               setPetMode('new');
             }}
             style={{ marginBottom: 12 }}
@@ -694,7 +772,7 @@ const WalkInForm = ({
             <Button
               type="link"
               onClick={() => {
-                resetIntake();
+                resetPetReception();
                 setPetMode('existing');
               }}
               style={{ padding: 0, marginBottom: 8 }}
@@ -943,27 +1021,47 @@ const WalkInForm = ({
         </>
       )}
 
+      <Form.Item name="requiresIsolation" valuePropName="checked">
+        <Checkbox
+          onChange={() => {
+            if (form.getFieldValue('cageId'))
+              form.setFieldValue('cageId', undefined);
+          }}
+        >
+          Yêu cầu chuồng cách ly
+        </Checkbox>
+      </Form.Item>
+
       <Form.Item
         name="cageId"
         label="Chuồng lưu giữ (không bắt buộc)"
         extra={
-          cagesError
-            ? 'Không tải được danh sách chuồng. Có thể xếp chuồng sau ở tab Phân công chuồng.'
-            : !refLoading && cages.length === 0
-              ? MSG24
-              : hiddenCages > 0
-                ? `Đã ẩn ${hiddenCages} chuồng không hợp với bé (chuồng cách ly, khu nội trú hoặc tải trọng nhỏ hơn cân nặng) theo BR-11. Để trống nếu khách tự bế bé chờ ở sảnh.`
-                : 'Để trống nếu khách tự bế bé chờ ở sảnh.'
+          cagesError ? (
+            <Space wrap>
+              Không tải được danh sách chuồng.
+              <Button type="link" size="small" onClick={refreshWalkInCages}>
+                Tải lại chuồng trống
+              </Button>
+            </Space>
+          ) : !refLoading && cages.length === 0 ? (
+            MSG24
+          ) : hiddenCages > 0 ? (
+            `Đã ẩn ${hiddenCages} chuồng không phù hợp về trạng thái, khu vực, cân nặng hoặc cách ly. ${requiresIsolation ? 'Nếu không chọn chuồng, yêu cầu cách ly không được lưu.' : 'Có thể tiếp nhận mà không phân chuồng.'}`
+          ) : requiresIsolation ? (
+            'Chỉ hiện chuồng cách ly. Nếu không chọn chuồng, yêu cầu cách ly không được lưu.'
+          ) : (
+            'Để trống nếu khách tự bế bé chờ ở sảnh.'
+          )
         }
       >
         <Select
           allowClear
           placeholder="Không xếp chuồng"
-          loading={refLoading}
-          disabled={suitableCages.length === 0}
+          loading={refLoading || cagesRefreshing}
+          disabled={cagesRefreshing || suitableCages.length === 0}
           options={suitableCages.map(c => ({
             value: c._id,
-            label: cageOptionLabel(c),
+            label: receptionCageLabel(c),
           }))}
         />
       </Form.Item>
@@ -1080,7 +1178,7 @@ interface WalkInModalProps {
   onClose: () => void;
   /** Đơn đã tạo (201): trang đóng modal và tải lại lịch hẹn, chuồng */
   onCreated: (result: CreateWalkInBookingResult) => void;
-  /** Gửi lỗi: trang tải lại danh sách, vì BE có thể đã tạo một phần đơn */
+  /** Gửi lỗi: trang tải lại danh sách để đồng bộ trạng thái từ BE */
   onSubmitFailed: () => void;
 }
 

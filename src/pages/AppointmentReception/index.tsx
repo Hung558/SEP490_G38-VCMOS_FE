@@ -225,6 +225,7 @@ const AppointmentReceptionPage = () => {
               open={state.checkInOpen}
               appointment={state.checkInTarget}
               submitting={state.checkInSubmitting}
+              cageBlockedReason={state.checkInCageBlockedReason}
               onConfirm={state.confirmCheckIn}
               onClose={state.closeCheckIn}
             />
