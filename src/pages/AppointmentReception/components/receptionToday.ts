@@ -4,6 +4,8 @@ export const RECEPTION_TODAY_GROUPS = [
   { key: 'total', label: 'Tổng lịch hôm nay', status: undefined },
   { key: 'booked', label: 'Chờ tiếp nhận', status: 'Booked' },
   { key: 'checkedIn', label: 'Đã tiếp nhận', status: 'CheckedIn' },
+  // SRS SCR-16 counters: Booked, Checked in, In Progress, Wait Owner
+  { key: 'inProgress', label: 'Đang thực hiện', status: 'InProgress' },
   { key: 'waitOwner', label: 'Chờ chủ đón', status: 'WaitOwner' },
 ] as const;
 

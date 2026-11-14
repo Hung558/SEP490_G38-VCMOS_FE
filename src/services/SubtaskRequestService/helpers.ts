@@ -5,6 +5,23 @@ import type {
   SubtaskStatus,
 } from './types';
 
+/** Sub-tasks that still block finishing the main exam (MSG26, BR-13) */
+export const countOpenSubtasks = (
+  tasks: readonly Pick<SubtaskRequest, 'status'>[]
+): number =>
+  tasks.filter(t => t.status === 'Pending' || t.status === 'InProgress').length;
+
+/** SRS SCR-24 task types; the field stays free text (BE stores a string) for "Khác" */
+export const SUBTASK_TASK_TYPES = [
+  'Xét nghiệm máu',
+  'Sinh hóa máu',
+  'Chụp X-quang',
+  'Siêu âm',
+  'Thay băng vết thương',
+  'Tắm thuốc',
+  'Cạo lông',
+] as const;
+
 export const SUBTASK_LIMIT = {
   taskType: 200,
   instructions: 2000,

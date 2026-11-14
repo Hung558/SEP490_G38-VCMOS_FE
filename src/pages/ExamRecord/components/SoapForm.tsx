@@ -68,6 +68,8 @@ interface SoapFormProps {
   products: Product[];
   productsError: boolean;
   serviceStatus: AppointmentServiceStatus;
+  /** Sub-tasks of this exam still Pending/InProgress (MSG26); undefined when unknown */
+  openSubtasks?: number;
   onSaved: (record: MedicalRecord) => void;
   onCompleted: (result: CompleteConsultationResponse) => void;
   /** Kiểm tra lại trạng thái mà không đặt lại form đang nhập. */
@@ -82,6 +84,7 @@ const SoapForm = ({
   products,
   productsError,
   serviceStatus,
+  openSubtasks,
   onSaved,
   onCompleted,
   onConflict,
@@ -588,8 +591,18 @@ const SoapForm = ({
           >
             Lưu nháp
           </Button>
+          {canComplete && Boolean(openSubtasks) && (
+            <Text type="danger" role="alert">
+              Còn {openSubtasks} sub-task chưa hoàn tất. Vui lòng hoàn thiện
+              bệnh án và đóng mọi sub-task trước khi hoàn tất (MSG26).
+            </Text>
+          )}
           {canComplete && (
-            <Button type="primary" disabled={busy} onClick={askComplete}>
+            <Button
+              type="primary"
+              disabled={busy || Boolean(openSubtasks)}
+              onClick={askComplete}
+            >
               Hoàn tất ca khám
             </Button>
           )}

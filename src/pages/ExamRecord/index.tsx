@@ -56,6 +56,9 @@ import {
 } from '../AppointmentReception/components/styles';
 import SoapForm from './components/SoapForm';
 import ServiceSubtasksModal from '@/components/clinicalSubtasks/ServiceSubtasksModal';
+import SubtaskRequestService, {
+  countOpenSubtasks,
+} from '@/services/SubtaskRequestService';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { normalizeRole } from '@/constants/roles';
 
@@ -89,6 +92,22 @@ const ExamRecordCase = ({
   const { user } = useAuth();
   const role = normalizeRole(user?.role || user?.systemRole);
   const [subtasksOpen, setSubtasksOpen] = useState(false);
+  // T-36 / MSG26: sub-tasks still Pending or InProgress block "Hoàn tất ca khám"
+  const [openSubtasks, setOpenSubtasks] = useState<number>();
+  useEffect(() => {
+    if (subtasksOpen) return;
+    const controller = new AbortController();
+    SubtaskRequestService.listForService(
+      appointmentServiceId,
+      controller.signal
+    )
+      .then(res => setOpenSubtasks(countOpenSubtasks(res.data || [])))
+      .catch(() => {
+        // Unknown: let the BE decide on completion (it returns MSG26)
+        if (!controller.signal.aborted) setOpenSubtasks(undefined);
+      });
+    return () => controller.abort();
+  }, [appointmentServiceId, subtasksOpen]);
 
   const [item, setItem] = useState<MyQueueItem | null>(null);
   const [record, setRecord] = useState<MedicalRecord | null>(null);
@@ -345,6 +364,7 @@ const ExamRecordCase = ({
           products={products}
           productsError={productsError}
           serviceStatus={status}
+          openSubtasks={openSubtasks}
           onSaved={saved => {
             setRecord(saved);
             if (saved && typeof saved.petId === 'object') setPet(saved.petId);
