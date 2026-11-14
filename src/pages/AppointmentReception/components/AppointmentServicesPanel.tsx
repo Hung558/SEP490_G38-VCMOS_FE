@@ -227,19 +227,25 @@ const AppointmentServicesPanel = ({
     item: OnlineAppointmentService,
     staffId?: string
   ) => {
-    if (!staffId || savingId) return;
+    const category = getServiceRefCategory(item.serviceId);
     if (
-      usesSpecialtyRouting(item) &&
-      (!canAssign ||
-        editingId !== item._id ||
-        !hasIntake ||
-        staffLoading ||
-        staffError ||
-        !canSubmitAssignment(item, orderStatus, staffId) ||
-        !specialtyAssignment?.staff.some(s => s._id === staffId))
+      !staffId ||
+      savingId ||
+      !canAssign ||
+      editingId !== item._id ||
+      !category ||
+      staffLoading ||
+      staffError ||
+      !canSubmitAssignment(item, orderStatus, staffId)
     ) {
       return;
     }
+    const eligibleStaff = usesSpecialtyRouting(item)
+      ? hasIntake && specialtyAssignment?.staff
+      : pickAssignableStaff(onDutyStaff, staff, getRequiredStaffRole(category))
+          .staff;
+    if (!eligibleStaff || !eligibleStaff.some(person => person._id === staffId))
+      return;
     setSavingId(item._id);
     try {
       const res = await AppointmentServiceService.assignStaff(
@@ -271,6 +277,14 @@ const AppointmentServicesPanel = ({
       return null;
     }
 
+    const category = getServiceRefCategory(item.serviceId);
+    if (!category) {
+      return (
+        <Text type="warning">
+          Chưa xác định được loại dịch vụ để phân công đúng vai trò.
+        </Text>
+      );
+    }
     const currentStaffId = getStaffRefId(item.assignedStaffId);
     const specialtyRouting = usesSpecialtyRouting(item)
       ? specialtyAssignment
@@ -285,17 +299,16 @@ const AppointmentServicesPanel = ({
     }
 
     if (editingId === item._id) {
-      const role = getRequiredStaffRole(getServiceRefCategory(item.serviceId));
+      const role = getRequiredStaffRole(category);
       const { staff: options, onDutyOnly } =
         specialtyRouting ?? pickAssignableStaff(onDutyStaff, staff, role);
       const specialtyStatus = specialtyRouting
         ? getSpecialtyStatus(specialtyRouting, selectedSpecialty)
         : undefined;
       const eligibleSelection =
-        !specialtyRouting ||
-        (!staffLoading &&
-          !staffError &&
-          options.some(s => s._id === selectedStaffId));
+        !staffLoading &&
+        !staffError &&
+        options.some(s => s._id === selectedStaffId);
       return (
         <>
           {specialtyRouting && (
@@ -334,12 +347,11 @@ const AppointmentServicesPanel = ({
               loading={staffLoading}
               value={eligibleSelection ? selectedStaffId : undefined}
               disabled={
-                Boolean(specialtyRouting) &&
-                (staffLoading ||
-                  staffError ||
-                  !selectedSpecialty ||
-                  options.length === 0 ||
-                  savingId === item._id)
+                staffLoading ||
+                staffError ||
+                (Boolean(specialtyRouting) && !selectedSpecialty) ||
+                options.length === 0 ||
+                savingId === item._id
               }
               onChange={setSelectedStaffId}
               placeholder={

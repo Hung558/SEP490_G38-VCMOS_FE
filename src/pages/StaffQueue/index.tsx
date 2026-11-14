@@ -39,6 +39,8 @@ import AppointmentServiceService, {
   getAppointmentServiceStatusLabel,
   getExamAction,
   getGroomingActions,
+  getPreviousServiceMessage,
+  getPreviousUnfinishedService,
   getQueueOrder,
   getServiceRefCategory,
   getVietnamTodayString,
@@ -175,7 +177,13 @@ const StaffQueuePage = () => {
     );
 
   const startExam = async (item: MyQueueItem) => {
-    if (startingId) return;
+    if (
+      startingId ||
+      loading ||
+      error ||
+      getPreviousUnfinishedService(item, items)
+    )
+      return;
     setStartingId(item._id);
     try {
       const res = await MedicalRecordService.startConsultation(item._id);
@@ -210,7 +218,8 @@ const StaffQueuePage = () => {
       groomingUpdateRef.current ||
       error ||
       loading ||
-      !getGroomingActions(item, role)?.[action]
+      !getGroomingActions(item, role)?.[action] ||
+      (action === 'start' && getPreviousUnfinishedService(item, items))
     )
       return;
     groomingUpdateRef.current = true;
@@ -272,6 +281,7 @@ const StaffQueuePage = () => {
   const renderActions = (item: MyQueueItem) => {
     const order = getQueueOrder(item);
     const action = getExamAction(item, role);
+    const previous = getPreviousUnfinishedService(item, items);
     const buttons = [];
     if (action === 'start') {
       buttons.push(
@@ -281,7 +291,7 @@ const StaffQueuePage = () => {
           size="small"
           icon={<PlayCircleOutlined />}
           loading={startingId === item._id}
-          disabled={Boolean(startingId)}
+          disabled={Boolean(startingId || error || previous) || loading}
           onClick={() => startExam(item)}
         >
           Bắt đầu khám
@@ -354,7 +364,10 @@ const StaffQueuePage = () => {
             groomingUpdate?.id === item._id &&
             groomingUpdate.action === groomingAction
           }
-          disabled={Boolean(groomingUpdate) || Boolean(error)}
+          disabled={
+            Boolean(groomingUpdate || error || (grooming.start && previous)) ||
+            loading
+          }
           onClick={() => updateGrooming(item, groomingAction)}
         >
           {grooming.start ? 'Bắt đầu spa' : 'Hoàn thành spa'}
@@ -397,8 +410,13 @@ const StaffQueuePage = () => {
       );
     }
     return buttons.length ? (
-      <Space wrap size={6}>
-        {buttons}
+      <Space direction="vertical" size={6}>
+        <Space wrap size={6}>
+          {buttons}
+        </Space>
+        {previous && (action === 'start' || grooming?.start) && (
+          <Text type="secondary">{getPreviousServiceMessage(previous)}</Text>
+        )}
       </Space>
     ) : (
       <Text type="secondary">—</Text>
@@ -427,6 +445,11 @@ const StaffQueuePage = () => {
         return (
           <Space direction="vertical" size={2}>
             <Text strong>{getAppointmentServiceName(item.serviceId)}</Text>
+            {item.sequenceNo > 0 && (
+              <Text type="secondary">
+                Thứ tự trong lịch hẹn: {item.sequenceNo}
+              </Text>
+            )}
             {category && (
               <Tag style={{ margin: 0 }}>
                 {serviceCategoryLabels[category as ServiceCategory] || category}

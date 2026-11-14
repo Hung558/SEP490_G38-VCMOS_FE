@@ -1,0 +1,7 @@
+# Đặc tả FE: check-in, chuồng chờ và thứ tự dịch vụ
+
+- Lễ tân: có thể chọn chuồng chờ tùy chọn trong check-in và walk-in; gửi chuồng và yêu cầu cách ly trong chính thao tác tiếp nhận. Để trống vẫn hợp lệ. Không gửi yêu cầu gán chuồng thứ hai. Chỉ báo phân chuồng khi BE xác nhận; tải lại danh sách/tổng quan. Nếu chuồng không còn trống thì giữ dữ liệu nhập, không báo tiếp nhận thành công.
+- Phân công: chọn Groomer cho dịch vụ Grooming và Bác sĩ thú y cho dịch vụ còn lại; không suy diễn bác sĩ có chuyên môn cụ thể nếu BE chưa cung cấp.
+- Hàng đợi và ca khám: hiển thị thứ tự _trong lịch hẹn_ (khác STT hàng đợi). Nếu dữ liệu hàng đợi của chính nhân sự cho thấy có dịch vụ trước chưa `Done`/`Cancelled`, giải thích rõ dịch vụ nào đang chặn. Nhân sự có thể làm mới dữ liệu. Hàng đợi không bao phủ người khác, nên khi không thấy dịch vụ chặn, vẫn gọi endpoint start hiện có và hiển thị lỗi từ BE nếu thứ tự thực tế chưa hợp lệ. Không tự gán hoặc nhả chuồng khi bắt đầu; BE thực hiện và UI đọc lại trạng thái khi mở chi tiết.
+- Chủ nuôi: hồ sơ đã xóa không phải lựa chọn đặt lịch. Khi BE từ chối xóa hồ sơ do còn lịch/ca chưa xong (`409`), giữ modal và tên đã nhập, giải thích cần xử lý lịch/ca trước. Không cập nhật danh sách hồ sơ khi xóa thất bại.
+- Nghiệm thu: BR-10/11/12, check-in/walk-in có hoặc không có chuồng, xung đột chuồng, chặn ca trước, ca trước hủy/xong, lỗi BE khi ca trước thuộc nhân sự khác, xóa hồ sơ trả `409`, và hồi quy tổng quan/phiếu tiếp nhận/SOAP/spa.

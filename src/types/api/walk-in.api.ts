@@ -3,6 +3,7 @@
 // POST /api/appointment-orders/walk-in
 import type {
   OnlineAppointment,
+  ReceptionCageSelection,
   ReceptionIntake,
   RecordedReceptionIntake,
 } from './appointment.api';
@@ -52,7 +53,7 @@ export interface WalkInServiceItem {
 }
 
 /** Send either petId (a pet the customer already has) or petInfo (a new pet), never both */
-export interface CreateWalkInBookingPayload {
+export interface CreateWalkInBookingPayload extends ReceptionCageSelection {
   phone: string;
   /** Required when the phone is not in the system yet */
   fullName?: string;
@@ -62,7 +63,6 @@ export interface CreateWalkInBookingPayload {
   note?: string;
   intake?: ReceptionIntake;
   services: WalkInServiceItem[];
-  cageId?: string;
 }
 
 export interface CreateWalkInBookingResult {

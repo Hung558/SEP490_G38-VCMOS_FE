@@ -1,11 +1,47 @@
 import type {
   AppointmentStatus,
+  CheckInAppointmentPayload,
   CreateOnlineBookingPayload,
   ListMyOnlineBookingsParams,
   ListStaffAppointmentsParams,
   PopulatedOwnerRef,
   PopulatedPetRef,
+  ReceptionCageSelection,
 } from '@/types';
+import { buildCheckInPayload } from './intake.ts';
+
+/** Isolation only affects the selected cage; it is not saved on the order. */
+export const buildReceptionCageSelection = (
+  selection?: ReceptionCageSelection
+): ReceptionCageSelection => {
+  const cageId = selection?.cageId?.trim();
+  if (!cageId) return {};
+  return selection?.requiresIsolation === true
+    ? { cageId, requiresIsolation: true }
+    : { cageId };
+};
+
+/** Omit the body entirely for legacy check-in without intake or a cage. */
+export const buildCheckInRequest = (
+  values?: CheckInAppointmentPayload
+): CheckInAppointmentPayload | undefined => {
+  const intake = buildCheckInPayload(values?.intake);
+  const cage = buildReceptionCageSelection(values);
+  return intake || cage.cageId ? { ...intake, ...cage } : undefined;
+};
+
+/** The BE uses plain messages for cage conflicts, not a machine-readable code. */
+export const isReceptionCageError = (
+  status: number | undefined,
+  message: string,
+  fields?: Record<string, string>
+): boolean =>
+  (status === 400 || status === 404 || status === 409) &&
+  Boolean(
+    fields?.cageId ||
+      fields?.requiresIsolation ||
+      /chuồng|\bcage\b/iu.test(message)
+  );
 
 export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
   'Booked',

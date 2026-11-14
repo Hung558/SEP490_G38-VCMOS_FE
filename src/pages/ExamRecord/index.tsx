@@ -33,6 +33,8 @@ import AppointmentServiceService, {
   getAppointmentServiceStatusColor,
   getAppointmentServiceStatusLabel,
   getExamAction,
+  getPreviousServiceMessage,
+  getPreviousUnfinishedService,
   getQueueOrder,
 } from '@/services/AppointmentServiceService';
 import MedicalRecordService, {
@@ -97,6 +99,7 @@ const ExamRecordCase = ({
   const [products, setProducts] = useState<Product[]>([]);
   const [productsError, setProductsError] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [previous, setPrevious] = useState<MyQueueItem>();
   const [historyOpen, setHistoryOpen] = useState(false);
   // Bumped after every load so the form remounts with the server's values
   const [formKey, setFormKey] = useState(0);
@@ -113,7 +116,11 @@ const ExamRecordCase = ({
       if (extractApiError(err).statusCode === 404) return null;
       throw err;
     });
-    return { mine, saved };
+    return {
+      mine,
+      saved,
+      previous: getPreviousUnfinishedService(mine, queue.data || []),
+    };
   }, [appointmentServiceId]);
 
   const load = useCallback(async () => {
@@ -126,7 +133,8 @@ const ExamRecordCase = ({
         setNotMine(true);
         return;
       }
-      const { mine, saved } = snapshot;
+      const { mine, saved, previous } = snapshot;
+      setPrevious(previous);
       setItem(mine);
       setRecord(saved);
       if (saved && typeof saved.petId === 'object') {
@@ -153,7 +161,8 @@ const ExamRecordCase = ({
       setNotMine(true);
       return;
     }
-    const { mine, saved } = snapshot;
+    const { mine, saved, previous } = snapshot;
+    setPrevious(previous);
     setItem(mine);
     if (saved) setRecord(saved);
   };
@@ -192,7 +201,7 @@ const ExamRecordCase = ({
   }, []);
 
   const start = async () => {
-    if (starting) return;
+    if (starting || loading || previous) return;
     setStarting(true);
     try {
       const res =
@@ -301,16 +310,27 @@ const ExamRecordCase = ({
           type="info"
           showIcon
           message="Ca khám chưa bắt đầu"
-          description="Bắt đầu khám sẽ đưa bé ra khỏi chuồng chờ (nếu có) và mở bệnh án nháp."
+          description={
+            previous
+              ? getPreviousServiceMessage(previous)
+              : 'Bắt đầu khám sẽ đưa bé ra khỏi chuồng chờ (nếu có) và mở bệnh án nháp.'
+          }
           action={
-            <Button
-              type="primary"
-              icon={<PlayCircleOutlined />}
-              loading={starting}
-              onClick={start}
-            >
-              Bắt đầu khám
-            </Button>
+            previous ? (
+              <Button loading={loading} onClick={load}>
+                Làm mới
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                loading={starting}
+                disabled={loading}
+                onClick={start}
+              >
+                Bắt đầu khám
+              </Button>
+            )
           }
         />
       );

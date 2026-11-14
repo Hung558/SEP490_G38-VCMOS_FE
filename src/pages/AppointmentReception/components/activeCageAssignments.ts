@@ -25,6 +25,20 @@ export const indexActiveCagesByOrder = (
   return byOrder;
 };
 
+/** Confirm a specific cage from the mutation response, never from the submitted values alone. */
+export const matchesActiveCageAssignment = (
+  assignment: CageAssignment | null | undefined,
+  orderId: string,
+  cageId: string
+): assignment is CageAssignment => {
+  const assignedCage = assignment?.cageId;
+  const assignedCageId =
+    typeof assignedCage === 'string' ? assignedCage : assignedCage?._id;
+  return (
+    getActiveCageOrderId(assignment) === orderId && assignedCageId === cageId
+  );
+};
+
 export const collectActiveCageOrderIds = (
   assignments: readonly CageAssignment[]
 ): ReadonlySet<string> => new Set(indexActiveCagesByOrder(assignments).keys());

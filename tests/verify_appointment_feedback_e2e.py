@@ -45,6 +45,8 @@ class AppointmentFeedbackTests(unittest.TestCase):
             {'_id': SECOND, 'orderId': ORDER, 'serviceId': LONG, 'sequenceNo': 2, 'status': 'Booked', 'scheduledStart': '12:00', 'scheduledEnd': '13:00'},
         ]
         self.bookings = []
+        self.other_pet = None
+        self.deleted_pet_conflict = False
         self.cancellations = []
         self.refreshes = 0
         self.page.route(f'{BASE_URL}/api/**', self.api)
@@ -61,7 +63,8 @@ class AppointmentFeedbackTests(unittest.TestCase):
         path = url.path
         pagination = {'total': 1, 'page': 1, 'limit': 10, 'totalPages': 1}
         if path == '/api/pets':
-            route.fulfill(json={'items': [self.pet], 'pagination': pagination})
+            route.fulfill(json={'items': [self.pet, self.other_pet] if self.other_pet else [self.pet],
+                                'pagination': pagination})
         elif path == '/api/services':
             route.fulfill(json={'services': [SHORT, LONG], 'total': 2})
         elif path in ('/api/appointment-orders', '/api/appointment-orders/me'):
@@ -81,6 +84,10 @@ class AppointmentFeedbackTests(unittest.TestCase):
         elif path == '/api/appointment-services/online-booking':
             self.bookings.append(route.request.post_data_json)
             payload = self.bookings[-1]
+            if self.deleted_pet_conflict and payload['petId'] == PET:
+                return route.fulfill(status=400, json={
+                    'message': 'Không thể đặt lịch cho thú cưng đã bị xóa khỏi hồ sơ',
+                })
             route.fulfill(status=201, json={'message': 'Đặt lịch online thành công', 'data': {
                 'appointment': {**self.order, 'date': payload['date'], 'slotStart': payload['slotStart'], 'slotEnd': '18:00'},
                 'services': self.services,
@@ -137,6 +144,43 @@ class AppointmentFeedbackTests(unittest.TestCase):
                 {'serviceId': SECOND, 'sequenceNo': 2, 'isEmergency': False},
             ],
         }])
+
+    def test_link_to_deleted_pet_requires_explicit_selection(self):
+        self.pet['status'] = 'Deleted'
+        self.other_pet = {**self.pet, '_id': '000000000000000000000042', 'name': 'Cún QA', 'status': 'Active'}
+        self.login('PetOwner', f'/dashboard?tab=appointments&book={PET}')
+        expect(self.page.get_by_text('Chọn thú cưng cần đặt lịch', exact=True)).to_be_visible()
+        pet = self.page.get_by_role('combobox', name='Thú cưng cần đặt lịch')
+        pet.press('ArrowDown')
+        expect(self.page.get_by_role('option', name=re.compile('Bé Milo'))).to_have_count(0)
+        expect(self.page.get_by_role('option', name=re.compile('Bé Cún QA'))).to_have_count(1)
+        self.assertEqual(self.bookings, [])
+
+    def test_deleted_pet_rejection_clears_only_pet_requires_explicit_selection(self):
+        self.deleted_pet_conflict = True
+        self.other_pet = {**self.pet, '_id': '000000000000000000000042', 'name': 'Cún QA'}
+        self.login('PetOwner', f'/dashboard?tab=appointments&book={PET}')
+        self.pick_service('Khám tổng quát')
+        self.pick_date('13/11/2026')
+        slot = self.page.get_by_role('combobox', name='Giờ hẹn', exact=True)
+        slot.press('ArrowDown')
+        self.page.get_by_role('option', name='16:30', exact=True).click()
+        note = self.page.locator('textarea').first
+        note.fill('Giữ nguyên ghi chú QA')
+        submit = self.page.get_by_role('button', name='Xác nhận đặt lịch hẹn')
+        submit.click()
+        expect(self.page.get_by_text('Vui lòng chọn lại thú cưng còn hoạt động.')).to_be_visible()
+        expect(self.page.get_by_placeholder('Chọn ngày hẹn khám (từ hôm nay)')).to_have_value('13/11/2026')
+        expect(self.page.get_by_text('16:30 – 17:00 (30 phút)')).to_be_visible()
+        expect(note).to_have_value('Giữ nguyên ghi chú QA')
+        self.assertEqual(len(self.bookings), 1, 'Do not submit for another pet automatically')
+        pet = self.page.get_by_role('combobox', name='Thú cưng cần đặt lịch')
+        pet.press('ArrowDown')
+        expect(self.page.get_by_role('option', name=re.compile('Bé Milo'))).to_have_count(0)
+        self.page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter(has_text='Bé Cún QA').click()
+        submit.click()
+        expect(self.page.get_by_text('Đặt Lịch Hẹn Thành Công!')).to_be_visible()
+        self.assertEqual(self.bookings[-1], {**self.bookings[0], 'petId': self.other_pet['_id']})
 
     def test_owner_uses_individual_service_cancellation_deadline(self):
         self.login('PetOwner', '/dashboard?tab=appointments')
