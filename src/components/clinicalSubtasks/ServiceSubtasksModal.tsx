@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  AutoComplete,
   Button,
   Form,
   Input,
@@ -17,13 +18,15 @@ import { getRoleLabel } from '@/constants/roles';
 import { extractApiError } from '@/services/AppointmentServiceService';
 import StaffService, {
   formatStaffOption,
-  getAssignableStaff,
+  pickAssignableStaff,
 } from '@/services/StaffService';
+import { getVietnamTodayString } from '@/services/AppointmentOrderService';
 import SubtaskRequestService, {
   getSubtaskActions,
   populated,
   SUBTASK_LIMIT,
   SUBTASK_STATUSES,
+  SUBTASK_TASK_TYPES,
   type CreateSubtask,
 } from '@/services/SubtaskRequestService';
 import type { StaffMember } from '@/types';
@@ -43,48 +46,42 @@ type Fields = Omit<CreateSubtask, 'appointmentServiceId'>;
 const CreateSubtaskForm = ({
   form,
   disabled,
+  requesterId,
   onFinish,
 }: {
   form: ReturnType<typeof Form.useForm<Fields>>[0];
   disabled: boolean;
+  requesterId?: string;
   onFinish: (fields: Fields) => void;
 }) => {
   const [staff, setStaff] = useState<StaffMember[]>();
+  // SCR-24: performers on shift today first; everyone active when nobody has a shift on record
+  const [onDutyOnly, setOnDutyOnly] = useState(true);
   const [error, setError] = useState<string>();
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     const fetchStaff = async () => {
-      const options = { signal: controller.signal };
-      const params = { status: 'Active', limit: 100 } as const;
-      const first = await StaffService.listStaff(
-        { ...params, page: 1 },
-        options
+      const { onDuty, all } = await StaffService.listStaffForDate(
+        getVietnamTodayString(),
+        { signal: controller.signal }
       );
-      const items = [...first.items];
-      for (
-        let page = 2;
-        page <= first.pagination?.totalPages && !controller.signal.aborted;
-        page += 1
-      ) {
-        const result = await StaffService.listStaff(
-          { ...params, page },
-          options
-        );
-        items.push(...result.items);
-      }
-      if (!controller.signal.aborted)
-        setStaff([
-          ...getAssignableStaff(items, 'Veterinarian'),
-          ...getAssignableStaff(items, 'Groomer'),
-        ]);
+      if (controller.signal.aborted) return;
+      const vets = pickAssignableStaff(onDuty, all, 'Veterinarian');
+      const groomers = pickAssignableStaff(onDuty, all, 'Groomer');
+      setOnDutyOnly(vets.onDutyOnly && groomers.onDutyOnly);
+      // "Self": the requesting vet can do the task, listed first
+      const ordered = [...vets.staff, ...groomers.staff].sort(
+        (a, b) => Number(b._id === requesterId) - Number(a._id === requesterId)
+      );
+      setStaff(ordered);
     };
     fetchStaff().catch(err => {
       if (!controller.signal.aborted)
         setError(extractApiError(err, 'Không tải được nhân sự.').message);
     });
     return () => controller.abort();
-  }, [revision]);
+  }, [revision, requesterId]);
 
   return (
     <>
@@ -120,15 +117,26 @@ const CreateSubtaskForm = ({
             { max: SUBTASK_LIMIT.taskType },
           ]}
         >
-          <Input
+          <AutoComplete
             maxLength={SUBTASK_LIMIT.taskType}
-            placeholder="Ví dụ: Siêu âm ổ bụng"
+            placeholder="Chọn loại hoặc nhập tên khác, ví dụ: Siêu âm ổ bụng"
+            options={SUBTASK_TASK_TYPES.map(value => ({ value }))}
+            filterOption={(input, option) =>
+              String(option?.value ?? '')
+                .toLowerCase()
+                .includes(input.trim().toLowerCase())
+            }
           />
         </Form.Item>
         <Form.Item
           name="assignedStaffId"
           label="Nhân sự thực hiện"
           rules={[{ required: true, message: 'Chọn nhân sự thực hiện.' }]}
+          extra={
+            staff && !onDutyOnly
+              ? 'Chưa có lịch trực hôm nay cho một vai trò, đang hiện mọi nhân sự đang hoạt động.'
+              : undefined
+          }
         >
           <Select
             showSearch
@@ -139,7 +147,9 @@ const CreateSubtaskForm = ({
               value: member._id,
               label: [
                 formatStaffOption(member),
-                getRoleLabel(member.role),
+                member._id === requesterId
+                  ? 'Bản thân'
+                  : getRoleLabel(member.role),
                 member.specialty,
               ]
                 .filter(Boolean)
@@ -240,6 +250,7 @@ const ServiceSubtasksModal = ({
           <CreateSubtaskForm
             form={form}
             disabled={busy}
+            requesterId={requesterId}
             onFinish={fields =>
               mutate(
                 async () => {

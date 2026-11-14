@@ -8,7 +8,10 @@ const breadcrumb = await import('../src/routerMap/breadcrumbMap.ts');
 
 test('CageService urls match backend /api/cages endpoints without /api/api prefix', () => {
   assert.equal(urls.apiCages, '/cages');
-  assert.equal(urls.apiCageDetail('6ad96d4a9664da6b2c0d8d70'), '/cages/6ad96d4a9664da6b2c0d8d70');
+  assert.equal(
+    urls.apiCageDetail('6ad96d4a9664da6b2c0d8d70'),
+    '/cages/6ad96d4a9664da6b2c0d8d70'
+  );
 });
 
 test('ROUTER exposes CAGES route at /cages', () => {
@@ -16,7 +19,7 @@ test('ROUTER exposes CAGES route at /cages', () => {
 });
 
 test('breadcrumbMap labels cages segment in Vietnamese', () => {
-  assert.equal(breadcrumb.breadcrumbMap.cages, 'Quản lý chuồng');
+  assert.equal(breadcrumb.breadcrumbMap.cages, 'Chuồng');
 });
 
 test('cage sizes, statuses and sort keys match backend specification', () => {
@@ -68,7 +71,10 @@ test('validateCageStatus enforces Available or Occupied', () => {
   assert.equal(helpers.validateCageStatus('Available'), undefined);
   assert.equal(helpers.validateCageStatus('Occupied'), undefined);
   assert.equal(helpers.validateCageStatus(undefined), undefined);
-  assert.match(helpers.validateCageStatus('Unknown'), /một trong: Available, Occupied/);
+  assert.match(
+    helpers.validateCageStatus('Unknown'),
+    /một trong: Available, Occupied/
+  );
 });
 
 test('validateCageCreateForm validates all required fields', () => {
@@ -198,4 +204,3 @@ test('extractApiError extracts 409 duplicate label, 400 validation and 403 messa
   assert.equal(forbiddenErr.status, 403);
   assert.match(forbiddenErr.message, /quyền/);
 });
-

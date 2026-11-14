@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Alert, Form, Input, Modal, Select, Space, Typography } from 'antd';
+import { Alert, Checkbox, Form, Modal, Select, Space, Typography } from 'antd';
 import { BuildOutlined } from '@ant-design/icons';
 import type { Cage, StaffAppointment } from '@/types';
-import CageService from '@/services/CageService';
+import CageService, { canCageHoldPet } from '@/services/CageService';
+import PetService from '@/services/PetService';
 import { getAppointmentPetName } from '@/services/AppointmentOrderService';
 
 const { Text } = Typography;
@@ -15,6 +16,14 @@ interface CageAssignmentModalProps {
   onClose: () => void;
 }
 
+const petIdOf = (pet: StaffAppointment['petId']) =>
+  typeof pet === 'string' ? pet : pet?._id;
+
+/**
+ * "Phân chuồng" shortcut on an appointment row: place this order's pet into an
+ * Available holding cage that fits its weight (BR-11). Moving and releasing are on
+ * the cage board.
+ */
 const CageAssignmentModal = ({
   open,
   targetAppointment,
@@ -22,64 +31,64 @@ const CageAssignmentModal = ({
   onSubmit,
   onClose,
 }: CageAssignmentModalProps) => {
-  const [form] = Form.useForm();
-  const [availableCages, setAvailableCages] = useState<Cage[]>([]);
-  const [loadingCages, setLoadingCages] = useState(false);
+  const [form] = Form.useForm<{ cageId: string }>();
+  const [cages, setCages] = useState<Cage[]>([]);
+  const [petWeight, setPetWeight] = useState<number>();
+  // BR-11: the receptionist states whether the pet needs isolation
+  const [requiresIsolation, setRequiresIsolation] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
-
-    let isMounted = true;
+    if (!open || !targetAppointment) return;
     const controller = new AbortController();
-
-    const fetchAvailableCages = async () => {
-      setLoadingCages(true);
-      setLoadError(null);
-      try {
-        const res = await CageService.listCages(
-          { status: 'Available', limit: 100 },
-          { signal: controller.signal }
-        );
-        if (isMounted) {
-          setAvailableCages(res.data?.items || []);
-        }
-      } catch (err: unknown) {
-        if (isMounted && !controller.signal.aborted) {
+    const petId = petIdOf(targetAppointment.petId);
+    setLoading(true);
+    setLoadError(null);
+    setPetWeight(undefined);
+    setRequiresIsolation(false);
+    form.resetFields();
+    Promise.allSettled([
+      CageService.listCages(
+        { status: 'Available', limit: 100 },
+        { signal: controller.signal }
+      ),
+      petId ? PetService.getPetById(petId) : Promise.resolve(undefined),
+    ])
+      .then(([cageResult, petResult]) => {
+        if (controller.signal.aborted) return;
+        if (cageResult.status === 'fulfilled') {
+          setCages(cageResult.value.data?.items || []);
+        } else {
+          setCages([]);
           setLoadError('Không thể tải danh sách chuồng trống');
         }
-      } finally {
-        if (isMounted) {
-          setLoadingCages(false);
-        }
-      }
-    };
-
-    fetchAvailableCages();
-
-    if (targetAppointment) {
-      form.setFieldsValue({
-        orderId: targetAppointment._id,
-      });
-    } else {
-      form.resetFields();
-    }
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
+        const weight =
+          petResult.status === 'fulfilled'
+            ? petResult.value?.pet?.weight
+            : undefined;
+        setPetWeight(
+          typeof weight === 'number' && weight > 0 ? weight : undefined
+        );
+      })
+      .finally(() => !controller.signal.aborted && setLoading(false));
+    return () => controller.abort();
   }, [open, targetAppointment, form]);
+
+  if (!targetAppointment) return null;
+
+  // BR-11: holding cages of the right kind (isolation only for a pet that needs it,
+  // standard otherwise) whose size holds the pet. POST /cage-assignments checks neither.
+  const fitting = cages.filter(c =>
+    canCageHoldPet(c, petWeight, requiresIsolation)
+  );
 
   const handleOk = async () => {
     try {
-      const values = await form.validateFields();
-      await onSubmit({
-        cageId: values.cageId.trim(),
-        orderId: values.orderId.trim(),
-      });
+      const { cageId } = await form.validateFields();
+      await onSubmit({ cageId, orderId: targetAppointment._id });
     } catch {
-      // Form validation failed or handled by onSubmit
+      // Validation error, or handled by onSubmit
     }
   };
 
@@ -97,7 +106,9 @@ const CageAssignmentModal = ({
       okText="Xác nhận phân chuồng"
       cancelText="Hủy bỏ"
       confirmLoading={submitting}
-      okButtonProps={{ disabled: submitting || loadingCages }}
+      okButtonProps={{
+        disabled: submitting || loading || fitting.length === 0,
+      }}
       cancelButtonProps={{ disabled: submitting }}
       destroyOnHidden
       width={520}
@@ -112,83 +123,81 @@ const CageAssignmentModal = ({
           />
         )}
 
-        {targetAppointment ? (
-          <div
-            style={{
-              background: '#f8fafc',
-              padding: 12,
-              borderRadius: 6,
-              marginBottom: 16,
-            }}
-          >
-            <Space direction="vertical" size={2}>
-              <div>
-                <Text type="secondary">Mã lịch hẹn: </Text>
-                <Text strong style={{ color: '#0958d9' }}>
-                  {targetAppointment.code}
+        <div
+          style={{
+            background: '#f8fafc',
+            padding: 12,
+            borderRadius: 6,
+            marginBottom: 16,
+          }}
+        >
+          <Space direction="vertical" size={2}>
+            <div>
+              <Text type="secondary">Mã lịch hẹn: </Text>
+              <Text strong style={{ color: '#0958d9' }}>
+                {targetAppointment.code}
+              </Text>
+            </div>
+            <div>
+              <Text type="secondary">Thú cưng: </Text>
+              <Text strong>
+                {getAppointmentPetName(targetAppointment.petId)}
+              </Text>
+              {!loading && (
+                <Text type="secondary">
+                  {petWeight !== undefined
+                    ? ` · ${petWeight} kg`
+                    : ' · chưa có cân nặng'}
                 </Text>
-              </div>
-              <div>
-                <Text type="secondary">Thú cưng: </Text>
-                <Text strong>
-                  {getAppointmentPetName(targetAppointment.petId)}
-                </Text>
-              </div>
-            </Space>
+              )}
+            </div>
+          </Space>
+        </div>
 
-            <Form.Item
-              name="orderId"
-              hidden
-              initialValue={targetAppointment._id}
-            >
-              <Input />
-            </Form.Item>
-          </div>
-        ) : (
-          <Form.Item
-            name="orderId"
-            label="ID đơn hẹn (MongoDB ObjectId 24 ký tự)"
-            rules={[
-              { required: true, message: 'Vui lòng nhập ID đơn hẹn' },
-              {
-                pattern: /^[0-9a-fA-F]{24}$/,
-                message: 'ID đơn hẹn phải là 24 ký tự hex',
-              },
-            ]}
-          >
-            <Input placeholder="Nhập ID đơn hẹn" />
-          </Form.Item>
-        )}
+        <Checkbox
+          checked={requiresIsolation}
+          onChange={e => {
+            setRequiresIsolation(e.target.checked);
+            form.setFieldValue('cageId', undefined);
+          }}
+          style={{ marginBottom: 12 }}
+        >
+          Thú cưng nghi mắc bệnh lây, cần chuồng cách ly
+        </Checkbox>
 
         <Form.Item
           name="cageId"
-          label="Chọn chuồng trống (Available)"
+          label={
+            requiresIsolation
+              ? 'Chuồng cách ly trống phù hợp'
+              : 'Chuồng thường trống phù hợp'
+          }
           rules={[{ required: true, message: 'Vui lòng chọn chuồng' }]}
+          extra={
+            petWeight === undefined && !loading
+              ? 'Chưa có cân nặng của thú cưng, hãy tự kiểm tra cỡ chuồng (BR-11).'
+              : undefined
+          }
         >
           <Select
             placeholder={
-              loadingCages
+              loading
                 ? 'Đang tải danh sách chuồng...'
                 : 'Chọn chuồng đang trống'
             }
-            loading={loadingCages}
-            disabled={loadingCages || availableCages.length === 0}
-            options={availableCages.map(c => ({
-              label: `${c.label} - Size ${c.size}${c.isIsolated ? ' [Cách ly]' : ''}`,
+            loading={loading}
+            disabled={loading || fitting.length === 0}
+            options={fitting.map(c => ({
+              label: `${c.label} - Cỡ ${c.size}${c.isIsolated ? ' [Cách ly]' : ''}`,
               value: c._id,
             }))}
-            notFoundContent={
-              loadingCages
-                ? 'Đang tải...'
-                : 'Hiện không có chuồng nào đang trống'
-            }
           />
         </Form.Item>
 
-        {!loadingCages && availableCages.length === 0 && (
+        {!loading && !loadError && fitting.length === 0 && (
           <Alert
-            message="Không có chuồng trống"
-            description="Tất cả các chuồng hiện đang được sử dụng hoặc chưa sẵn sàng. Vui lòng kiểm tra lại sau."
+            message="Không có chuồng trống phù hợp"
+            description={`Không còn chuồng ${requiresIsolation ? 'cách ly' : 'thường'} trống đủ cỡ cho thú cưng này (MSG24). Giải phóng chuồng ở Sơ đồ chuồng trước.`}
             type="warning"
             showIcon
           />

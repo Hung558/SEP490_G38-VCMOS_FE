@@ -9,6 +9,8 @@ import {
   Alert,
   Typography,
   Empty,
+  Steps,
+  Tooltip,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -34,6 +36,9 @@ import AppointmentOrderService, {
   extractApiError,
   canOwnerCancelAppointment,
   OWNER_CANCEL_DEADLINE_MESSAGE,
+  APPOINTMENT_PROGRESS_STEPS,
+  getAppointmentProgress,
+  getOwnerCancelState,
 } from '@/services/AppointmentOrderService';
 import AppointmentServiceService, {
   isAppointmentEligibleForService,
@@ -297,7 +302,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
       footer={[
         appointment &&
           resolvedIsPetOwner &&
-          canOwnerCancelAppointment(appointment) && (
+          getOwnerCancelState(appointment) === 'enabled' && (
             <Button
               key="cancel-appt"
               danger
@@ -305,6 +310,21 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
             >
               Hủy lịch hẹn
             </Button>
+          ),
+        // SCR-13: outside the BR-07 window the button stays visible but disabled (MSG20)
+        appointment &&
+          resolvedIsPetOwner &&
+          getOwnerCancelState(appointment) === 'disabled' && (
+            <Tooltip
+              key="cancel-appt-off"
+              title={OWNER_CANCEL_DEADLINE_MESSAGE}
+            >
+              <span>
+                <Button danger disabled>
+                  Hủy lịch hẹn
+                </Button>
+              </span>
+            </Tooltip>
           ),
         appointment &&
           resolvedIsPetOwner &&
@@ -371,6 +391,25 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                 </Tag>
               </div>
             </div>
+
+            {(() => {
+              const progress = getAppointmentProgress(appointment);
+              return (
+                <Steps
+                  size="small"
+                  aria-label="Tiến trình lịch hẹn"
+                  current={progress.current}
+                  status={progress.status}
+                  style={{ margin: '16px 0' }}
+                  items={APPOINTMENT_PROGRESS_STEPS.map((step, index) => ({
+                    title:
+                      progress.status === 'error' && index === progress.current
+                        ? getAppointmentStatusLabel(appointment.derivedStatus)
+                        : getAppointmentStatusLabel(step),
+                  }))}
+                />
+              );
+            })()}
 
             <Descriptions bordered column={1} size="middle">
               <Descriptions.Item label="Thú cưng tiếp nhận">
@@ -654,7 +693,8 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                             )}
 
                           {resolvedIsPetOwner &&
-                            canOwnerCancelAppointment(appointment, s) && (
+                            getOwnerCancelState(appointment, s) ===
+                              'enabled' && (
                               <Button
                                 type="link"
                                 size="small"
@@ -664,6 +704,31 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                               >
                                 Hủy dịch vụ này
                               </Button>
+                            )}
+                          {resolvedIsPetOwner &&
+                            getOwnerCancelState(appointment, s) ===
+                              'disabled' && (
+                              <Tooltip title={OWNER_CANCEL_DEADLINE_MESSAGE}>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    cursor: 'not-allowed',
+                                  }}
+                                >
+                                  <Button
+                                    type="link"
+                                    size="small"
+                                    danger
+                                    disabled
+                                    style={{
+                                      padding: 0,
+                                      pointerEvents: 'none',
+                                    }}
+                                  >
+                                    Hủy dịch vụ này
+                                  </Button>
+                                </span>
+                              </Tooltip>
                             )}
                         </div>
                       </div>

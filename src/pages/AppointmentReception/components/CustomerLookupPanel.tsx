@@ -5,15 +5,18 @@ import {
   Descriptions,
   Empty,
   Input,
+  Modal,
   Table,
   Tag,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { UserAddOutlined } from '@ant-design/icons';
+import { HistoryOutlined, UserAddOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
-import type { Pet, WalkInLookupResult } from '@/types';
+import type { Pet, StaffAppointment, WalkInLookupResult } from '@/types';
+import PetMedicalHistory from '@/components/medical/PetMedicalHistory';
+import CustomerRecentOrders from './CustomerRecentOrders';
 import WalkInService, {
   getWalkInCustomerStatus,
   normalizeWalkInPhone,
@@ -76,13 +79,35 @@ interface CustomerLookupPanelProps {
   /** Chỉ Lễ tân tạo được lịch walk-in; Admin chỉ tra cứu */
   canCreateWalkIn: boolean;
   onWalkIn: (phone: string) => void;
+  /** Mở chi tiết một lịch hẹn của khách */
+  onViewOrder?: (order: StaffAppointment) => void;
 }
 
 /** Tra cứu khách hàng và thú cưng theo số điện thoại (UC-20, một phần SCR-21) */
 const CustomerLookupPanel = ({
   canCreateWalkIn,
   onWalkIn,
+  onViewOrder,
 }: CustomerLookupPanelProps) => {
+  // SCR-21 "Open Timeline": the pet's visit history (GET /medical-records/pet/:petId)
+  const [historyPet, setHistoryPet] = useState<Pet | null>(null);
+  const columns: ColumnsType<Pet> = [
+    ...petColumns,
+    {
+      title: '',
+      key: 'history',
+      width: 140,
+      render: (_, pet) => (
+        <Button
+          size="small"
+          icon={<HistoryOutlined />}
+          onClick={() => setHistoryPet(pet)}
+        >
+          Lịch sử khám
+        </Button>
+      ),
+    },
+  ];
   const [phone, setPhone] = useState('');
   const [inputError, setInputError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -225,18 +250,34 @@ const CustomerLookupPanel = ({
                 Thú cưng đang hoạt động ({result.data.pets.length})
               </Text>
             )}
-            columns={petColumns}
+            columns={columns}
             dataSource={result.data.pets}
             rowKey="_id"
             size="small"
             pagination={false}
-            scroll={{ x: 640 }}
+            scroll={{ x: 780 }}
             locale={{
               emptyText: 'Khách chưa có thú cưng nào đang hoạt động',
             }}
           />
+
+          <CustomerRecentOrders
+            customerId={customer._id}
+            onViewDetail={onViewOrder}
+          />
         </>
       )}
+
+      <Modal
+        open={Boolean(historyPet)}
+        title={historyPet ? `Lịch sử khám của ${historyPet.name}` : undefined}
+        footer={null}
+        width={760}
+        destroyOnHidden
+        onCancel={() => setHistoryPet(null)}
+      >
+        {historyPet && <PetMedicalHistory petId={historyPet._id} />}
+      </Modal>
     </>
   );
 };

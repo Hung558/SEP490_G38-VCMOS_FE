@@ -44,6 +44,7 @@ import AppointmentOrderService, {
   getAppointmentStatusColor,
   extractApiError,
   canOwnerCancelAppointment,
+  getOwnerCancelState,
   OWNER_CANCEL_DEADLINE_MESSAGE,
 } from '@/services/AppointmentOrderService';
 import type { OnlineAppointment, AppointmentStatus } from '@/types';
@@ -786,6 +787,29 @@ const DashboardPage: React.FC = () => {
               >
                 Hủy lịch
               </Button>
+            )}
+            {isPetOwner && getOwnerCancelState(record) === 'disabled' && (
+              <Tooltip title={OWNER_CANCEL_DEADLINE_MESSAGE}>
+                <span
+                  style={{ display: 'inline-block', cursor: 'not-allowed' }}
+                >
+                  <Button
+                    type="link"
+                    size="small"
+                    danger
+                    disabled
+                    style={{
+                      pointerEvents: 'none',
+                      fontWeight: 600,
+                      padding: '2px 4px',
+                      height: 'auto',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Hủy lịch
+                  </Button>
+                </span>
+              </Tooltip>
             )}
           </Space>
         );

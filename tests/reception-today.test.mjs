@@ -32,6 +32,7 @@ test('today count requests use limit 1 and only the exact day and group status',
       { ...today, page: 1, limit: 1 },
       { ...today, page: 1, limit: 1, status: 'Booked' },
       { ...today, page: 1, limit: 1, status: 'CheckedIn' },
+      { ...today, page: 1, limit: 1, status: 'InProgress' },
       { ...today, page: 1, limit: 1, status: 'WaitOwner' },
     ]
   );
@@ -64,6 +65,10 @@ test('selected group is derived from the current day and exact table filters', (
   );
   assert.equal(
     getSelectedReceptionTodayGroup(day, { ...today, status: 'InProgress' }),
+    'inProgress'
+  );
+  assert.equal(
+    getSelectedReceptionTodayGroup(day, { ...today, status: 'Done' }),
     undefined
   );
   assert.equal(

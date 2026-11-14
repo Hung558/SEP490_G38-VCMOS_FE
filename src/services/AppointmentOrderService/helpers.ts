@@ -101,8 +101,10 @@ export const getVietnamTodayString = (now = new Date()): string => {
 
 const OWNER_CANCELLATION_WINDOW_MS = 2 * 60 * 60 * 1000;
 
+// MSG20 (SRS): one text for both cases, less than 2 hours before the visit or
+// already checked in (BR-07)
 export const OWNER_CANCEL_DEADLINE_MESSAGE =
-  'Đã quá hạn tự hủy trực tuyến. Vui lòng liên hệ phòng khám để được hỗ trợ.';
+  'Lịch hẹn này không thể hủy trực tuyến nữa. Vui lòng gọi phòng khám.';
 
 type CancellableOrder = {
   derivedStatus: AppointmentStatus;
@@ -128,6 +130,55 @@ export const canOwnerCancelAppointment = (
     ? new Date(`${date}T${start}:00+07:00`).getTime() - now.getTime() >=
         OWNER_CANCELLATION_WINDOW_MS
     : date >= getVietnamTodayString(now);
+};
+
+/** SRS SCR-13 stepper: Booked → Checked In → In Progress → Wait Owner → Done */
+export const APPOINTMENT_PROGRESS_STEPS: readonly AppointmentStatus[] = [
+  'Booked',
+  'CheckedIn',
+  'InProgress',
+  'WaitOwner',
+  'Done',
+];
+
+/**
+ * Where an order stands on the stepper. A cancelled order stops where it was
+ * cancelled (after check-in only if it was checked in); an overdue one never arrived.
+ */
+export const getAppointmentProgress = (order: {
+  derivedStatus: AppointmentStatus;
+  checkedInAt?: string | null;
+}): { current: number; status: 'process' | 'finish' | 'error' } => {
+  if (order.derivedStatus === 'Cancelled') {
+    return { current: order.checkedInAt ? 1 : 0, status: 'error' };
+  }
+  if (order.derivedStatus === 'Overdue') return { current: 0, status: 'error' };
+  const current = Math.max(
+    0,
+    APPOINTMENT_PROGRESS_STEPS.indexOf(order.derivedStatus)
+  );
+  return {
+    current,
+    status: order.derivedStatus === 'Done' ? 'finish' : 'process',
+  };
+};
+
+/**
+ * The owner's cancel control (BR-07): usable inside the window, shown disabled with
+ * MSG20 once it passed or after check-in, hidden when there is nothing to cancel.
+ */
+export const getOwnerCancelState = (
+  order: CancellableOrder,
+  service?: CancellableService,
+  now = new Date()
+): 'enabled' | 'disabled' | 'hidden' => {
+  if (canOwnerCancelAppointment(order, service, now)) return 'enabled';
+  const open = service
+    ? ['Booked', 'Waiting'].includes(service.status)
+    : ['Booked', 'CheckedIn'].includes(order.derivedStatus);
+  return open && ['Booked', 'CheckedIn'].includes(order.derivedStatus)
+    ? 'disabled'
+    : 'hidden';
 };
 
 export const canReceptionCancelAppointment = (

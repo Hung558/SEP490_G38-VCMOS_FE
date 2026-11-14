@@ -20,6 +20,7 @@ import AppointmentOrderService, {
 } from '@/services/AppointmentOrderService';
 import CageAssignmentService from '@/services/CageAssignmentService';
 import { useActiveCageAssignments } from './useActiveCageAssignments';
+import { useCageAvailability } from './useCageAvailability';
 import { matchesActiveCageAssignment } from './activeCageAssignments';
 import { getSelectedReceptionTodayGroup } from './receptionToday';
 import type { ReceptionTodayGroup } from './receptionToday';
@@ -40,11 +41,18 @@ export const useAppointmentReception = () => {
   const isAdmin = role === 'Admin';
   const isReceptionist = role === 'Receptionist';
 
-  // Navigation tab: cage assignments are Receptionist only, customer lookup is
-  // open to Admin too
+  // Tabs: appointments, shared calendar (SCR-17), customer lookup. Cage work lives on
+  // the cage board (/cages); rows here only offer a shortcut to place or view a cage.
   const [activeTab, setActiveTab] = useState<
-    'appointments' | 'assignments' | 'lookup'
+    'appointments' | 'schedule' | 'lookup'
   >('appointments');
+  // Bumped after every change the shared calendar (SCR-17) shows
+  const [scheduleRevision, setScheduleRevision] = useState(0);
+  const cageAvailability = useCageAvailability(
+    isReceptionist,
+    activeTab === 'appointments',
+    scheduleRevision
+  );
   const today = useReceptionToday(isReceptionist, activeTab === 'appointments');
   const refreshToday = today.refresh;
 
@@ -54,7 +62,10 @@ export const useAppointmentReception = () => {
     activeCageLoading,
     fetchActiveCages,
     recordActiveCage,
-  } = useActiveCageAssignments(isReceptionist, activeTab === 'appointments');
+  } = useActiveCageAssignments(
+    isReceptionist,
+    activeTab === 'appointments' || activeTab === 'schedule'
+  );
 
   // Walk-in modal (Receptionist only); the phone is pre-filled from the lookup tab
   const [walkInOpen, setWalkInOpen] = useState(false);
@@ -137,19 +148,7 @@ export const useAppointmentReception = () => {
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
   const [serviceRefreshTrigger, setServiceRefreshTrigger] = useState(0);
 
-  // Cage Assignments State (Receptionist only)
-  const [assignments, setAssignments] = useState<CageAssignment[]>([]);
-  const [assignmentLoading, setAssignmentLoading] = useState(false);
-  const [assignmentError, setAssignmentError] = useState<string | null>(null);
-  const [assignmentActiveFilter, setAssignmentActiveFilter] = useState<
-    boolean | undefined
-  >();
-  const [assignmentCageIdFilter, setAssignmentCageIdFilter] = useState<
-    string | undefined
-  >();
-  const [assignmentOrderIdFilter, setAssignmentOrderIdFilter] = useState<
-    string | undefined
-  >();
+  // Cage detail ("Xem chuồng") and per-row cage assignment (Receptionist only)
   const [selectedAssignment, setSelectedAssignment] =
     useState<CageAssignment | null>(null);
   const [assignmentDetailOpen, setAssignmentDetailOpen] = useState(false);
@@ -166,9 +165,6 @@ export const useAppointmentReception = () => {
   // Request race-condition guards
   const appointmentRequestIdRef = useRef(0);
   const appointmentAbortRef = useRef<AbortController | null>(null);
-
-  const assignmentRequestIdRef = useRef(0);
-  const assignmentAbortRef = useRef<AbortController | null>(null);
 
   const assignmentDetailRequestIdRef = useRef(0);
   const assignmentDetailAbortRef = useRef<AbortController | null>(null);
@@ -288,74 +284,10 @@ export const useAppointmentReception = () => {
   const refreshAppointmentList = useCallback(() => {
     // A mutation may finish after filters changed; let the effect use the latest query.
     setListRevision(current => current + 1);
+    setScheduleRevision(current => current + 1);
     void fetchActiveCages(true);
     refreshToday();
   }, [fetchActiveCages, refreshToday]);
-
-  // Fetch cage assignments (Receptionist only)
-  const fetchAssignments = useCallback(async () => {
-    if (!isReceptionist) return;
-
-    if (assignmentAbortRef.current) {
-      assignmentAbortRef.current.abort();
-    }
-    const controller = new AbortController();
-    assignmentAbortRef.current = controller;
-    const currentReqId = ++assignmentRequestIdRef.current;
-
-    setAssignmentLoading(true);
-    setAssignmentError(null);
-
-    try {
-      const res = await CageAssignmentService.listCageAssignments(
-        {
-          active: assignmentActiveFilter,
-          cageId: assignmentCageIdFilter,
-          orderId: assignmentOrderIdFilter,
-        },
-        { signal: controller.signal }
-      );
-
-      if (currentReqId !== assignmentRequestIdRef.current) return;
-
-      setAssignments(res.data || []);
-    } catch (err: unknown) {
-      if (
-        axios.isCancel(err) ||
-        (err instanceof DOMException && err.name === 'AbortError')
-      ) {
-        return;
-      }
-      if (currentReqId !== assignmentRequestIdRef.current) return;
-
-      const { message } = extractApiError(
-        err,
-        'Không thể tải danh sách phân công chuồng'
-      );
-      setAssignmentError(message);
-      toast.error(message);
-    } finally {
-      if (currentReqId === assignmentRequestIdRef.current) {
-        setAssignmentLoading(false);
-      }
-    }
-  }, [
-    isReceptionist,
-    assignmentActiveFilter,
-    assignmentCageIdFilter,
-    assignmentOrderIdFilter,
-  ]);
-
-  useEffect(() => {
-    if (isReceptionist && activeTab === 'assignments') {
-      fetchAssignments();
-    }
-    return () => {
-      if (assignmentAbortRef.current) {
-        assignmentAbortRef.current.abort();
-      }
-    };
-  }, [isReceptionist, activeTab, fetchAssignments]);
 
   // Filter actions
   const handleFilterStatus = (status?: AppointmentStatus) => {
@@ -456,7 +388,6 @@ export const useAppointmentReception = () => {
         );
       if (cageConfirmed) {
         recordActiveCage(savedCage);
-        if (activeTab === 'assignments') void fetchAssignments();
       }
       if (values.intake && !savedIntake) {
         // The order may already be checked in, so refresh rather than resubmitting.
@@ -582,40 +513,18 @@ export const useAppointmentReception = () => {
       setTargetAppointmentForCage(null);
       recordActiveCage(res.data);
       void fetchActiveCages(true);
-      if (activeTab === 'assignments') fetchAssignments();
+      setScheduleRevision(current => current + 1);
     } catch (err: unknown) {
       const { message, status } = extractApiError(
         err,
         'Phân công chuồng thất bại'
       );
       toast.error(message);
-      // If 409 conflict (cage occupied), refresh assignment list
-      if (status === 409) {
-        void fetchActiveCages(true);
-        if (activeTab === 'assignments') fetchAssignments();
-      }
+      // 409: the cage was taken meanwhile, reload which orders hold a cage
+      if (status === 409) void fetchActiveCages(true);
     } finally {
       setCreateAssignmentSubmitting(false);
     }
-  };
-
-  // Cage assignment filter handlers
-  const handleAssignmentActiveFilter = (active?: boolean) => {
-    setAssignmentActiveFilter(active);
-  };
-
-  const handleAssignmentCageIdFilter = (cageId?: string) => {
-    setAssignmentCageIdFilter(cageId);
-  };
-
-  const handleAssignmentOrderIdFilter = (orderId?: string) => {
-    setAssignmentOrderIdFilter(orderId);
-  };
-
-  const resetAssignmentFilters = () => {
-    setAssignmentActiveFilter(undefined);
-    setAssignmentCageIdFilter(undefined);
-    setAssignmentOrderIdFilter(undefined);
   };
 
   const openAssignmentDetail = async (assignment: CageAssignment) => {
@@ -682,14 +591,12 @@ export const useAppointmentReception = () => {
     setWalkInOpen(false);
   };
 
-  // File 1: after a 201 close the modal and reload the appointments and the cage
-  // assignments, so the new walk-in and its cage show up at once
+  // File 1: after a 201 close the modal and reload the appointments and their cages,
+  // so the new walk-in and its cage show up at once
   const handleWalkInCreated = (result: CreateWalkInBookingResult) => {
     setWalkInOpen(false);
     recordActiveCage(result.cageAssignment);
     refreshAppointmentList();
-    if (result.cageAssignment && activeTab === 'assignments')
-      fetchAssignments();
   };
 
   return {
@@ -697,6 +604,8 @@ export const useAppointmentReception = () => {
     isReceptionist,
     activeTab,
     setActiveTab,
+    scheduleRevision,
+    cageAvailability,
     // Appointments
     appointments,
     total,
@@ -745,18 +654,7 @@ export const useAppointmentReception = () => {
     openCancel,
     closeCancel,
     confirmCancel,
-    // Assignments
-    assignments,
-    assignmentLoading,
-    assignmentError,
-    assignmentActiveFilter,
-    assignmentCageIdFilter,
-    assignmentOrderIdFilter,
-    handleAssignmentActiveFilter,
-    handleAssignmentCageIdFilter,
-    handleAssignmentOrderIdFilter,
-    resetAssignmentFilters,
-    fetchAssignments,
+    // Cage detail and per-row cage assignment
     selectedAssignment,
     assignmentDetailOpen,
     assignmentDetailLoading,

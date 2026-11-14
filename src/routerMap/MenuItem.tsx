@@ -127,7 +127,7 @@ export const MenuItemReceptionist = (): MenuItem[] => {
     },
     {
       key: ROUTER.CAGES,
-      label: 'Quản lý chuồng',
+      label: 'Sơ đồ chuồng',
       icon: <BuildOutlined />,
     },
   ];
@@ -176,7 +176,7 @@ export const MenuItemClinicalStaff = (role: string): MenuItem[] => {
     },
     {
       key: ROUTER.CAGES,
-      label: 'Quản lý chuồng',
+      label: 'Sơ đồ chuồng',
       icon: <BuildOutlined />,
     },
   ];

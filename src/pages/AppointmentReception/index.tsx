@@ -1,7 +1,9 @@
 import { Alert, Button, Card, Tabs, Typography } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import ROUTER from '@/routerMap/ROUTER';
 import {
   ScheduleOutlined,
-  BuildOutlined,
+  CalendarOutlined,
   SearchOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
@@ -13,17 +15,18 @@ import AppointmentTable from './components/AppointmentTable';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
 import CheckInConfirmModal from './components/CheckInConfirmModal';
 import CancelReasonModal from '@/components/appointment/CancelReasonModal';
-import CageAssignmentTable from './components/CageAssignmentTable';
 import CageAssignmentModal from './components/CageAssignmentModal';
 import CageAssignmentDetailModal from './components/CageAssignmentDetailModal';
 import CustomerLookupPanel from './components/CustomerLookupPanel';
 import WalkInModal from './components/WalkInModal';
+import ClinicScheduleTab from './components/ClinicScheduleTab';
 import ReceptionTodayOverview from './components/ReceptionTodayOverview';
 
 const { Title, Text } = Typography;
 
 const AppointmentReceptionPage = () => {
   const state = useAppointmentReception();
+  const navigate = useNavigate();
 
   const appointmentContent = (
     <>
@@ -35,6 +38,8 @@ const AppointmentReceptionPage = () => {
           selected={state.selectedTodayGroup}
           onSelect={state.selectTodayGroup}
           onRetry={state.today.refresh}
+          cages={state.cageAvailability}
+          onOpenCages={() => navigate(ROUTER.CAGES)}
         />
       )}
       <AppointmentFilters
@@ -121,36 +126,28 @@ const AppointmentReceptionPage = () => {
       ),
       children: appointmentContent,
     },
-    ...(state.isReceptionist
-      ? [
-          {
-            key: 'assignments',
-            label: (
-              <span>
-                <BuildOutlined />
-                Phân công chuồng
-              </span>
-            ),
-            children: (
-              <CageAssignmentTable
-                assignments={state.assignments}
-                loading={state.assignmentLoading}
-                error={state.assignmentError}
-                activeFilter={state.assignmentActiveFilter}
-                cageIdFilter={state.assignmentCageIdFilter}
-                orderIdFilter={state.assignmentOrderIdFilter}
-                onActiveFilterChange={state.handleAssignmentActiveFilter}
-                onCageIdFilterChange={state.handleAssignmentCageIdFilter}
-                onOrderIdFilterChange={state.handleAssignmentOrderIdFilter}
-                onResetFilters={state.resetAssignmentFilters}
-                onRefresh={state.fetchAssignments}
-                onOpenCreateModal={() => state.openCreateAssignment()}
-                onViewDetail={state.openAssignmentDetail}
-              />
-            ),
-          },
-        ]
-      : []),
+    {
+      key: 'schedule',
+      label: (
+        <span>
+          <CalendarOutlined />
+          Lịch chung
+        </span>
+      ),
+      children: (
+        <ClinicScheduleTab
+          active={state.activeTab === 'schedule'}
+          revision={state.scheduleRevision}
+          isReceptionist={state.isReceptionist}
+          activeCageByOrderId={state.activeCageByOrderId}
+          onCheckIn={state.openCheckIn}
+          onViewDetail={state.openDetail}
+          onCancel={state.openCancel}
+          onAssignCage={state.openCreateAssignment}
+          onViewCage={state.openAssignmentDetail}
+        />
+      ),
+    },
     {
       key: 'lookup',
       label: (
@@ -163,6 +160,7 @@ const AppointmentReceptionPage = () => {
         <CustomerLookupPanel
           canCreateWalkIn={state.isReceptionist}
           onWalkIn={state.openWalkIn}
+          onViewOrder={state.openDetail}
         />
       ),
     },
@@ -177,8 +175,9 @@ const AppointmentReceptionPage = () => {
               Tiếp nhận lịch hẹn phòng khám
             </Title>
             <Text type="secondary">
-              Theo dõi, tiếp nhận khách hàng (check-in), khách vãng lai, phân
-              công nhân sự và chuồng lưu trú cho thú cưng
+              Tiếp nhận lịch hẹn và khách vãng lai, phân công nhân sự, xem lịch
+              chung và tra cứu khách hàng. Xếp, chuyển, giải phóng chuồng ở Sơ
+              đồ chuồng.
             </Text>
           </div>
           {state.isReceptionist && (
@@ -195,7 +194,7 @@ const AppointmentReceptionPage = () => {
         <Tabs
           activeKey={state.activeTab}
           onChange={key =>
-            state.setActiveTab(key as 'appointments' | 'assignments' | 'lookup')
+            state.setActiveTab(key as 'appointments' | 'schedule' | 'lookup')
           }
           items={tabItems}
         />

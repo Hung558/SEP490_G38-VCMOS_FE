@@ -72,6 +72,10 @@ interface OverviewProps {
   selected?: ReceptionTodayKey;
   onSelect: (status: ReceptionTodayGroup['status']) => void;
   onRetry: () => void;
+  /** Available / total cages; null while unknown */
+  cages?: { available: number; total: number } | null;
+  /** SCR-16 quick action: the cage counter opens the cage board */
+  onOpenCages?: () => void;
 }
 
 const ReceptionTodayOverview = ({
@@ -81,6 +85,8 @@ const ReceptionTodayOverview = ({
   selected,
   onSelect,
   onRetry,
+  cages,
+  onOpenCages,
 }: OverviewProps) => (
   <Overview
     aria-labelledby="reception-today-title"
@@ -123,6 +129,20 @@ const ReceptionTodayOverview = ({
             )}
           </MetricButton>
         ))}
+        {onOpenCages && (
+          <MetricButton
+            aria-label={
+              cages
+                ? `Chuồng trống: ${cages.available} trên ${cages.total}`
+                : 'Chuồng trống: đang tải'
+            }
+            onClick={onOpenCages}
+          >
+            <span>Chuồng trống</span>
+            <Count>{cages ? `${cages.available} / ${cages.total}` : '…'}</Count>
+            <Text type="secondary">Mở sơ đồ chuồng</Text>
+          </MetricButton>
+        )}
       </Metrics>
     ) : (
       <div role="status" aria-label="Đang tải tổng quan hôm nay">
