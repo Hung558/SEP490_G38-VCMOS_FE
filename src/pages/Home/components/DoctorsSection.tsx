@@ -1,18 +1,15 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import {
-  CalendarOutlined,
-  CheckCircleFilled,
-  ClockCircleOutlined,
-  AuditOutlined,
-} from '@ant-design/icons';
-import { toast } from 'sonner';
+import { Button, Spin } from 'antd';
+import { MedicineBoxOutlined, ScissorOutlined } from '@ant-design/icons';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
+import StaffService from '@/services/StaffService';
+import type { ClinicalStaffRole, StaffMember } from '@/types';
 
 const SectionWrapper = styled.section`
   max-width: 1240px;
   margin: 0 auto;
-  padding: 64px 24px 80px 24px;
+  padding: 32px 24px 80px 24px;
 `;
 
 const SectionHeader = styled.div`
@@ -60,11 +57,36 @@ const DoctorsGrid = styled.div`
   gap: 28px;
 
   @media (max-width: 960px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
 `;
 
-const DoctorCard = styled.div`
+const Notice = styled.div`
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 16px;
+  color: #64748b;
+  font-size: 14.5px;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+
+  .ant-btn {
+    margin-top: 12px;
+  }
+`;
+
+const ShowMoreRow = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+`;
+
+const DoctorCard = styled.div<{ $accent: string; $tint: string }>`
   background: #ffffff;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
@@ -75,26 +97,35 @@ const DoctorCard = styled.div`
   transition: all 0.15s ease-in-out;
 
   &:hover {
-    border-color: #0d9488;
+    border-color: ${p => p.$accent};
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
   }
 
-  .avatar-wrap {
-    height: 220px;
-    background: #f8fafc;
+  /* No staff photos in the database: initials on a tinted band */
+  .avatar-band {
+    height: 132px;
+    background: ${p => p.$tint};
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    overflow: hidden;
 
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .initials {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: ${p => p.$accent};
+      color: #ffffff;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
     }
 
-    .verified-badge {
+    .role-badge {
       position: absolute;
       bottom: 12px;
       right: 12px;
@@ -104,15 +135,15 @@ const DoctorCard = styled.div`
       border-radius: 6px;
       font-size: 11.5px;
       font-weight: 600;
-      color: #0f766e;
+      color: ${p => p.$accent};
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
     }
   }
 
   .card-body {
-    padding: 24px;
+    padding: 22px 24px 24px;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -127,163 +158,198 @@ const DoctorCard = styled.div`
     .specialty {
       font-size: 13.5px;
       font-weight: 600;
-      color: #0d9488;
-      margin-bottom: 16px;
+      color: ${p => p.$accent};
+      margin-bottom: 14px;
     }
 
     .bio {
       font-size: 13.5px;
       color: #64748b;
       line-height: 1.55;
-      margin: 0 0 20px 0;
-      flex: 1;
-    }
-
-    .meta-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      font-size: 12.5px;
-      color: #475569;
-      padding-top: 16px;
-      border-top: 1px solid #f1f5f9;
-      margin-bottom: 20px;
-
-      .item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-
-        .icon {
-          color: #0d9488;
-          font-size: 13px;
-        }
-      }
-    }
-
-    .btn-book-doctor {
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      color: #0f172a;
-      height: 40px;
-      border-radius: 8px;
-      font-size: 13.5px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.15s;
-
-      &:hover {
-        background: #0d9488;
-        border-color: #0d9488;
-        color: #ffffff;
-      }
+      margin: 0;
     }
   }
 `;
 
-interface DoctorsSectionProps {
-  onSelectDoctor: (doctorName?: string) => void;
-}
+// Text per role, written for the home page (the database has no staff bio).
+// Vets here examine every common illness, so no specialty is claimed.
+const ROLE_PROFILE: Record<
+  ClinicalStaffRole,
+  {
+    badge: string;
+    title: string;
+    bio: string;
+    icon: React.ReactNode;
+    accent: string;
+    tint: string;
+  }
+> = {
+  Veterinarian: {
+    badge: 'Bác sĩ thú y',
+    title: 'Bác sĩ thú y · Khám tổng quát',
+    bio: 'Khám và điều trị các bệnh thường gặp ở chó mèo, chỉ định xét nghiệm hoặc chẩn đoán hình ảnh khi cần, kê đơn và theo dõi các bé lưu chuồng. Kết quả mỗi lần khám được ghi vào hồ sơ bệnh án của bé.',
+    icon: <MedicineBoxOutlined />,
+    accent: '#0d9488',
+    tint: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)',
+  },
+  Groomer: {
+    badge: 'Spa & Grooming',
+    title: 'Nhân viên Spa & Grooming',
+    bio: 'Tắm sấy, vệ sinh tai, cắt dũa móng và cắt tỉa lông theo yêu cầu của chủ nuôi. Ghi chú tình trạng da lông và ảnh trước, sau mỗi lần làm được lưu lại để chủ nuôi theo dõi.',
+    icon: <ScissorOutlined />,
+    accent: '#c2410c',
+    tint: 'linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%)',
+  },
+};
 
-const doctorsList = [
-  {
-    id: 'vet-b',
-    name: 'BS. CKI Trần Mai Anh',
-    title: 'Bác Sĩ Trưởng Khoa Nội & Chẩn Đoán Hình Ảnh',
-    image:
-      'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80',
-    bio: 'Chuyên sâu về siêu âm Doppler màu, chẩn đoán tiêu hoá, tim mạch, điều trị các bệnh truyền nhiễm và quản lý phác đồ bệnh án điện tử SOAP.',
-    experience: '8 năm kinh nghiệm lâm sàng thú y',
-    schedule: 'Lịch trực: Ca sáng & Chiều các ngày trong tuần',
-  },
-  {
-    id: 'vet-nam',
-    name: 'ThS. BS. Nguyễn Hoàng Nam',
-    title: 'Bác Sĩ Chuyên Khoa Ngoại & Chấn Thương Chỉnh Hình',
-    image:
-      'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80',
-    bio: 'Tốt nghiệp Thạc sĩ Thú y, giàu kinh nghiệm phẫu thuật mô mềm, kết hợp xương nẹp vít sinh học và theo dõi hồi sức ngoại khoa tích cực.',
-    experience: '12 năm kinh nghiệm phẫu thuật lâm sàng',
-    schedule: 'Lịch trực: Thứ 2 - Thứ 6 (Ca sáng & chiều)',
-  },
-  {
-    id: 'groomer-d',
-    name: 'Chuyên Viên Lê Thu Trang',
-    title: 'Trưởng Nhóm Grooming Spa & Trị Liệu Da Lông',
-    image:
-      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80',
-    bio: 'Chứng chỉ Grooming chuyên nghiệp quốc tế, chuyên sâu về cắt tỉa thẩm mỹ chuẩn giống loài, phục hồi da nấm viêm nang lông và chăm sóc êm ái.',
-    experience: '6 năm chuyên môn Spa & Grooming thú cưng',
-    schedule: 'Lịch trực: Thứ 3 - Chủ Nhật (08:30 - 18:30)',
-  },
-];
+// Vets first, then groomers; the BE already sorts each by name
+const ROLE_ORDER: ClinicalStaffRole[] = ['Veterinarian', 'Groomer'];
 
-const DoctorsSection: React.FC<DoctorsSectionProps> = ({ onSelectDoctor }) => {
+// Cards shown before "Xem tất cả"
+const INITIAL_VISIBLE = 6;
+
+const getInitials = (fullName: string): string => {
+  const words = fullName.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '?';
+  const first = words.length > 1 ? words[words.length - 2][0] : '';
+  const last = words[words.length - 1][0];
+  return `${first}${last}`.toLocaleUpperCase('vi');
+};
+
+const DoctorsSection: React.FC = () => {
   const { isLogin } = useIsLogin();
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
-  const handleSelectDoctor = (name: string) => {
-    if (!isLogin) {
-      toast.info('Vui lòng đăng nhập để đặt lịch hẹn với bác sĩ!');
-      window.dispatchEvent(new CustomEvent('open-vcmos-login'));
-    } else {
-      onSelectDoctor(name);
+  // GET /users/staff needs a signed-in user, so guests are not sent there
+  const fetchStaff = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const res = await StaffService.listStaff(
+        { status: 'Active', limit: 100 },
+        { signal }
+      );
+      if (signal?.aborted) return;
+      setStaff(res?.items || []);
+    } catch {
+      if (signal?.aborted) return;
+      setLoadError(true);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!isLogin) {
+      setStaff([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    fetchStaff(ctrl.signal);
+    return () => ctrl.abort();
+  }, [isLogin, fetchStaff]);
+
+  const orderedStaff = useMemo(
+    () =>
+      ROLE_ORDER.flatMap(role => staff.filter(member => member.role === role)),
+    [staff]
+  );
+  const visibleStaff = showAll
+    ? orderedStaff
+    : orderedStaff.slice(0, INITIAL_VISIBLE);
+
+  const renderGridBody = () => {
+    if (!isLogin) {
+      return (
+        <Notice>
+          Đăng nhập để xem danh sách bác sĩ và nhân viên spa của phòng khám.
+          <div>
+            <Button
+              type="primary"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent('open-vcmos-login'))
+              }
+            >
+              Đăng nhập
+            </Button>
+          </div>
+        </Notice>
+      );
+    }
+    if (loading) {
+      return (
+        <Notice>
+          <Spin />
+        </Notice>
+      );
+    }
+    if (loadError) {
+      return (
+        <Notice>
+          Không thể tải danh sách đội ngũ.{' '}
+          <Button type="link" onClick={() => fetchStaff()}>
+            Thử lại
+          </Button>
+        </Notice>
+      );
+    }
+    if (orderedStaff.length === 0) {
+      return <Notice>Phòng khám chưa có bác sĩ hoặc nhân viên spa nào.</Notice>;
+    }
+    return visibleStaff.map(member => {
+      const profile = ROLE_PROFILE[member.role];
+      return (
+        <DoctorCard
+          key={member._id}
+          $accent={profile.accent}
+          $tint={profile.tint}
+        >
+          <div className="avatar-band">
+            <div className="initials" aria-hidden>
+              {getInitials(member.fullName)}
+            </div>
+            <div className="role-badge">
+              {profile.icon}
+              <span>{profile.badge}</span>
+            </div>
+          </div>
+
+          <div className="card-body">
+            <h3>{member.fullName}</h3>
+            <div className="specialty">{profile.title}</div>
+            <p className="bio">{profile.bio}</p>
+          </div>
+        </DoctorCard>
+      );
+    });
   };
 
   return (
     <SectionWrapper id="doctors">
       <SectionHeader>
         <span className="section-tag">Đội Ngũ Chuyên Môn VCMOS</span>
-        <h2>Bác Sĩ Thú Y & Kỹ Thuật Viên Chuyên Trách</h2>
+        <h2>Bác Sĩ Thú Y & Nhân Viên Spa</h2>
         <p>
-          Đội ngũ bác sĩ và chuyên viên tại VCMOS đều đạt chứng chỉ hành nghề
-          chính quy, giàu kinh nghiệm lâm sàng và luôn nhẹ nhàng, tận tâm với
-          từng bé cưng.
+          Đội ngũ bác sĩ thú y và nhân viên spa đang làm việc tại VCMOS, luôn
+          nhẹ nhàng và tận tâm với từng bé cưng.
         </p>
       </SectionHeader>
 
-      <DoctorsGrid>
-        {doctorsList.map(doc => (
-          <DoctorCard key={doc.id}>
-            <div className="avatar-wrap">
-              <img src={doc.image} alt={doc.name} />
-              <div className="verified-badge">
-                <CheckCircleFilled style={{ color: '#10b981' }} />
-                <span>Chứng chỉ hành nghề</span>
-              </div>
-            </div>
+      <DoctorsGrid>{renderGridBody()}</DoctorsGrid>
 
-            <div className="card-body">
-              <h3>{doc.name}</h3>
-              <div className="specialty">{doc.title}</div>
-              <p className="bio">{doc.bio}</p>
-
-              <div className="meta-list">
-                <div className="item">
-                  <AuditOutlined className="icon" />
-                  <span>{doc.experience}</span>
-                </div>
-                <div className="item">
-                  <ClockCircleOutlined className="icon" />
-                  <span>{doc.schedule}</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="btn-book-doctor"
-                onClick={() => handleSelectDoctor(doc.name)}
-              >
-                <CalendarOutlined /> Đặt lịch với chuyên gia này
-              </button>
-            </div>
-          </DoctorCard>
-        ))}
-      </DoctorsGrid>
+      {isLogin &&
+        !loading &&
+        !loadError &&
+        orderedStaff.length > INITIAL_VISIBLE && (
+          <ShowMoreRow>
+            <Button onClick={() => setShowAll(prev => !prev)}>
+              {showAll ? 'Thu gọn' : `Xem tất cả (${orderedStaff.length})`}
+            </Button>
+          </ShowMoreRow>
+        )}
     </SectionWrapper>
   );
 };

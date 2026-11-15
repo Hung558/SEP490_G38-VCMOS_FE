@@ -13,10 +13,14 @@ export const GROOMING_PHOTO_MIME_TYPES = [
   'image/webp',
 ];
 
+/**
+ * Nghiệp vụ 6: hoàn tất thì ghi chú kết quả (tình trạng da, lông, lưu ý cho lần
+ * sau). Chỉ đổi nhãn; tên trường gửi BE giữ nguyên.
+ */
 export const GROOMING_NOTE_FIELDS = [
   ['beforeNote', 'Ghi chú trước khi spa'],
-  ['afterNote', 'Ghi chú sau khi spa'],
-  ['recommendations', 'Khuyến nghị'],
+  ['afterNote', 'Tình trạng da, lông'],
+  ['recommendations', 'Lưu ý cho lần sau'],
 ] as const;
 
 export const GROOMING_PHOTO_FIELDS = [

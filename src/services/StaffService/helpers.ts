@@ -3,7 +3,14 @@ import type {
   ListStaffParams,
   StaffAccountStatus,
   StaffMember,
+  StaffShift,
 } from '../../types/api/staff.api';
+
+export const STAFF_SHIFTS: readonly StaffShift[] = [
+  'MORNING',
+  'AFTERNOON',
+  'EVENING',
+];
 
 export const CLINICAL_STAFF_ROLES: readonly ClinicalStaffRole[] = [
   'Veterinarian',
@@ -22,6 +29,18 @@ const STAFF_STATUSES: readonly StaffAccountStatus[] = [
  */
 export const getRequiredStaffRole = (category?: string): ClinicalStaffRole =>
   category === 'Grooming' ? 'Groomer' : 'Veterinarian';
+
+/**
+ * Vai trò thực hiện một dịch vụ trong danh mục, đúng như BE (`resolveServiceRequiredRole`,
+ * từ f19060f): `requiredRole` nếu Admin đã đặt, không thì theo nhóm dịch vụ
+ */
+export const getServiceStaffRole = (service: {
+  category?: string;
+  requiredRole?: string | null;
+}): ClinicalStaffRole =>
+  service.requiredRole === 'Veterinarian' || service.requiredRole === 'Groomer'
+    ? service.requiredRole
+    : getRequiredStaffRole(service.category);
 
 /** Build query params cho GET /api/users/staff, chỉ giữ các key và giá trị BE chấp nhận */
 export const buildStaffQuery = (
@@ -44,6 +63,22 @@ export const buildStaffQuery = (
     typeof params.workDate === 'string' ? params.workDate.trim() : '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
     query.workDate = workDate;
+  }
+  const date = typeof params.date === 'string' ? params.date.trim() : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    query.date = date;
+  }
+  const time = typeof params.time === 'string' ? params.time.trim() : '';
+  if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    query.time = time;
+  }
+  if (params.shift && STAFF_SHIFTS.includes(params.shift)) {
+    query.shift = params.shift;
+  }
+  const serviceId =
+    typeof params.serviceId === 'string' ? params.serviceId.trim() : '';
+  if (/^[0-9a-fA-F]{24}$/.test(serviceId)) {
+    query.serviceId = serviceId;
   }
   if (
     typeof params.page === 'number' &&

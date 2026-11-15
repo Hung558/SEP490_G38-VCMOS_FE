@@ -87,10 +87,13 @@ export const useClinicSchedule = ({
         if (page >= totalPages) break;
       }
 
+      // The order list carries its services (BE 455dbf6); only orders from
+      // an older response without them need a request of their own
       const serviceLists = await mapLimited(
         dayOrders,
         SERVICE_CONCURRENCY,
         async order => {
+          if (Array.isArray(order.services)) return order.services;
           try {
             const res = await AppointmentServiceService.listOrderServices(
               order._id,

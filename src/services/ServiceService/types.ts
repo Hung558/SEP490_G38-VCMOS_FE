@@ -7,6 +7,9 @@ export type ServiceCategory =
 
 export type ServiceStatus = 'Active' | 'Inactive';
 
+/** Who performs a service (BE `requiredRole`, f19060f) */
+export type ServiceStaffRole = 'Veterinarian' | 'Groomer';
+
 export interface Service {
   _id: string;
   code: string;
@@ -16,6 +19,8 @@ export interface Service {
   basePrice?: number;
   description?: string;
   status: ServiceStatus;
+  /** Unset on older services: the BE then decides by category */
+  requiredRole?: ServiceStaffRole | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -33,11 +38,13 @@ export interface ServiceWritePayload {
   basePrice: number;
   description?: string;
   status?: ServiceStatus;
+  requiredRole?: ServiceStaffRole;
 }
 
 export interface ServiceFieldErrors {
   name?: string;
   category?: string;
+  requiredRole?: string;
   defaultDuration?: string;
   basePrice?: string;
   description?: string;

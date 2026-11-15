@@ -7,7 +7,7 @@ import {
   getAppointmentOwnerPhone,
   getAppointmentPetName,
   getAppointmentStatusColor,
-  getAppointmentStatusLabel,
+  getOrderStatusText,
   readReceptionIntake,
 } from '@/services/AppointmentOrderService';
 import AppointmentServicesPanel from './AppointmentServicesPanel';
@@ -76,7 +76,7 @@ const AppointmentDetailModal = ({
 
         <Descriptions.Item label="Trạng thái">
           <Tag color={getAppointmentStatusColor(appointment.derivedStatus)}>
-            {getAppointmentStatusLabel(appointment.derivedStatus)}
+            {getOrderStatusText(appointment)}
           </Tag>
         </Descriptions.Item>
 
@@ -100,7 +100,12 @@ const AppointmentDetailModal = ({
           {getAppointmentOwnerPhone(appointment.ownerId)}
         </Descriptions.Item>
 
-        <Descriptions.Item label="Thời gian check-in">
+        {/* With the slot item the rows above hold an odd number of cells, so this
+            one fills the whole row (antd warns about a half-filled row) */}
+        <Descriptions.Item
+          label="Thời gian check-in"
+          span={appointment.slotStart || appointment.slotEnd ? 2 : 1}
+        >
           {appointment.checkedInAt ? (
             <Text style={{ color: '#52c41a' }}>
               {dayjs(appointment.checkedInAt).format('HH:mm:ss DD/MM/YYYY')}

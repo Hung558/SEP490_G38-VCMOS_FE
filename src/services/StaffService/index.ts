@@ -31,9 +31,39 @@ const listStaffForDate = async (
   return { onDuty: onDuty.items || [], all: all.items || [] };
 };
 
+/**
+ * Người làm được dịch vụ `serviceId` (hoặc vai trò `role`) và không báo bận ở ca chứa
+ * giờ `time` ngày `date` (BE f19060f). Nghiệp vụ 3.5, 4.2: chỉ hiện nhân sự làm việc
+ * ngày đó; không có ai thì lễ tân hẹn khách chờ hoặc ngày khác. Không có `time` mà
+ * `date` là hôm nay thì BE lấy ca hiện tại.
+ */
+const listAvailableStaff = async (
+  params: {
+    date: string;
+    time?: string | null;
+    serviceId?: string;
+    role?: ListStaffParams['role'];
+  },
+  options?: { signal?: AbortSignal }
+): Promise<StaffMember[]> => {
+  const res = await listStaff(
+    {
+      status: 'Active',
+      date: params.date,
+      time: params.time || undefined,
+      serviceId: params.serviceId,
+      role: params.role,
+      limit: 100,
+    },
+    options
+  );
+  return res.items || [];
+};
+
 const StaffService = {
   listStaff,
   listStaffForDate,
+  listAvailableStaff,
 };
 
 export * from './urls';

@@ -4,21 +4,42 @@ import { Button, Result, Skeleton } from 'antd';
 import { toast } from 'sonner';
 import PetService from '@/services/PetService';
 import ROUTER from '@/routerMap/ROUTER';
-import type { Pet } from '@/types';
+import { useAuth } from '@/contexts/routerProvider/authContext';
+import { getRoleGroup } from '@/constants/roles';
+import { STORAGE, storage } from '@/lib/storage';
+import type { Pet, PetAppointmentNote } from '@/types';
 import PetFormModal from '@/pages/Dashboard/components/PetFormModal';
 import DeletePetModal from '@/pages/Dashboard/components/DeletePetModal';
 import PetProfileView from './components/PetProfileView';
 import PetTimelineSection from './components/PetTimelineSection';
+import PetVisitTimeline from './components/PetVisitTimeline';
 import { getBookingLink } from '@/pages/Dashboard/dashboardTabs';
 import { PetProfileWrapper } from './components/styles';
 
 type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
 
-/** SCR-08: full profile page of one pet, opened from the owner dashboard */
+/**
+ * SCR-08: full profile page of one pet. The owner opens it from the dashboard
+ * and can edit it; vets and groomers open it from their queue to read the
+ * timeline and past records only (nghiệp vụ 5, 6).
+ */
 const PetProfilePage: React.FC = () => {
   const { petId } = useParams<{ petId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const storedUser = storage.getLocalStorage<{
+    role?: string;
+    systemRole?: string;
+  }>(STORAGE.USER_INFO);
+  const isOwner =
+    getRoleGroup(
+      user?.role ||
+        user?.systemRole ||
+        storedUser?.role ||
+        storedUser?.systemRole
+    ) === 'owner';
   const [pet, setPet] = useState<Pet | null>(null);
+  const [visits, setVisits] = useState<PetAppointmentNote[]>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [petToDelete, setPetToDelete] = useState<Pet | null>(null);
@@ -32,6 +53,7 @@ const PetProfilePage: React.FC = () => {
       setLoadState('loading');
       const res = await PetService.getPetById(petId);
       setPet(res.pet);
+      setVisits(res.appointmentNotes || []);
       setLoadState('ready');
     } catch (error: any) {
       const status = error?.response?.status;
@@ -52,9 +74,13 @@ const PetProfilePage: React.FC = () => {
     navigate(ROUTER.DASHBOARD);
   };
 
-  const backToDashboard = (
+  const backToDashboard = isOwner ? (
     <Button key="dashboard" onClick={() => navigate(ROUTER.DASHBOARD)}>
       Về Bảng điều khiển
+    </Button>
+  ) : (
+    <Button key="queue" onClick={() => navigate(ROUTER.STAFF_QUEUE)}>
+      Về hàng đợi
     </Button>
   );
 
@@ -93,7 +119,11 @@ const PetProfilePage: React.FC = () => {
         <Result
           status="404"
           title="Không tìm thấy hồ sơ thú cưng"
-          subTitle="Hồ sơ không tồn tại hoặc không thuộc tài khoản của bạn."
+          subTitle={
+            isOwner
+              ? 'Hồ sơ không tồn tại hoặc không thuộc tài khoản của bạn.'
+              : 'Hồ sơ không tồn tại.'
+          }
           extra={backToDashboard}
         />
       </PetProfileWrapper>
@@ -102,27 +132,42 @@ const PetProfilePage: React.FC = () => {
 
   return (
     <PetProfileWrapper>
-      <PetProfileView
-        pet={pet}
-        onEdit={() => setIsFormOpen(true)}
-        onDelete={() => setPetToDelete(pet)}
-        onBookAppointment={() => navigate(getBookingLink(pet._id))}
+      {isOwner ? (
+        <PetProfileView
+          pet={pet}
+          onEdit={() => setIsFormOpen(true)}
+          onDelete={() => setPetToDelete(pet)}
+          onBookAppointment={() => navigate(getBookingLink(pet._id))}
+        />
+      ) : (
+        <PetProfileView pet={pet} />
+      )}
+
+      <PetVisitTimeline
+        key={pet._id}
+        petId={pet._id}
+        initialNotes={visits}
+        ownerView={isOwner}
       />
 
       <PetTimelineSection petId={pet._id} />
 
-      <PetFormModal
-        open={isFormOpen}
-        onCancel={() => setIsFormOpen(false)}
-        onSuccess={updated => setPet(updated)}
-        editingPet={pet}
-      />
+      {isOwner && (
+        <>
+          <PetFormModal
+            open={isFormOpen}
+            onCancel={() => setIsFormOpen(false)}
+            onSuccess={updated => setPet(updated)}
+            editingPet={pet}
+          />
 
-      <DeletePetModal
-        pet={petToDelete}
-        onCancel={() => setPetToDelete(null)}
-        onConfirm={handleDeletePet}
-      />
+          <DeletePetModal
+            pet={petToDelete}
+            onCancel={() => setPetToDelete(null)}
+            onConfirm={handleDeletePet}
+          />
+        </>
+      )}
     </PetProfileWrapper>
   );
 };

@@ -7,11 +7,11 @@ import {
   Modal,
   Skeleton,
   Space,
+  Typography,
 } from 'antd';
 import { BuildOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
-import { toast } from 'sonner';
 import type { CageAssignment } from '@/types';
 import CageAssignmentService, {
   getAssignmentCageLabel,
@@ -26,13 +26,15 @@ interface QueueCageModalProps {
   onClose: () => void;
 }
 
-/** Chuồng thú cưng đang nằm và nút đưa bé ra khỏi chuồng (Bác sĩ, Groomer) */
+/**
+ * Chuồng thú cưng đang nằm, chỉ để xem (Bác sĩ, Groomer). Nghiệp vụ 4.5: lễ tân
+ * xếp và giải phóng chuồng; khi bắt đầu khám hoặc làm dịch vụ BE tự đưa bé ra.
+ */
 const QueueCageModal = ({ order, petName, onClose }: QueueCageModalProps) => {
   const [assignment, setAssignment] = useState<CageAssignment | null>(null);
   const [loading, setLoading] = useState(false);
   const [notInCage, setNotInCage] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [releasing, setReleasing] = useState(false);
 
   useEffect(() => {
     if (!order) return;
@@ -60,21 +62,6 @@ const QueueCageModal = ({ order, petName, onClose }: QueueCageModalProps) => {
     return () => controller.abort();
   }, [order]);
 
-  const release = async () => {
-    if (!assignment || releasing) return;
-    setReleasing(true);
-    try {
-      const res = await CageAssignmentService.releaseAssignment(assignment._id);
-      toast.success(res.message || 'Đã đưa thú cưng ra khỏi chuồng');
-      onClose();
-    } catch (err: unknown) {
-      const { message } = extractApiError(err, 'Không thể giải phóng chuồng');
-      toast.error(message);
-    } finally {
-      setReleasing(false);
-    }
-  };
-
   return (
     <Modal
       title={
@@ -87,25 +74,9 @@ const QueueCageModal = ({ order, petName, onClose }: QueueCageModalProps) => {
       onCancel={onClose}
       destroyOnHidden
       footer={
-        assignment
-          ? [
-              <Button key="close" onClick={onClose} disabled={releasing}>
-                Đóng
-              </Button>,
-              <Button
-                key="release"
-                type="primary"
-                loading={releasing}
-                onClick={release}
-              >
-                Đưa ra khỏi chuồng
-              </Button>,
-            ]
-          : [
-              <Button key="close" onClick={onClose}>
-                Đóng
-              </Button>,
-            ]
+        <Button key="close" onClick={onClose}>
+          Đóng
+        </Button>
       }
     >
       {loading ? (
@@ -136,6 +107,12 @@ const QueueCageModal = ({ order, petName, onClose }: QueueCageModalProps) => {
           </Descriptions.Item>
         </Descriptions>
       ) : null}
+      {!loading && !error && (
+        <Typography.Paragraph type="secondary" style={{ margin: '12px 0 0' }}>
+          Khi bạn bắt đầu khám hoặc làm dịch vụ, hệ thống tự đưa bé ra khỏi
+          chuồng. Lễ tân xếp bé vào chuồng giữa hai dịch vụ và lúc chờ chủ đón.
+        </Typography.Paragraph>
+      )}
     </Modal>
   );
 };

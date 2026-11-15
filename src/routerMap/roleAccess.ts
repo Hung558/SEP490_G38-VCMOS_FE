@@ -57,13 +57,20 @@ export const getPostLoginPath = (role?: string): string =>
  * Where "Đặt lịch khám" leads a signed-in user: pet owners book online from their
  * dashboard and the receptionist books at the desk (walk-in form). Admin, vets and
  * groomers do not book (POST /appointment-services/online-booking is PetOwner only).
+ * serviceId ("Đặt dịch vụ này" on a home service card) is pre-selected in the
+ * owner's booking form.
  */
-export const getBookingPath = (role?: string): string | undefined => {
+export const getBookingPath = (
+  role?: string,
+  serviceId?: string
+): string | undefined => {
   if (normalizeRole(role) === 'Receptionist') {
     return `${ROUTER.CLINIC_APPOINTMENTS}?walkin=new`;
   }
   if (getRoleGroup(role) === 'owner') {
-    return `${ROUTER.DASHBOARD}?tab=appointments&book=new`;
+    const params = new URLSearchParams({ tab: 'appointments', book: 'new' });
+    if (serviceId) params.set('service', serviceId);
+    return `${ROUTER.DASHBOARD}?${params.toString()}`;
   }
   return undefined;
 };

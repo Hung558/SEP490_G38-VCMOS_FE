@@ -31,6 +31,7 @@ import AppointmentServiceService, {
   getAppointmentServiceStatusLabel,
   getAssignStaffBlockReason,
   getServiceRefCategory,
+  getServiceRefId,
   getStaffRefId,
   isQueueingOrder,
 } from '@/services/AppointmentServiceService';
@@ -41,7 +42,7 @@ import {
 import StaffService, {
   formatStaffOption,
   getRequiredStaffRole,
-  pickAssignableStaff,
+  getServiceStaffRole,
 } from '@/services/StaffService';
 import { pickSpecialtyAssignment } from '@/services/StaffService/specialty';
 import { serviceCategoryLabels } from '@/services/ServiceService';
@@ -100,9 +101,10 @@ const AppointmentServicesPanel = ({
   const [error, setError] = useState<string | null>(null);
   // Staff on duty on the appointment's date, and every active staff member as
   // the fallback for a role nobody is scheduled for (file 2: "không vướng lịch")
-  const [onDutyStaff, setOnDutyStaff] = useState<StaffMember[]>([]);
+  // B2: staff who can do the service being edited and are free at its time
   const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [staffLoading, setStaffLoading] = useState(canAssign);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const staffAbortRef = useRef<AbortController | null>(null);
   const [recordServiceId, setRecordServiceId] = useState<string | null>(null);
   const [staffError, setStaffError] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -123,7 +125,7 @@ const AppointmentServicesPanel = ({
     isReceptionSpecialtyRoutingEnabled &&
     Boolean(readReceptionIntake(appointment.intake));
   const specialtyAssignment = isReceptionSpecialtyRoutingEnabled
-    ? pickSpecialtyAssignment(onDutyStaff, staff, selectedSpecialty)
+    ? pickSpecialtyAssignment(staff, staff, selectedSpecialty)
     : undefined;
 
   const handleConfirmCancelService = async (reason: string) => {
@@ -190,22 +192,35 @@ const AppointmentServicesPanel = ({
 
   const orderDate = appointment.date;
 
-  useEffect(() => {
-    if (!canAssign) return;
+  useEffect(() => () => staffAbortRef.current?.abort(), []);
+
+  // Nghiệp vụ 4.2: only the staff who can do this service and did not report busy
+  // for its shift (BE f19060f), never everyone as a fallback
+  const loadStaffFor = (item: OnlineAppointmentService) => {
+    staffAbortRef.current?.abort();
     const controller = new AbortController();
-    StaffService.listStaffForDate(orderDate, { signal: controller.signal })
-      .then(res => {
-        setOnDutyStaff(res.onDuty);
-        setStaff(res.all);
+    staffAbortRef.current = controller;
+    setStaff([]);
+    setStaffError(false);
+    setStaffLoading(true);
+    StaffService.listAvailableStaff(
+      {
+        date: orderDate,
+        time: item.scheduledStart || appointment.slotStart,
+        serviceId: getServiceRefId(item.serviceId),
+      },
+      { signal: controller.signal }
+    )
+      .then(list => {
+        if (!controller.signal.aborted) setStaff(list);
       })
       .catch((err: unknown) => {
-        if (!isAbort(err)) setStaffError(true);
+        if (!isAbort(err) && !controller.signal.aborted) setStaffError(true);
       })
       .finally(() => {
         if (!controller.signal.aborted) setStaffLoading(false);
       });
-    return () => controller.abort();
-  }, [canAssign, orderDate]);
+  };
 
   const startEditing = (item: OnlineAppointmentService) => {
     setEditingId(item._id);
@@ -215,12 +230,15 @@ const AppointmentServicesPanel = ({
         ? undefined
         : getStaffRefId(item.assignedStaffId)
     );
+    loadStaffFor(item);
   };
 
   const stopEditing = () => {
+    staffAbortRef.current?.abort();
     setEditingId(null);
     setSelectedStaffId(undefined);
     setSelectedSpecialty(undefined);
+    setStaffLoading(false);
   };
 
   const submitAssignment = async (
@@ -242,8 +260,7 @@ const AppointmentServicesPanel = ({
     }
     const eligibleStaff = usesSpecialtyRouting(item)
       ? hasIntake && specialtyAssignment?.staff
-      : pickAssignableStaff(onDutyStaff, staff, getRequiredStaffRole(category))
-          .staff;
+      : staff;
     if (!eligibleStaff || !eligibleStaff.some(person => person._id === staffId))
       return;
     setSavingId(item._id);
@@ -299,9 +316,15 @@ const AppointmentServicesPanel = ({
     }
 
     if (editingId === item._id) {
-      const role = getRequiredStaffRole(category);
-      const { staff: options, onDutyOnly } =
-        specialtyRouting ?? pickAssignableStaff(onDutyStaff, staff, role);
+      // The BE filtered by the service's own role; the category is for the label
+      const role =
+        staff[0]?.role ??
+        getServiceStaffRole({
+          category,
+          requiredRole: (item.serviceId as { requiredRole?: string | null })
+            ?.requiredRole,
+        });
+      const options = specialtyRouting ? specialtyRouting.staff : staff;
       const specialtyStatus = specialtyRouting
         ? getSpecialtyStatus(specialtyRouting, selectedSpecialty)
         : undefined;
@@ -393,18 +416,6 @@ const AppointmentServicesPanel = ({
                 {specialtyStatus ?? MSG23}
               </Text>
             )}
-          {!staffLoading &&
-            !staffError &&
-            options.length > 0 &&
-            !onDutyOnly && (
-              <Text type="secondary" style={{ display: 'block', marginTop: 6 }}>
-                Chưa có ai trong vai trò này có lịch làm việc ngày{' '}
-                {dayjs(orderDate).format('DD/MM/YYYY')}, nên đang hiện{' '}
-                {specialtyRouting
-                  ? 'bác sĩ đúng chuyên môn đang hoạt động.'
-                  : 'mọi nhân sự đang hoạt động.'}
-              </Text>
-            )}
         </>
       );
     }
@@ -444,7 +455,10 @@ const AppointmentServicesPanel = ({
             {item.isEmergency && <Tag color="red">Cấp cứu</Tag>}
           </Space>
           <Tag color={getAppointmentServiceStatusColor(item.status)}>
-            {getAppointmentServiceStatusLabel(item.status)}
+            {getAppointmentServiceStatusLabel(
+              item.status,
+              getServiceRefCategory(item.serviceId)
+            )}
           </Tag>
         </div>
 
@@ -557,9 +571,7 @@ const AppointmentServicesPanel = ({
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           {isQueueingOrder(orderStatus)
             ? 'Khách đã check-in: dịch vụ được phân công sẽ vào hàng đợi của người phụ trách ngay.'
-            : isReceptionSpecialtyRoutingEnabled
-              ? 'Khách chưa check-in: có thể phân công Groomer trước. Ca khám cần có phiếu tiếp nhận để phân công.'
-              : 'Khách chưa check-in: có thể phân công trước, dịch vụ sẽ tự vào hàng đợi khi khách check-in.'}
+            : 'Đổi người phụ trách cho dịch vụ chưa bắt đầu.'}
         </Text>
       )}
       {canAssign && orderBlockReason && (

@@ -181,6 +181,7 @@ export const PetProfileWrapper = styled.div`
 
   .timeline-card {
     background: #ffffff;
+    margin-bottom: 20px;
     border: 1px solid #e2e8f0;
     border-radius: 16px;
     padding: 20px 24px;

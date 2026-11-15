@@ -4,9 +4,9 @@ import {
   Alert,
   Button,
   Card,
+  DatePicker,
   Segmented,
   Space,
-  Switch,
   Table,
   Tabs,
   Tag,
@@ -19,6 +19,7 @@ import {
   EyeOutlined,
   FileTextOutlined,
   PlayCircleOutlined,
+  ProfileOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
@@ -30,6 +31,7 @@ import { STORAGE, storage } from '@/lib/storage';
 import ROUTER from '@/routerMap/ROUTER';
 import type { GroomingNote, MyQueueItem, Pet } from '@/types';
 import AppointmentServiceService, {
+  QUEUE_PERIODS,
   QUEUE_VIEWS,
   countMyQueue,
   extractApiError,
@@ -41,9 +43,13 @@ import AppointmentServiceService, {
   getGroomingActions,
   getPreviousServiceMessage,
   getPreviousUnfinishedService,
+  getQueueCustomerNote,
+  getQueueItemTime,
   getQueueOrder,
+  getQueuePeriodRange,
   getServiceRefCategory,
   getVietnamTodayString,
+  type QueuePeriod,
   type QueueView,
 } from '@/services/AppointmentServiceService';
 import MedicalRecordService from '@/services/MedicalRecordService';
@@ -64,7 +70,7 @@ import GroomingNoteHistoryModal from './components/GroomingNoteHistoryModal';
 import AssignedSubtasks from './components/AssignedSubtasks';
 import QueueServiceSubtasks from './components/QueueServiceSubtasks';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 // Refresh while the page is visible, so a check-in at the desk shows up (SCR-22)
 const POLL_MS = 30000;
@@ -97,7 +103,9 @@ const StaffQueuePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<QueueView>('active');
-  const [todayOnly, setTodayOnly] = useState(true);
+  // Nghiệp vụ 5, 6: ca được giao lọc theo ngày, tuần, tháng của ngày hẹn
+  const [period, setPeriod] = useState<QueuePeriod>('day');
+  const [anchor, setAnchor] = useState(getVietnamTodayString);
   // petId -> pet (null when it could not be loaded); my-queue does not populate pets
   const [pets, setPets] = useState<Record<string, Pet | null>>({});
   const [startingId, setStartingId] = useState<string | null>(null);
@@ -148,11 +156,22 @@ const StaffQueuePage = () => {
     };
   }, [fetchQueue]);
 
-  const visible = useMemo(
-    () => filterMyQueue(items, view, todayOnly, today),
-    [items, view, todayOnly, today]
+  const range = useMemo(
+    () => getQueuePeriodRange(period, anchor),
+    [period, anchor]
   );
-  const counts = countMyQueue(items, todayOnly, today);
+  const visible = useMemo(
+    () => filterMyQueue(items, view, range, today),
+    [items, view, range, today]
+  );
+  const counts = countMyQueue(items, range, today);
+  const rangeText = !range
+    ? ''
+    : range.from === range.to
+      ? range.from === today
+        ? 'hôm nay'
+        : `ngày ${dayjs(range.from).format('DD/MM/YYYY')}`
+      : `từ ${dayjs(range.from).format('DD/MM')} đến ${dayjs(range.to).format('DD/MM/YYYY')}`;
 
   // Pet name and species for the rows on screen, one request per pet
   useEffect(() => {
@@ -265,15 +284,39 @@ const StaffQueuePage = () => {
   const renderPet = (item: MyQueueItem) => {
     const petId = getQueueOrder(item)?.petId;
     if (!petId) return <Text type="secondary">—</Text>;
-    if (!(petId in pets)) return <Text type="secondary">Đang tải...</Text>;
+    // Nghiệp vụ 5, 6: mở hồ sơ pet để xem timeline và bệnh án các lần trước
+    const profileLink = (
+      <Button
+        type="link"
+        size="small"
+        icon={<ProfileOutlined aria-hidden />}
+        style={{ padding: 0, height: 'auto' }}
+        onClick={() => navigate(generatePath(ROUTER.PET_PROFILE, { petId }))}
+      >
+        Hồ sơ pet
+      </Button>
+    );
+    if (!(petId in pets))
+      return (
+        <Space direction="vertical" size={0}>
+          <Text type="secondary">Đang tải...</Text>
+          {profileLink}
+        </Space>
+      );
     const pet = pets[petId];
-    if (!pet) return <Text type="secondary">Không tải được</Text>;
     return (
       <Space direction="vertical" size={0}>
-        <Text strong>{pet.name}</Text>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {describeWalkInPet(pet)}
-        </Text>
+        {pet ? (
+          <>
+            <Text strong>{pet.name}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {describeWalkInPet(pet)}
+            </Text>
+          </>
+        ) : (
+          <Text type="secondary">Không tải được</Text>
+        )}
+        {profileLink}
       </Space>
     );
   };
@@ -396,7 +439,8 @@ const StaffQueuePage = () => {
         </Button>
       );
     }
-    // Both Veterinarians and Groomers can look up the pet's cage and release it (SCR-22, SCR-26, BR-10)
+    // Vets and groomers can look up which cage the pet is in. Placing and
+    // releasing cages is the receptionist's job (nghiệp vụ 4.5)
     if (order && (item.status === 'Waiting' || item.status === 'InProgress')) {
       buttons.push(
         <Button
@@ -425,17 +469,29 @@ const StaffQueuePage = () => {
 
   const columns: ColumnsType<MyQueueItem> = [
     {
-      title: 'STT',
+      // Nghiệp vụ 5: mỗi ca hiện giờ. It shares the queue number column so the
+      // table fits the screen without scrolling sideways
+      title: 'STT · Giờ',
       key: 'queueNo',
-      width: 90,
-      render: (_, item) => (
-        <Space direction="vertical" size={2}>
-          <Text strong style={{ fontSize: 16 }}>
-            {typeof item.queueNo === 'number' ? `#${item.queueNo}` : '—'}
-          </Text>
-          {item.isEmergency && <Tag color="red">Cấp cứu</Tag>}
-        </Space>
-      ),
+      width: 110,
+      render: (_, item) => {
+        const time = getQueueItemTime(item);
+        return (
+          <Space direction="vertical" size={2}>
+            <Text strong style={{ fontSize: 16 }}>
+              {typeof item.queueNo === 'number' ? `#${item.queueNo}` : '—'}
+            </Text>
+            {time ? (
+              <Text strong>{time}</Text>
+            ) : (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Chưa có giờ
+              </Text>
+            )}
+            {item.isEmergency && <Tag color="red">Cấp cứu</Tag>}
+          </Space>
+        );
+      },
     },
     {
       title: 'Dịch vụ',
@@ -461,13 +517,15 @@ const StaffQueuePage = () => {
     },
     { title: 'Thú cưng', key: 'pet', render: (_, item) => renderPet(item) },
     {
-      title: 'Lịch hẹn',
+      title: 'Lịch hẹn và ghi chú',
       key: 'order',
       render: (_, item) => {
         const order = getQueueOrder(item);
         if (!order) return <Text type="secondary">—</Text>;
+        // Nghiệp vụ 5: ghi chú khách để lại khi đặt lịch (triệu chứng, yêu cầu)
+        const note = getQueueCustomerNote(item);
         return (
-          <Space direction="vertical" size={2}>
+          <Space direction="vertical" size={2} style={{ width: '100%' }}>
             <Text strong style={{ color: '#0958d9' }}>
               {order.code}
             </Text>
@@ -477,6 +535,20 @@ const StaffQueuePage = () => {
               {order.isOnline ? 'Online' : 'Tại chỗ'} ·{' '}
               {getAppointmentStatusLabel(order.derivedStatus)}
             </Text>
+            {note ? (
+              <Paragraph
+                aria-label="Ghi chú của khách"
+                style={{ margin: 0 }}
+                ellipsis={{ rows: 2, tooltip: note }}
+              >
+                <Text type="secondary">Ghi chú: </Text>
+                {note}
+              </Paragraph>
+            ) : (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Không có ghi chú của khách
+              </Text>
+            )}
           </Space>
         );
       },
@@ -485,17 +557,20 @@ const StaffQueuePage = () => {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      width: 140,
-      render: (status: string) => (
+      width: 120,
+      render: (status: string, item) => (
         <Tag color={getAppointmentServiceStatusColor(status)}>
-          {getAppointmentServiceStatusLabel(status)}
+          {getAppointmentServiceStatusLabel(
+            status,
+            getServiceRefCategory(item.serviceId)
+          )}
         </Tag>
       ),
     },
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 230,
+      width: 180,
       render: (_, item) => renderActions(item),
     },
   ];
@@ -545,9 +620,43 @@ const StaffQueuePage = () => {
             label: `${v.label} (${counts[v.key]})`,
           }))}
         />
-        <Space size={8}>
-          <Switch checked={todayOnly} onChange={setTodayOnly} />
-          <Text>Chỉ lịch hẹn hôm nay</Text>
+        <Space size={8} wrap>
+          <Segmented
+            aria-label="Khoảng thời gian"
+            value={period}
+            onChange={value => setPeriod(value as QueuePeriod)}
+            options={QUEUE_PERIODS.map(p => ({ value: p.key, label: p.label }))}
+          />
+          {period !== 'all' && (
+            <DatePicker
+              aria-label="Chọn ngày, tuần hoặc tháng"
+              allowClear={false}
+              picker={period === 'day' ? 'date' : period}
+              format={
+                period === 'week'
+                  ? // Show the Monday–Sunday range the list is filtered by
+                    value => {
+                      const week = getQueuePeriodRange(
+                        'week',
+                        value.format('YYYY-MM-DD')
+                      );
+                      return week
+                        ? `${dayjs(week.from).format('DD/MM')} – ${dayjs(week.to).format('DD/MM/YYYY')}`
+                        : '';
+                    }
+                  : period === 'day'
+                    ? 'DD/MM/YYYY'
+                    : 'MM/YYYY'
+              }
+              value={dayjs(anchor)}
+              onChange={value => value && setAnchor(value.format('YYYY-MM-DD'))}
+            />
+          )}
+          {period !== 'all' && anchor !== today && (
+            <Button type="link" onClick={() => setAnchor(today)}>
+              Về hôm nay
+            </Button>
+          )}
         </Space>
       </Space>
 
@@ -570,11 +679,12 @@ const StaffQueuePage = () => {
         dataSource={visible}
         rowKey="_id"
         loading={loading}
-        scroll={{ x: 960 }}
+        // Fits the content area of a 1366px screen; narrower screens scroll
+        scroll={{ x: 900 }}
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
         locale={{
-          emptyText: todayOnly
-            ? 'Không có ca nào trong nhóm này hôm nay.'
+          emptyText: range
+            ? `Không có ca nào trong nhóm này ${rangeText}.`
             : 'Không có ca nào trong nhóm này.',
         }}
       />
@@ -612,6 +722,12 @@ const StaffQueuePage = () => {
         <QueueServiceSubtasks
           key={subtaskServiceId}
           serviceId={subtaskServiceId}
+          workTime={
+            subtaskService?.scheduledStart ||
+            (subtaskService
+              ? getQueueOrder(subtaskService)?.slotStart
+              : undefined)
+          }
           requesterId={userId}
           active={!error && subtaskService?.status === 'InProgress'}
           onClose={() => setSubtaskServiceId(undefined)}

@@ -40,8 +40,7 @@ import ServiceService, {
 } from '@/services/ServiceService';
 import StaffService, {
   formatStaffOption,
-  getRequiredStaffRole,
-  pickAssignableStaff,
+  getServiceStaffRole,
 } from '@/services/StaffService';
 import CageService from '@/services/CageService';
 import {
@@ -163,8 +162,13 @@ const WalkInForm = ({
 
   // Reference data for the selects
   const [services, setServices] = useState<Service[]>([]);
-  const [onDutyStaff, setOnDutyStaff] = useState<StaffMember[]>([]);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  // B2 (nghiệp vụ 4.2): per chosen service, the staff who can do it and did not
+  // report busy for the current shift; loaded when a row picks the service
+  const [staffByService, setStaffByService] = useState<
+    Record<string, StaffMember[]>
+  >({});
+  const [staffLoadingIds, setStaffLoadingIds] = useState<string[]>([]);
+  const staffRequestedRef = useRef(new Set<string>());
   const [cages, setCages] = useState<Cage[]>([]);
   const [refLoading, setRefLoading] = useState(true);
   const [servicesError, setServicesError] = useState<string | null>(null);
@@ -203,9 +207,11 @@ const WalkInForm = ({
     setStaffError(false);
     setCagesError(false);
 
-    const [servicesRes, staffRes, cagesRes] = await Promise.allSettled([
+    // A retry also reloads who is free
+    staffRequestedRef.current.clear();
+    setStaffByService({});
+    const [servicesRes, cagesRes] = await Promise.allSettled([
       ServiceService.listServices({ status: 'Active' }, { signal }),
-      StaffService.listStaffForDate(today, { signal }),
       CageService.listCages({ status: 'Available', limit: 100 }, { signal }),
     ]);
     if (signal.aborted) return undefined;
@@ -220,12 +226,6 @@ const WalkInForm = ({
           .message
       );
     }
-    if (staffRes.status === 'fulfilled') {
-      setOnDutyStaff(staffRes.value.onDuty);
-      setStaff(staffRes.value.all);
-    } else {
-      setStaffError(true);
-    }
     if (cagesRes.status === 'fulfilled') {
       setCages(cagesRes.value.data?.items || []);
     } else {
@@ -233,7 +233,34 @@ const WalkInForm = ({
       setCagesError(true);
     }
     setRefLoading(false);
-  }, [today]);
+  }, []);
+
+  useEffect(() => {
+    const ids = [
+      ...new Set(
+        (Array.isArray(serviceRows) ? serviceRows : [])
+          .map((row: { serviceId?: string } | undefined) => row?.serviceId)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ].filter(id => !staffRequestedRef.current.has(id));
+    if (!ids.length) return;
+    ids.forEach(id => staffRequestedRef.current.add(id));
+    setStaffLoadingIds(current => [...current, ...ids]);
+    for (const id of ids) {
+      // No time: for today the BE takes the shift we are in now
+      StaffService.listAvailableStaff({ date: today, serviceId: id })
+        .then(list =>
+          setStaffByService(current => ({ ...current, [id]: list }))
+        )
+        .catch(() => {
+          staffRequestedRef.current.delete(id);
+          setStaffError(true);
+        })
+        .finally(() =>
+          setStaffLoadingIds(current => current.filter(x => x !== id))
+        );
+    }
+  }, [serviceRows, today]);
 
   const cageRefreshRef = useRef<AbortController | null>(null);
   const [cagesRefreshing, setCagesRefreshing] = useState(false);
@@ -361,6 +388,13 @@ const WalkInForm = ({
     [cages, petWeight, requiresIsolation]
   );
   const hiddenCages = cages.length - suitableCages.length;
+  // Nghiệp vụ 4.2: walk-in gán pet vào chuồng trống. Khi hết chuồng vừa, tạm thời
+  // vẫn cho tạo lịch rồi xếp chuồng sau (quyết định A13 ngày 15/11, sẽ sửa sau)
+  const noCageLeft =
+    !refLoading &&
+    !cagesRefreshing &&
+    !cagesError &&
+    suitableCages.length === 0;
 
   useEffect(() => {
     if (cageIdValue && !suitableCages.some(c => c._id === cageIdValue)) {
@@ -816,13 +850,19 @@ const WalkInForm = ({
               const rowService = serviceById.get(
                 serviceRows?.[field.name]?.serviceId || ''
               );
-              const role = getRequiredStaffRole(rowService?.category);
-              const { staff: staffOptions, onDutyOnly } = rowService
-                ? pickAssignableStaff(onDutyStaff, staff, role)
-                : { staff: [], onDutyOnly: true };
+              const role = rowService
+                ? getServiceStaffRole(rowService)
+                : undefined;
+              const staffOptions = rowService
+                ? (staffByService[rowService._id] ?? [])
+                : [];
+              const staffLoading = Boolean(
+                rowService && staffLoadingIds.includes(rowService._id)
+              );
               const noStaff =
                 Boolean(rowService) &&
                 !refLoading &&
+                !staffLoading &&
                 !staffError &&
                 staffOptions.length === 0;
 
@@ -891,11 +931,11 @@ const WalkInForm = ({
                         }
                         extra={
                           noStaff ? (
+                            // Nghiệp vụ 4.2: nobody free, the customer waits or comes another day
                             <Text type="warning">
-                              {MSG23} Có thể phân công sau.
+                              {MSG23} Hẹn khách chờ hoặc sang ngày khác; vẫn có
+                              thể tiếp nhận rồi phân công sau.
                             </Text>
-                          ) : rowService && !onDutyOnly && !refLoading ? (
-                            'Hôm nay chưa ai trong vai trò này có lịch làm việc, đang hiện mọi nhân sự.'
                           ) : undefined
                         }
                       >
@@ -903,6 +943,7 @@ const WalkInForm = ({
                           allowClear
                           showSearch
                           optionFilterProp="label"
+                          loading={staffLoading}
                           disabled={!rowService || noStaff}
                           placeholder={
                             rowService ? 'Phân công sau' : 'Chọn dịch vụ trước'
@@ -1034,7 +1075,13 @@ const WalkInForm = ({
 
       <Form.Item
         name="cageId"
-        label="Chuồng lưu giữ (không bắt buộc)"
+        label="Chuồng lưu giữ"
+        rules={[
+          {
+            required: !noCageLeft,
+            message: 'Vui lòng chọn chuồng cho thú cưng.',
+          },
+        ]}
         extra={
           cagesError ? (
             <Space wrap>
@@ -1043,20 +1090,20 @@ const WalkInForm = ({
                 Tải lại chuồng trống
               </Button>
             </Space>
-          ) : !refLoading && cages.length === 0 ? (
-            MSG24
+          ) : noCageLeft ? (
+            `${cages.length === 0 ? MSG24 : 'Không có chuồng trống vừa thú cưng.'} Có thể tiếp nhận trước rồi xếp chuồng sau ở Sơ đồ chuồng.`
           ) : hiddenCages > 0 ? (
-            `Đã ẩn ${hiddenCages} chuồng không phù hợp về trạng thái, khu vực, cân nặng hoặc cách ly. ${requiresIsolation ? 'Nếu không chọn chuồng, yêu cầu cách ly không được lưu.' : 'Có thể tiếp nhận mà không phân chuồng.'}`
+            `Đã ẩn ${hiddenCages} chuồng không vừa cân nặng hoặc yêu cầu cách ly (BR-11).`
           ) : requiresIsolation ? (
-            'Chỉ hiện chuồng cách ly. Nếu không chọn chuồng, yêu cầu cách ly không được lưu.'
+            'Chỉ hiện chuồng cách ly.'
           ) : (
-            'Để trống nếu khách tự bế bé chờ ở sảnh.'
+            'Chỉ hiện chuồng trống vừa cân nặng thú cưng (BR-11).'
           )
         }
       >
         <Select
           allowClear
-          placeholder="Không xếp chuồng"
+          placeholder="Chọn chuồng trống"
           loading={refLoading || cagesRefreshing}
           disabled={cagesRefreshing || suitableCages.length === 0}
           options={suitableCages.map(c => ({

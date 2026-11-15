@@ -4,19 +4,17 @@ import { Button } from 'antd';
 import {
   CalendarOutlined,
   HomeFilled,
-  MedicineBoxOutlined,
   SafetyCertificateOutlined,
   ClockCircleOutlined,
   PhoneOutlined,
   FileTextOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
 import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 
 const HeroOuterWrapper = styled.section`
   max-width: 1320px;
   margin: 0 auto;
-  padding: 24px 20px 48px 20px;
+  padding: 24px 20px 32px 20px;
 `;
 
 const HospitalBannerCard = styled.div`
@@ -190,49 +188,11 @@ const HospitalBannerCard = styled.div`
     padding: 0 32px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     min-height: 56px;
-    flex-wrap: wrap;
-    gap: 12px;
 
     @media (max-width: 900px) {
       padding: 12px 20px;
-    }
-
-    .subnav-links {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      flex-wrap: wrap;
-
-      @media (max-width: 640px) {
-        gap: 14px;
-      }
-
-      a.subnav-item {
-        color: #134e4a;
-        font-size: 13.5px;
-        font-weight: 600;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.15s ease;
-
-        .anticon {
-          color: #0d9488;
-        }
-
-        &:hover {
-          color: #0d9488;
-          transform: translateY(-1px);
-        }
-
-        &.highlight {
-          color: #0f766e;
-          font-weight: 700;
-        }
-      }
     }
 
     .subnav-hours {
@@ -394,49 +354,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
 
         {/* Bottom Subnav Bar (UCLA Health Sub-Bar pattern) */}
         <div className="hospital-subnav">
-          <div className="subnav-links">
-            <a
-              href="#services"
-              className="subnav-item"
-              onClick={e => {
-                e.preventDefault();
-                scrollToSection('services');
-              }}
-            >
-              <MedicineBoxOutlined /> Dịch vụ chuyên khoa
-            </a>
-            <a
-              href="#doctors"
-              className="subnav-item"
-              onClick={e => {
-                e.preventDefault();
-                scrollToSection('doctors');
-              }}
-            >
-              <TeamOutlined /> Đội ngũ Bác sĩ
-            </a>
-            <a
-              href="#booking"
-              className="subnav-item"
-              onClick={e => {
-                e.preventDefault();
-                handleBookingClick();
-              }}
-            >
-              <CalendarOutlined /> Đặt lịch hẹn khám
-            </a>
-            <a
-              href="#community"
-              className="subnav-item"
-              onClick={e => {
-                e.preventDefault();
-                scrollToSection('community');
-              }}
-            >
-              <FileTextOutlined /> Ca bệnh hồi phục & Đánh giá
-            </a>
-          </div>
-
           <div className="subnav-hours">
             <ClockCircleOutlined className="icon" />
             <span>

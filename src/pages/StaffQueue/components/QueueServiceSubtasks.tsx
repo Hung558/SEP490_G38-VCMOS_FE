@@ -7,11 +7,14 @@ import { extractApiError } from '@/services/AppointmentServiceService';
 
 const QueueServiceSubtasks = ({
   serviceId,
+  workTime,
   requesterId,
   active,
   onClose,
 }: {
   serviceId: string;
+  /** HH:mm of the exam, for who is free in that shift */
+  workTime?: string | null;
   requesterId?: string;
   active: boolean;
   onClose: () => void;
@@ -40,6 +43,7 @@ const QueueServiceSubtasks = ({
   return (
     <ServiceSubtasksModal
       serviceId={serviceId}
+      workTime={workTime}
       requesterId={requesterId}
       canCreate={active && !!requesterId && permission === 'allowed'}
       createHint={

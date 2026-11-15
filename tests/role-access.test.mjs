@@ -56,6 +56,18 @@ test('"Đặt lịch khám" opens the booking form of the roles that can book', 
   }
 });
 
+test('"Đặt dịch vụ này" pre-selects the service in the owner booking form', () => {
+  assert.equal(
+    access.getBookingPath('PetOwner', '665f1c2a9b1e8a0012345678'),
+    '/dashboard?tab=appointments&book=new&service=665f1c2a9b1e8a0012345678'
+  );
+  // The walk-in form has no pre-selected service
+  assert.equal(
+    access.getBookingPath('Receptionist', '665f1c2a9b1e8a0012345678'),
+    '/clinic/appointments?walkin=new'
+  );
+});
+
 test('only Admin, Receptionist and Veterinarian start on their working page after login', () => {
   assert.equal(access.getPostLoginPath('Admin'), '/admin/users');
   assert.equal(access.getPostLoginPath('receptionist'), '/clinic/appointments');

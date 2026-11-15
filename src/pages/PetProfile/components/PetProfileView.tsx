@@ -20,9 +20,10 @@ const { Text } = Typography;
 
 interface PetProfileViewProps {
   pet: Pet;
-  onEdit: () => void;
-  onDelete: () => void;
-  onBookAppointment: () => void;
+  /** Left out for staff, who only read the profile (nghiệp vụ 5, 6) */
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onBookAppointment?: () => void;
 }
 
 /** Pet header, health metrics and allergy notes of the SCR-08 profile page */
@@ -34,6 +35,7 @@ const PetProfileView: React.FC<PetProfileViewProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const isDeleted = pet.status === 'Deleted';
+  const readOnly = !onEdit && !onDelete && !onBookAppointment;
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(pet.code);
@@ -57,7 +59,7 @@ const PetProfileView: React.FC<PetProfileViewProps> = ({
 
   return (
     <>
-      {isDeleted && (
+      {isDeleted && !readOnly && (
         <Alert
           type="info"
           showIcon
@@ -100,22 +102,28 @@ const PetProfileView: React.FC<PetProfileViewProps> = ({
           </Text>
         </div>
 
-        {!isDeleted && (
+        {!isDeleted && !readOnly && (
           <div className="hero-actions">
-            <Button icon={<EditOutlined />} onClick={onEdit}>
-              Chỉnh sửa
-            </Button>
-            <Button danger icon={<DeleteOutlined />} onClick={onDelete}>
-              Xóa
-            </Button>
-            <Button
-              type="primary"
-              className="btn-book"
-              icon={<CalendarOutlined />}
-              onClick={onBookAppointment}
-            >
-              Đặt lịch khám
-            </Button>
+            {onEdit && (
+              <Button icon={<EditOutlined />} onClick={onEdit}>
+                Chỉnh sửa
+              </Button>
+            )}
+            {onDelete && (
+              <Button danger icon={<DeleteOutlined />} onClick={onDelete}>
+                Xóa
+              </Button>
+            )}
+            {onBookAppointment && (
+              <Button
+                type="primary"
+                className="btn-book"
+                icon={<CalendarOutlined />}
+                onClick={onBookAppointment}
+              >
+                Đặt lịch khám
+              </Button>
+            )}
           </div>
         )}
       </div>

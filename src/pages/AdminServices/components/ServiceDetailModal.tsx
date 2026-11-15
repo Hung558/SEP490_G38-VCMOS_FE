@@ -6,6 +6,7 @@ import {
   serviceStatusLabels,
   type Service,
 } from '@/services/ServiceService';
+import { getServiceStaffRole } from '@/services/StaffService';
 
 interface Props {
   open: boolean;
@@ -60,6 +61,12 @@ const ServiceDetailModal = ({
           </Descriptions.Item>
           <Descriptions.Item label="Danh mục">
             {serviceCategoryLabels[service.category] || service.category || '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Vai trò thực hiện">
+            {getServiceStaffRole(service) === 'Groomer'
+              ? 'Groomer'
+              : 'Bác sĩ thú y'}
+            {service.requiredRole ? '' : ' (theo danh mục)'}
           </Descriptions.Item>
           <Descriptions.Item label="Thời lượng">
             {formatServiceDuration(service.defaultDuration)}

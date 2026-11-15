@@ -352,8 +352,12 @@ test('staff assignment is blocked once the appointment or the service is closed'
       serviceStatus
     );
   }
+  // BE 455dbf6: staff is assigned at check-in, assign-staff returns 409 before it
+  assert.equal(
+    orderServices.getAssignStaffBlockReason('Booked', 'Booked'),
+    orderServices.ASSIGN_AT_CHECK_IN_MESSAGE
+  );
   for (const [serviceStatus, orderStatus] of [
-    ['Booked', 'Booked'],
     ['Booked', 'CheckedIn'],
     ['Waiting', 'CheckedIn'],
     ['Waiting', 'InProgress'],
@@ -404,6 +408,14 @@ test('canSubmitAssignment needs a person other than the one already assigned', (
     orderServices.canSubmitAssignment(
       { status: 'Booked', assignedStaffId: null },
       'Booked',
+      VET
+    ),
+    false
+  );
+  assert.equal(
+    orderServices.canSubmitAssignment(
+      { status: 'Booked', assignedStaffId: null },
+      'CheckedIn',
       VET
     ),
     true

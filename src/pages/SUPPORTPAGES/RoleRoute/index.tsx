@@ -7,7 +7,10 @@ import { getLandingPath } from '@/routerMap/roleAccess';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 interface RoleRouteProps {
-  /** Role groups allowed on the child routes; anyone else goes to their own landing page */
+  /**
+   * Role groups allowed on the child routes; anyone else goes to their own
+   * landing page. With `allowRoles` too, either one lets the user in.
+   */
   allow?: RoleGroup[];
   /** Exact normalized roles allowed on the child routes (e.g. ['Admin', 'Receptionist']) */
   allowRoles?: string[];
@@ -33,14 +36,12 @@ const RoleRoute = ({ allow, allowRoles }: RoleRouteProps) => {
     );
   }
 
-  if (allowRoles && allowRoles.length > 0) {
-    if (!allowRoles.includes(role)) {
-      return <Navigate to={getLandingPath(rawRole)} replace />;
-    }
-  } else if (allow && allow.length > 0) {
-    if (!allow.includes(getRoleGroup(rawRole))) {
-      return <Navigate to={getLandingPath(rawRole)} replace />;
-    }
+  const restricted = Boolean(allowRoles?.length || allow?.length);
+  const allowed =
+    Boolean(allowRoles?.includes(role)) ||
+    Boolean(allow?.includes(getRoleGroup(rawRole)));
+  if (restricted && !allowed) {
+    return <Navigate to={getLandingPath(rawRole)} replace />;
   }
 
   return (

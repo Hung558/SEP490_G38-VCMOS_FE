@@ -240,9 +240,6 @@ const HomeFooter = () => {
               <a href="#doctors">Lịch trực Đội ngũ Bác sĩ</a>
             </li>
             <li>
-              <a href="#community">Hồ sơ ca bệnh hồi phục thực tế</a>
-            </li>
-            <li>
               <a href="#quick-booking">Hướng dẫn chăm sóc thú cưng</a>
             </li>
           </ul>

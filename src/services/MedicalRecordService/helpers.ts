@@ -53,7 +53,13 @@ export const SOAP_FIELDS: readonly {
 ];
 
 export const MSG_SOAP_REQUIRED =
-  'Vui lòng nhập đủ 4 phần S - O - A - P trước khi hoàn tất ca khám.';
+  'Vui lòng nhập đủ 3 phần O - A - P trước khi hoàn tất ca khám.';
+
+/**
+ * Chữ S do BE tự điền từ triệu chứng ở phiếu tiếp nhận, không có thì từ ghi chú
+ * khách để lại khi đặt lịch, rồi khóa lại (BE f19060f). Bác sĩ chỉ đọc.
+ */
+export const SOAP_LOCKED_FIELD: SoapFieldKey = 'subjectiveNote';
 
 export interface PrescriptionRow {
   productId?: string;
@@ -78,7 +84,9 @@ const trimmed = (value?: string | null): string =>
 
 /**
  * Build payload cho lưu nháp và hoàn tất bệnh án:
- * - luôn gửi đủ 4 phần SOAP và ghi chú (chuỗi rỗng để xóa nội dung đã lưu)
+ * - gửi O, A, P và ghi chú (chuỗi rỗng để xóa nội dung đã lưu); không gửi S vì BE
+ *   tự điền và khóa chữ S
+ 
  * - luôn gửi danh sách thuốc (mảng rỗng = bỏ hết thuốc đã kê)
  * - chỉ gửi cân nặng khi bác sĩ nhập số (BE ghi đè luôn Pet.weight)
  */
@@ -86,7 +94,6 @@ export const buildMedicalRecordPayload = (
   values: MedicalRecordFormValues
 ): SaveMedicalRecordPayload => {
   const payload: SaveMedicalRecordPayload = {
-    subjectiveNote: trimmed(values.subjectiveNote),
     objectiveNote: trimmed(values.objectiveNote),
     assessment: trimmed(values.assessment),
     plan: trimmed(values.plan),
@@ -111,20 +118,21 @@ export const buildMedicalRecordPayload = (
   return payload;
 };
 
-/** Hoàn tất với dữ liệu hiện tại; null nghĩa là không xếp chuồng chờ đón. */
+/**
+ * Hoàn tất ca khám gửi đúng các giá trị SOAP đang có. Không gửi `waitingCageId`:
+ * nghiệp vụ 4.5 để lễ tân xếp bé vào chuồng chờ chủ đón, không phải bác sĩ.
+ */
 export const buildCompleteMedicalRecordPayload = (
-  values: MedicalRecordFormValues,
-  waitingCageId?: string
-): CompleteMedicalRecordPayload => ({
-  ...buildMedicalRecordPayload(values),
-  waitingCageId: waitingCageId ?? null,
-});
+  values: MedicalRecordFormValues
+): CompleteMedicalRecordPayload => buildMedicalRecordPayload(values);
 
-/** Các phần SOAP còn trống (BR-13) */
+/** Các phần SOAP bác sĩ còn để trống (BR-13); chữ S do hệ thống điền nên không tính */
 export const findMissingSoapFields = (
   values: MedicalRecordFormValues
 ): SoapFieldKey[] =>
-  SOAP_FIELDS.filter(field => !trimmed(values[field.key])).map(f => f.key);
+  SOAP_FIELDS.filter(
+    field => field.key !== SOAP_LOCKED_FIELD && !trimmed(values[field.key])
+  ).map(f => f.key);
 
 /**
  * Đổi key lỗi 400 của BE ("plan", "prescriptions[1].dosage"...) sang name path của

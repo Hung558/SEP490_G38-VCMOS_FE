@@ -78,7 +78,8 @@ export interface PrescriptionInput {
 
 /** PUT /medical-records/service/:id; the four SOAP fields are sent even when empty */
 export interface SaveMedicalRecordPayload {
-  subjectiveNote?: string;
+  /** BE fills and locks "S" (f19060f); the FE never sends it */
+  subjectiveNote?: never;
   objectiveNote?: string;
   assessment?: string;
   plan?: string;
@@ -88,9 +89,8 @@ export interface SaveMedicalRecordPayload {
 }
 
 /** POST /medical-records/service/:id/complete; needs all four SOAP fields (BR-13) */
-export interface CompleteMedicalRecordPayload extends SaveMedicalRecordPayload {
-  waitingCageId?: string | null;
-}
+/** FE không gửi `waitingCageId`: lễ tân xếp chuồng chờ đón (nghiệp vụ 4.5) */
+export type CompleteMedicalRecordPayload = SaveMedicalRecordPayload;
 
 export interface StartConsultationResponse {
   appointmentService: { _id: string; status: AppointmentServiceStatus };
