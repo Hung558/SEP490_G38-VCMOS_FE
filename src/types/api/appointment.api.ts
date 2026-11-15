@@ -1,5 +1,6 @@
 import type { OnlineAppointmentService } from './appointment-service.api';
 import type { CageAssignment } from './cage-assignment.api';
+import type { Cage } from './cage.api';
 
 export type AppointmentStatus =
   | 'Booked'
@@ -10,7 +11,22 @@ export type AppointmentStatus =
   | 'Cancelled'
   | 'Overdue';
 
-export interface OnlineAppointment {
+/** Cage fields the BE populates on an order (label, size, limits, status) */
+export type OrderCageRef = Pick<Cage, '_id' | 'label' | 'size'> &
+  Partial<Pick<Cage, 'maxWeightKg' | 'zone' | 'isIsolated' | 'status'>>;
+
+/** Fields the BE adds to every listed order (GET /appointment-orders, /me) */
+export interface AppointmentOrderExtras {
+  /** The cage the pet is in after check-in, else the cage reserved at booking */
+  cage?: OrderCageRef | null;
+  /** Cage held for the visit day at booking, populated on list responses */
+  reservedCageId?: OrderCageRef | string | null;
+  services?: OnlineAppointmentService[];
+  /** InProgress, else Waiting, else Booked, else the last Done service */
+  currentService?: OnlineAppointmentService | null;
+}
+
+export interface OnlineAppointment extends AppointmentOrderExtras {
   _id: string;
   code: string;
   petId: string;
@@ -97,7 +113,7 @@ export interface RecordedReceptionIntake extends ReceptionIntake {
   recordedAt?: string | null;
 }
 
-export interface StaffAppointment {
+export interface StaffAppointment extends AppointmentOrderExtras {
   _id: string;
   code: string;
   petId: PopulatedPetRef | string;
@@ -143,8 +159,15 @@ export interface ReceptionCageSelection {
   requiresIsolation?: boolean;
 }
 
+/** One service and the vet or groomer it goes to at check-in */
+export interface CheckInServiceAssignment {
+  appointmentServiceId: string;
+  assignedStaffId: string;
+}
+
 export interface CheckInAppointmentPayload extends ReceptionCageSelection {
   intake?: ReceptionIntake;
+  serviceAssignments?: CheckInServiceAssignment[];
 }
 
 export interface CheckInAppointmentResponse {

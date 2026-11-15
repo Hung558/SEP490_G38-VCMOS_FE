@@ -15,6 +15,7 @@ import type {
 } from '@/types';
 import AppointmentOrderService, {
   extractApiError,
+  getReservedCage,
   isReceptionCageError,
   readReceptionIntake,
 } from '@/services/AppointmentOrderService';
@@ -362,7 +363,7 @@ export const useAppointmentReception = () => {
     checkInTarget && activeCageByOrderId.has(checkInTarget._id)
       ? 'Lịch hẹn này đã có chuồng. Có thể tiếp nhận mà không phân thêm chuồng.'
       : activeCageLoading || activeCageError
-        ? 'Chưa xác nhận được tình trạng phân chuồng. Có thể tiếp nhận mà không phân chuồng.'
+        ? 'Chưa kiểm tra được chuồng hiện tại của lịch hẹn. Nếu tiếp nhận ngay, hệ thống dùng chuồng đã giữ chỗ (nếu có).'
         : undefined;
 
   const confirmCheckIn = async (values: CheckInAppointmentPayload) => {
@@ -379,12 +380,15 @@ export const useAppointmentReception = () => {
       );
       const savedIntake = readReceptionIntake(res.data?.intake);
       const savedCage = res.data?.cageAssignment;
+      // Without a choice the BE places the pet in the cage reserved at booking
+      const expectedCageId =
+        values.cageId || getReservedCage(checkInTarget)?._id;
       const cageConfirmed =
-        values.cageId &&
+        expectedCageId &&
         matchesActiveCageAssignment(
           savedCage,
           checkInTarget._id,
-          values.cageId
+          expectedCageId
         );
       if (cageConfirmed) {
         recordActiveCage(savedCage);

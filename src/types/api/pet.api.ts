@@ -1,3 +1,8 @@
+import type {
+  AppointmentStatus,
+  RecordedReceptionIntake,
+} from './appointment.api';
+
 export interface Pet {
   _id: string;
   code: string;
@@ -54,8 +59,24 @@ export interface UpdatePetPayload {
   photo?: File;
 }
 
+/** One visit of the pet as GET /pets/:petId lists it (cancelled ones left out) */
+export interface PetAppointmentNote {
+  _id: string;
+  code: string;
+  date: string; // YYYY-MM-DD
+  slotStart?: string | null;
+  isOnline?: boolean;
+  derivedStatus: AppointmentStatus;
+  note?: string | null;
+  intake?: RecordedReceptionIntake | null;
+  checkedInAt?: string | null;
+  createdAt?: string;
+}
+
 export interface PetDetailResponse {
   pet: Pet;
+  /** Newest first; the visits of the pet timeline */
+  appointmentNotes?: PetAppointmentNote[];
 }
 
 export interface DeletePetResponse {

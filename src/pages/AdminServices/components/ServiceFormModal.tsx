@@ -16,6 +16,10 @@ import {
   type Service,
   type ServiceFormValues,
 } from '@/services/ServiceService';
+import {
+  getRequiredStaffRole,
+  getServiceStaffRole,
+} from '@/services/StaffService';
 
 interface Props {
   open: boolean;
@@ -45,6 +49,8 @@ const ServiceFormModal = ({
       form.setFieldsValue({
         name: editingService.name,
         category: editingService.category,
+        // Older services have no role saved: show the one the BE applies
+        requiredRole: getServiceStaffRole(editingService),
         defaultDuration: editingService.defaultDuration ?? null,
         basePrice: editingService.basePrice ?? null,
         description: editingService.description ?? '',
@@ -93,6 +99,14 @@ const ServiceFormModal = ({
           layout="vertical"
           disabled={loading}
           onFinish={values => onSubmit(values)}
+          onValuesChange={changed => {
+            // Follow the category until the Admin picks a role by hand
+            if (changed.category && !form.isFieldTouched('requiredRole'))
+              form.setFieldValue(
+                'requiredRole',
+                getRequiredStaffRole(changed.category)
+              );
+          }}
         >
           <Form.Item
             name="name"
@@ -131,6 +145,20 @@ const ServiceFormModal = ({
                 value: item,
                 label: serviceCategoryLabels[item],
               }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="requiredRole"
+            label="Vai trò thực hiện"
+            extra="Người được phân công làm dịch vụ này. Mặc định theo danh mục: Chăm sóc / làm đẹp cho Groomer, còn lại cho Bác sĩ thú y."
+            rules={[{ required: true, message: 'Chọn vai trò thực hiện.' }]}
+          >
+            <Select
+              placeholder="Chọn vai trò"
+              options={[
+                { value: 'Veterinarian', label: 'Bác sĩ thú y' },
+                { value: 'Groomer', label: 'Groomer' },
+              ]}
             />
           </Form.Item>
           <Form.Item

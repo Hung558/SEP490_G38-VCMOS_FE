@@ -40,8 +40,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppointmentOrderService, {
-  getAppointmentStatusLabel,
   getAppointmentStatusColor,
+  getOrderStatusText,
   extractApiError,
   canOwnerCancelAppointment,
   getOwnerCancelState,
@@ -305,10 +305,13 @@ const DashboardPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = parseDashboardTab(searchParams.get('tab'));
   const bookParam = searchParams.get('book');
+  // ?service= comes from "Đặt dịch vụ này" on a home service card
+  const serviceParam = searchParams.get('service');
   const [booking, setBooking] = useState<{
     key: number;
     petId?: string;
     note?: string;
+    serviceId?: string;
   } | null>(null);
 
   const setTab = useCallback(
@@ -318,6 +321,7 @@ const DashboardPage: React.FC = () => {
           const next = new URLSearchParams(prev);
           next.set('tab', tab);
           next.delete('book');
+          next.delete('service');
           return next;
         },
         { replace: true }
@@ -326,17 +330,24 @@ const DashboardPage: React.FC = () => {
   );
 
   // The booking wizard is remounted each time, so it starts on the chosen pet
+  // (and service)
   const openBooking = useCallback(
-    (petId?: string, note?: string) => {
-      setBooking({ key: Date.now(), petId, note });
+    (petId?: string, note?: string, serviceId?: string) => {
+      setBooking({ key: Date.now(), petId, note, serviceId });
       setTab('appointments');
     },
     [setTab]
   );
 
   useEffect(() => {
-    if (bookParam) openBooking(bookParam === 'new' ? undefined : bookParam);
-  }, [bookParam, openBooking]);
+    if (bookParam) {
+      openBooking(
+        bookParam === 'new' ? undefined : bookParam,
+        undefined,
+        serviceParam || undefined
+      );
+    }
+  }, [bookParam, serviceParam, openBooking]);
 
   // Pets state connected to backend API
   const [pets, setPets] = useState<Pet[]>([]);
@@ -698,7 +709,7 @@ const DashboardPage: React.FC = () => {
       render: (derivedStatus: AppointmentStatus, record: OnlineAppointment) => {
         const tag = (
           <Tag color={getAppointmentStatusColor(derivedStatus)}>
-            {getAppointmentStatusLabel(derivedStatus)}
+            {getOrderStatusText(record)}
           </Tag>
         );
         if (derivedStatus === 'Cancelled' && record.cancelReason) {
@@ -1199,6 +1210,7 @@ const DashboardPage: React.FC = () => {
                 embedded
                 initialPetId={booking.petId}
                 initialNote={booking.note}
+                initialServiceId={booking.serviceId}
                 onBooked={fetchAppointments}
                 onViewAppointments={() => setBooking(null)}
                 onAddPet={() => {

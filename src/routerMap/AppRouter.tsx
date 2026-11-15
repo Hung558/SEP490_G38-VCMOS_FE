@@ -27,6 +27,7 @@ import PetProfilePage from '@/pages/PetProfile';
 import CagesPage from '@/pages/Cages';
 import AppointmentReceptionPage from '@/pages/AppointmentReception';
 import StaffQueuePage from '@/pages/StaffQueue';
+import StaffSchedulesPage from '@/pages/StaffSchedules';
 import ExamRecordPage from '@/pages/ExamRecord';
 import { useScrollTopOnNavigate } from '@/hooks/Common/useScrollTopOnNavigate';
 
@@ -147,6 +148,25 @@ const AppRouter = () => {
       ],
     },
     {
+      // SCR-30 (nghiệp vụ 7.4, UC-67, SRS permission matrix): Admin manages the
+      // shifts, Receptionist views all, Veterinarian/Groomer view their own
+      element: (
+        <RoleRoute
+          allowRoles={['Admin', 'Receptionist', 'Veterinarian', 'Groomer']}
+        />
+      ),
+      children: [
+        {
+          path: ROUTER.STAFF_SCHEDULES,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <StaffSchedulesPage />
+            </Suspense>
+          ),
+        },
+      ],
+    },
+    {
       // Start, save and complete a SOAP record are Veterinarian-only on the BE
       element: <RoleRoute allowRoles={['Veterinarian']} />,
       children: [
@@ -174,6 +194,15 @@ const AppRouter = () => {
             </Suspense>
           ),
         },
+      ],
+    },
+    {
+      // Hồ sơ pet: chủ nuôi xem pet của mình; bác sĩ và groomer chỉ xem, để mở
+      // timeline và bệnh án các lần trước (nghiệp vụ 5, 6)
+      element: (
+        <RoleRoute allow={['owner']} allowRoles={['Veterinarian', 'Groomer']} />
+      ),
+      children: [
         {
           path: ROUTER.PET_PROFILE,
           element: (

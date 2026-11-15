@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   buildSubtaskCreate,
   buildSubtaskResult,
+  filterSubtaskPerformers,
+  resolveSubtaskTarget,
   getSubtaskActions,
   safeSubtaskImageUrl,
   SUBTASK_IMAGE_MAX,
@@ -116,4 +118,85 @@ test('service history, own queue and task IDs use distinct paths', () => {
   assert.equal(subtasksByService('abc'), '/subtask-requests/service/abc');
   assert.equal(subtaskQueue, '/subtask-requests/my-queue');
   assert.equal(subtaskById('abc'), '/subtask-requests/abc');
+});
+
+const { getServiceStaffRole } = await import(
+  '../src/services/StaffService/helpers.ts'
+);
+
+test('a catalogue service sets the role as the BE does and is sent as serviceId', () => {
+  const services = [
+    { _id: 'spa', name: 'Tắm sấy', category: 'Grooming' },
+    { _id: 'xray', name: 'Chụp X-quang ngực', category: 'Paraclinical' },
+    // Admin moved this medical-sounding service to the groomers
+    {
+      _id: 'bath',
+      name: 'Tắm thuốc trị nấm',
+      category: 'Examination',
+      requiredRole: 'Groomer',
+    },
+  ];
+  assert.deepEqual(resolveSubtaskTarget('  tắm SẤY ', services), {
+    role: 'Groomer',
+    serviceId: 'spa',
+  });
+  assert.deepEqual(resolveSubtaskTarget('Chụp X-quang ngực', services), {
+    role: 'Veterinarian',
+    serviceId: 'xray',
+  });
+  assert.deepEqual(resolveSubtaskTarget('Tắm thuốc trị nấm', services), {
+    role: 'Groomer',
+    serviceId: 'bath',
+  });
+  assert.equal(getServiceStaffRole({ category: 'Grooming' }), 'Groomer');
+  assert.equal(
+    getServiceStaffRole({ category: 'Grooming', requiredRole: 'Veterinarian' }),
+    'Veterinarian'
+  );
+  assert.equal(
+    getServiceStaffRole({ category: 'Vaccination', requiredRole: 'Nurse' }),
+    'Veterinarian'
+  );
+});
+
+test('usual task types map to a role; free text keeps every performer', () => {
+  assert.deepEqual(resolveSubtaskTarget('Cạo lông', []), { role: 'Groomer' });
+  assert.deepEqual(resolveSubtaskTarget('Tắm thuốc', []), { role: 'Groomer' });
+  assert.deepEqual(resolveSubtaskTarget('Siêu âm', []), {
+    role: 'Veterinarian',
+  });
+  assert.deepEqual(resolveSubtaskTarget('Siêu âm ổ bụng', []), {});
+  assert.deepEqual(resolveSubtaskTarget('   ', []), {});
+  assert.deepEqual(resolveSubtaskTarget(undefined, []), {});
+
+  const staff = [
+    { _id: 'v1', role: 'Veterinarian' },
+    { _id: 'g1', role: 'Groomer' },
+    { _id: 'v2', role: 'Veterinarian' },
+  ];
+  assert.deepEqual(
+    filterSubtaskPerformers(staff, 'Groomer').map(s => s._id),
+    ['g1']
+  );
+  assert.deepEqual(
+    filterSubtaskPerformers(staff, 'Veterinarian').map(s => s._id),
+    ['v1', 'v2']
+  );
+  assert.deepEqual(
+    filterSubtaskPerformers(staff).map(s => s._id),
+    ['v1', 'g1', 'v2']
+  );
+});
+
+test('the create body carries serviceId only when a catalogue service was picked', () => {
+  const base = {
+    appointmentServiceId: 'service',
+    assignedStaffId: 'staff',
+    taskType: 'Tắm sấy',
+  };
+  assert.deepEqual(buildSubtaskCreate({ ...base, serviceId: ' spa ' }), {
+    ...base,
+    serviceId: 'spa',
+  });
+  assert.deepEqual(buildSubtaskCreate({ ...base, serviceId: undefined }), base);
 });

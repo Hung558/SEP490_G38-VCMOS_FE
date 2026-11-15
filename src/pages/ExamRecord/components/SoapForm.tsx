@@ -14,7 +14,7 @@ import {
   type FormInstance,
 } from 'antd';
 import {
-  BuildOutlined,
+  CheckCircleOutlined,
   DeleteOutlined,
   PlusOutlined,
   SaveOutlined,
@@ -26,17 +26,13 @@ import type {
   MedicalRecord,
 } from '@/types';
 import type { Product } from '@/services/ProductService';
-import CageService, {
-  CAGE_MAX_WEIGHT_BY_SIZE,
-  type Cage,
-} from '@/services/CageService';
-import { getAssignmentCageLabel } from '@/services/CageAssignmentService';
 import MedicalRecordService, {
   DURATION_DAYS_MAX,
   DURATION_DAYS_MIN,
   MSG_SOAP_REQUIRED,
   PRESCRIPTION_TEXT_MAX,
   SOAP_FIELDS,
+  SOAP_LOCKED_FIELD,
   SOAP_TEXT_MAX,
   buildCompleteMedicalRecordPayload,
   buildMedicalRecordPayload,
@@ -99,53 +95,6 @@ const SoapForm = ({
     message: string;
     details: string[];
   } | null>(null);
-
-  // Chuồng chờ đón sau khám (BR-10, BR-11, UC-27)
-  const [availableCages, setAvailableCages] = useState<Cage[]>([]);
-  const [loadingCages, setLoadingCages] = useState(false);
-  const [cagesError, setCagesError] = useState(false);
-  const [cageLoadAttempt, setCageLoadAttempt] = useState(0);
-  const [selectedWaitingCageId, setSelectedWaitingCageId] = useState<
-    string | undefined
-  >(undefined);
-
-  // Watch cân nặng nhập từ form để kiểm tra tải trọng chuồng trực tiếp (BR-11)
-  const currentWeightInput = Form.useWatch('weight', form);
-  const effectiveWeight =
-    typeof currentWeightInput === 'number' &&
-    Number.isFinite(currentWeightInput) &&
-    currentWeightInput > 0
-      ? currentWeightInput
-      : typeof petWeight === 'number' &&
-          Number.isFinite(petWeight) &&
-          petWeight > 0
-        ? petWeight
-        : undefined;
-
-  useEffect(() => {
-    if (!confirmOpen) return;
-    const ctrl = new AbortController();
-    setAvailableCages([]);
-    setCagesError(false);
-    setLoadingCages(true);
-    CageService.listCages(
-      { status: 'Available', limit: 100 },
-      { signal: ctrl.signal }
-    )
-      .then(res => {
-        if (ctrl.signal.aborted) return;
-        setAvailableCages(
-          (res.data?.items || []).filter(c => c.status === 'Available')
-        );
-      })
-      .catch(() => {
-        if (!ctrl.signal.aborted) setCagesError(true);
-      })
-      .finally(() => {
-        if (!ctrl.signal.aborted) setLoadingCages(false);
-      });
-    return () => ctrl.abort();
-  }, [confirmOpen, cageLoadAttempt]);
 
   const canComplete = serviceStatus === 'InProgress';
   const editable = canComplete || serviceStatus === 'Done';
@@ -255,10 +204,6 @@ const SoapForm = ({
       return;
     }
     if (writing.current) return;
-    setSelectedWaitingCageId(undefined);
-    setAvailableCages([]);
-    setCagesError(false);
-    setLoadingCages(true);
     setConfirmOpen(true);
   };
 
@@ -269,8 +214,7 @@ const SoapForm = ({
     setServerError(null);
     try {
       const payload = buildCompleteMedicalRecordPayload(
-        form.getFieldsValue(true),
-        selectedWaitingCageId
+        form.getFieldsValue(true)
       );
       const result = await MedicalRecordService.completeConsultation(
         appointmentServiceId,
@@ -278,18 +222,7 @@ const SoapForm = ({
       );
       setDirty(false);
       setConfirmOpen(false);
-      const cageLabel = result.waitingCageAssignment
-        ? getAssignmentCageLabel(
-            typeof result.waitingCageAssignment.cageId === 'object'
-              ? result.waitingCageAssignment.cageId
-              : null
-          )
-        : '';
-      toast.success(
-        cageLabel
-          ? `Đã hoàn tất ca khám và xếp bé vào chuồng ${cageLabel}.`
-          : 'Đã hoàn tất ca khám'
-      );
+      toast.success('Đã hoàn tất ca khám');
       onCompleted(result);
     } catch (err: unknown) {
       setConfirmOpen(false);
@@ -325,27 +258,47 @@ const SoapForm = ({
             Bệnh án SOAP
           </div>
           <Row gutter={12}>
-            {SOAP_FIELDS.map(field => (
-              <Col xs={24} lg={12} key={field.key}>
-                <Form.Item
-                  name={field.key}
-                  label={`${field.letter} · ${field.label}`}
-                  rules={[
-                    {
-                      max: SOAP_TEXT_MAX,
-                      message: `Tối đa ${SOAP_TEXT_MAX} ký tự`,
-                    },
-                  ]}
-                >
-                  <Input.TextArea
-                    rows={4}
-                    maxLength={SOAP_TEXT_MAX}
-                    showCount
-                    placeholder={field.placeholder}
-                  />
-                </Form.Item>
-              </Col>
-            ))}
+            {SOAP_FIELDS.map(field =>
+              field.key === SOAP_LOCKED_FIELD ? (
+                // BE f19060f fills S from the intake or the owner's booking note
+                // and ignores any change, so it is shown read-only
+                <Col xs={24} lg={12} key={field.key}>
+                  <Form.Item
+                    name={field.key}
+                    label={`${field.letter} · ${field.label}`}
+                    extra="Hệ thống tự điền từ phiếu tiếp nhận hoặc ghi chú khách để lại khi đặt lịch; không sửa được."
+                  >
+                    <Input.TextArea
+                      rows={4}
+                      readOnly
+                      aria-readonly
+                      placeholder="Khách chưa khai triệu chứng khi đặt lịch hay lúc tiếp nhận."
+                      style={{ backgroundColor: '#f8fafc' }}
+                    />
+                  </Form.Item>
+                </Col>
+              ) : (
+                <Col xs={24} lg={12} key={field.key}>
+                  <Form.Item
+                    name={field.key}
+                    label={`${field.letter} · ${field.label}`}
+                    rules={[
+                      {
+                        max: SOAP_TEXT_MAX,
+                        message: `Tối đa ${SOAP_TEXT_MAX} ký tự`,
+                      },
+                    ]}
+                  >
+                    <Input.TextArea
+                      rows={4}
+                      maxLength={SOAP_TEXT_MAX}
+                      showCount
+                      placeholder={field.placeholder}
+                    />
+                  </Form.Item>
+                </Col>
+              )
+            )}
           </Row>
           <Row gutter={12}>
             <Col xs={24} lg={16}>
@@ -612,7 +565,7 @@ const SoapForm = ({
       <Modal
         title={
           <Space>
-            <BuildOutlined style={{ color: '#0d9488' }} />
+            <CheckCircleOutlined style={{ color: '#0d9488' }} />
             <span>Hoàn tất ca khám?</span>
           </Space>
         }
@@ -632,88 +585,10 @@ const SoapForm = ({
             lịch hẹn chuyển sang Chờ chủ đón để lễ tân thu tiền.
           </Text>
 
-          <div
-            style={{
-              marginTop: 10,
-              padding: '12px 14px',
-              backgroundColor: '#f8fafc',
-              borderRadius: 8,
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom: 6,
-                color: '#0f172a',
-                fontSize: 13,
-              }}
-            >
-              Chuồng chờ đón sau khám (không bắt buộc):
-            </div>
-            <Select
-              allowClear
-              placeholder={
-                loadingCages
-                  ? 'Đang tải danh sách chuồng trống...'
-                  : 'Chọn chuồng cho thú cưng chờ chủ đón (nếu cần)'
-              }
-              loading={loadingCages}
-              aria-label="Chuồng chờ đón sau khám"
-              disabled={completing || loadingCages || cagesError}
-              value={selectedWaitingCageId}
-              onChange={val => setSelectedWaitingCageId(val)}
-              style={{ width: '100%' }}
-              options={availableCages.map(c => {
-                const maxW =
-                  typeof c.maxWeightKg === 'number' && c.maxWeightKg > 0
-                    ? c.maxWeightKg
-                    : CAGE_MAX_WEIGHT_BY_SIZE[c.size];
-                const isOverweight =
-                  typeof effectiveWeight === 'number' &&
-                  effectiveWeight > 0 &&
-                  maxW !== undefined &&
-                  effectiveWeight > maxW;
-
-                return {
-                  value: c._id,
-                  disabled: isOverweight,
-                  label: isOverweight
-                    ? `${c.label} · Cỡ ${c.size}${c.isIsolated ? ' [Cách ly]' : ''} (⚠️ Quá tải: tối đa ${maxW}kg, bé ${effectiveWeight}kg)`
-                    : `${c.label} · Cỡ ${c.size}${c.isIsolated ? ' [Cách ly]' : ''} (Tối đa ${maxW === Infinity ? 'trên 30' : `${maxW}kg`})`,
-                };
-              })}
-              notFoundContent={
-                loadingCages
-                  ? 'Đang tải danh sách chuồng...'
-                  : 'Không có chuồng trống nào'
-              }
-            />
-            {cagesError && (
-              <Alert
-                type="warning"
-                showIcon
-                style={{ marginTop: 8 }}
-                message="Không thể tải chuồng trống. Bạn vẫn có thể hoàn tất mà không chọn chuồng."
-                action={
-                  <Button
-                    size="small"
-                    disabled={completing}
-                    onClick={() => setCageLoadAttempt(n => n + 1)}
-                  >
-                    Tải lại chuồng
-                  </Button>
-                }
-              />
-            )}
-            {typeof effectiveWeight === 'number' && effectiveWeight > 0 && (
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                Cân nặng thú cưng: <strong>{effectiveWeight} kg</strong>. Hệ
-                thống tự động giới hạn cỡ chuồng theo quy định tải trọng
-                (BR-11).
-              </div>
-            )}
-          </div>
+          {/* Nghiệp vụ 4.5: lễ tân xếp bé vào chuồng chờ chủ đón */}
+          <Text>
+            Sau khi hoàn tất, lễ tân sẽ xếp bé vào chuồng chờ chủ đón.
+          </Text>
         </Space>
       </Modal>
     </>

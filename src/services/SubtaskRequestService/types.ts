@@ -35,6 +35,8 @@ export interface CreateSubtask {
   assignedStaffId: string;
   taskType: string;
   instructions?: string;
+  /** Dịch vụ trong danh mục được chỉ định; BE kiểm người thực hiện đúng vai trò */
+  serviceId?: string;
 }
 
 export interface SubtaskResult {

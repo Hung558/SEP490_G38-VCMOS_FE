@@ -445,6 +445,8 @@ interface QuickBookingSectionProps {
   initialPetId?: string;
   /** Note filled in when the form opens (symptoms from the AI section) */
   initialNote?: string;
+  /** Service pre-selected when the form opens ("Đặt dịch vụ này" on home) */
+  initialServiceId?: string;
   /** A booking was created: the dashboard reloads its appointment list */
   onBooked?: () => void;
   onViewAppointments?: () => void;
@@ -455,6 +457,7 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
   embedded = false,
   initialPetId,
   initialNote,
+  initialServiceId,
   onBooked,
   onViewAppointments,
   onAddPet,
@@ -616,6 +619,32 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
       }
     };
   }, [loadActiveServices]);
+
+  // Pre-select the service chosen on the home page once the active list is in.
+  // Only once: the owner may remove it afterwards. The service may have been
+  // stopped since the home page loaded, so it is checked against the list.
+  const initialServiceAppliedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !initialServiceId ||
+      initialServiceAppliedRef.current ||
+      servicesLoading ||
+      servicesError
+    ) {
+      return;
+    }
+    if (activeServices.length === 0) return;
+    initialServiceAppliedRef.current = true;
+    if (activeServices.some(s => s._id === initialServiceId)) {
+      setSelectedServices([
+        { serviceId: initialServiceId, sequenceNo: 1, isEmergency: false },
+      ]);
+    } else {
+      toast.warning(
+        'Dịch vụ bạn chọn hiện không còn cung cấp. Vui lòng chọn dịch vụ khác.'
+      );
+    }
+  }, [initialServiceId, activeServices, servicesLoading, servicesError]);
 
   // Disable past dates according to Vietnam date semantics
   const disabledDate = (current: Dayjs) => {

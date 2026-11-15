@@ -273,15 +273,6 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
         >
           Đội ngũ bác sĩ
         </a>
-        <a
-          href="#community"
-          onClick={e => {
-            e.preventDefault();
-            scrollToSection('community');
-          }}
-        >
-          Hồ sơ điều trị
-        </a>
         {isLogin && (
           <Link to={getLandingPath(user?.role || user?.systemRole)}>
             {getLandingLabel(user?.role || user?.systemRole)}

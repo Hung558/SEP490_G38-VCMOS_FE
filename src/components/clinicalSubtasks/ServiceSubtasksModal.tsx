@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AutoComplete,
@@ -16,63 +16,72 @@ import {
 import { toast } from 'sonner';
 import { getRoleLabel } from '@/constants/roles';
 import { extractApiError } from '@/services/AppointmentServiceService';
-import StaffService, {
-  formatStaffOption,
-  pickAssignableStaff,
-} from '@/services/StaffService';
+import StaffService, { formatStaffOption } from '@/services/StaffService';
 import { getVietnamTodayString } from '@/services/AppointmentOrderService';
 import SubtaskRequestService, {
+  filterSubtaskPerformers,
   getSubtaskActions,
   populated,
+  resolveSubtaskTarget,
   SUBTASK_LIMIT,
   SUBTASK_STATUSES,
   SUBTASK_TASK_TYPES,
   type CreateSubtask,
 } from '@/services/SubtaskRequestService';
+import ServiceService, {
+  serviceCategoryLabels,
+  type Service,
+  type ServiceCategory,
+} from '@/services/ServiceService';
 import type { StaffMember } from '@/types';
 import { SubtaskDetailLoader } from './SubtaskDetails';
 import { useSubtaskList } from './useSubtaskList';
 
 interface Props {
   serviceId: string;
+  /** HH:mm of the exam; the BE checks the performer is not busy in that shift */
+  workTime?: string | null;
   requesterId?: string;
   canCreate?: boolean;
   createHint?: string;
   onRetryCreate?: () => void;
   onClose: () => void;
 }
-type Fields = Omit<CreateSubtask, 'appointmentServiceId'>;
+type Fields = Omit<CreateSubtask, 'appointmentServiceId' | 'serviceId'>;
 
 const CreateSubtaskForm = ({
   form,
   disabled,
   requesterId,
+  workTime,
   onFinish,
 }: {
   form: ReturnType<typeof Form.useForm<Fields>>[0];
   disabled: boolean;
   requesterId?: string;
-  onFinish: (fields: Fields) => void;
+  workTime?: string | null;
+  onFinish: (fields: Fields & { serviceId?: string }) => void;
 }) => {
   const [staff, setStaff] = useState<StaffMember[]>();
-  // SCR-24: performers on shift today first; everyone active when nobody has a shift on record
-  const [onDutyOnly, setOnDutyOnly] = useState(true);
   const [error, setError] = useState<string>();
   const [revision, setRevision] = useState(0);
+  // Nghiệp vụ 5: bác sĩ giao thêm dịch vụ của phòng khám cho nhân viên khác
+  const [services, setServices] = useState<Service[]>([]);
   useEffect(() => {
     const controller = new AbortController();
+    // B2 (SCR-24 step 3): vets and groomers on shift, i.e. not reported busy
+    // in the shift of the exam (BE f19060f); no fallback to everyone
     const fetchStaff = async () => {
-      const { onDuty, all } = await StaffService.listStaffForDate(
-        getVietnamTodayString(),
+      const available = await StaffService.listAvailableStaff(
+        { date: getVietnamTodayString(), time: workTime },
         { signal: controller.signal }
       );
       if (controller.signal.aborted) return;
-      const vets = pickAssignableStaff(onDuty, all, 'Veterinarian');
-      const groomers = pickAssignableStaff(onDuty, all, 'Groomer');
-      setOnDutyOnly(vets.onDutyOnly && groomers.onDutyOnly);
       // "Self": the requesting vet can do the task, listed first
-      const ordered = [...vets.staff, ...groomers.staff].sort(
-        (a, b) => Number(b._id === requesterId) - Number(a._id === requesterId)
+      const ordered = [...available].sort(
+        (a, b) =>
+          Number(b._id === requesterId) - Number(a._id === requesterId) ||
+          a.role.localeCompare(b.role)
       );
       setStaff(ordered);
     };
@@ -80,8 +89,48 @@ const CreateSubtaskForm = ({
       if (!controller.signal.aborted)
         setError(extractApiError(err, 'Không tải được nhân sự.').message);
     });
+    // Without the catalogue the usual task types still work, so a failure is quiet
+    ServiceService.listServices(
+      { status: 'Active' },
+      { signal: controller.signal }
+    )
+      .then(res => {
+        if (!controller.signal.aborted)
+          setServices((res.services || []).filter(s => s.status === 'Active'));
+      })
+      .catch(() => undefined);
     return () => controller.abort();
-  }, [revision, requesterId]);
+  }, [revision, requesterId, workTime]);
+
+  // The performer has to match the chosen task: a spa service only lists groomers
+  const taskType = Form.useWatch('taskType', form);
+  const target = resolveSubtaskTarget(taskType, services);
+  const performers = useMemo(
+    () => filterSubtaskPerformers(staff ?? [], target.role),
+    [staff, target.role]
+  );
+  const assignedStaffId = Form.useWatch('assignedStaffId', form);
+  useEffect(() => {
+    if (assignedStaffId && !performers.some(p => p._id === assignedStaffId))
+      form.setFieldValue('assignedStaffId', undefined);
+  }, [assignedStaffId, performers, form]);
+  const roleLabel = target.role ? getRoleLabel(target.role) : undefined;
+  const performerHint = [
+    roleLabel
+      ? `Chỉ hiện ${roleLabel.toLowerCase()}: chỉ định này do ${roleLabel.toLowerCase()} làm.`
+      : taskType?.trim()
+        ? 'Chưa rõ việc này của bác sĩ hay groomer nên hiện cả hai. Chọn trong danh sách gợi ý để lọc đúng người.'
+        : undefined,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const commonTypes = SUBTASK_TASK_TYPES.filter(
+    type =>
+      !services.some(
+        s =>
+          s.name.trim().toLocaleLowerCase('vi') === type.toLocaleLowerCase('vi')
+      )
+  );
 
   return (
     <>
@@ -107,7 +156,13 @@ const CreateSubtaskForm = ({
         form={form}
         layout="vertical"
         disabled={disabled}
-        onFinish={onFinish}
+        onFinish={fields =>
+          onFinish({
+            ...fields,
+            serviceId: resolveSubtaskTarget(fields.taskType, services)
+              .serviceId,
+          })
+        }
       >
         <Form.Item
           name="taskType"
@@ -119,10 +174,27 @@ const CreateSubtaskForm = ({
         >
           <AutoComplete
             maxLength={SUBTASK_LIMIT.taskType}
-            placeholder="Chọn loại hoặc nhập tên khác, ví dụ: Siêu âm ổ bụng"
-            options={SUBTASK_TASK_TYPES.map(value => ({ value }))}
+            placeholder="Chọn dịch vụ, chỉ định hoặc nhập tên khác, ví dụ: Siêu âm ổ bụng"
+            options={[
+              ...(services.length
+                ? [
+                    {
+                      label: 'Dịch vụ của phòng khám',
+                      options: services.map(s => ({
+                        value: s.name,
+                        label: `${s.name} · ${serviceCategoryLabels[s.category as ServiceCategory] || s.category}`,
+                      })),
+                    },
+                  ]
+                : []),
+              {
+                label: 'Chỉ định thường dùng',
+                options: commonTypes.map(value => ({ value })),
+              },
+            ]}
             filterOption={(input, option) =>
-              String(option?.value ?? '')
+              // Groups have no value; antd filters their options one by one
+              String(option && 'value' in option ? option.value : '')
                 .toLowerCase()
                 .includes(input.trim().toLowerCase())
             }
@@ -132,18 +204,23 @@ const CreateSubtaskForm = ({
           name="assignedStaffId"
           label="Nhân sự thực hiện"
           rules={[{ required: true, message: 'Chọn nhân sự thực hiện.' }]}
-          extra={
-            staff && !onDutyOnly
-              ? 'Chưa có lịch trực hôm nay cho một vai trò, đang hiện mọi nhân sự đang hoạt động.'
-              : undefined
-          }
+          extra={performerHint || undefined}
         >
           <Select
             showSearch
             optionFilterProp="label"
-            placeholder="Chọn bác sĩ hoặc Groomer"
+            placeholder={
+              roleLabel
+                ? `Chọn ${roleLabel.toLowerCase()}`
+                : 'Chọn bác sĩ hoặc Groomer'
+            }
             loading={!staff && !error}
-            options={staff?.map(member => ({
+            notFoundContent={
+              staff
+                ? `Hôm nay không có ${roleLabel?.toLowerCase() ?? 'nhân sự'} nào rảnh.`
+                : undefined
+            }
+            options={performers.map(member => ({
               value: member._id,
               label: [
                 formatStaffOption(member),
@@ -167,7 +244,7 @@ const CreateSubtaskForm = ({
         <Button
           type="primary"
           htmlType="submit"
-          disabled={!staff?.length || disabled}
+          disabled={!performers.length || disabled}
         >
           Tạo chỉ định
         </Button>
@@ -178,6 +255,7 @@ const CreateSubtaskForm = ({
 
 const ServiceSubtasksModal = ({
   serviceId,
+  workTime,
   requesterId,
   canCreate = false,
   createHint,
@@ -251,6 +329,7 @@ const ServiceSubtasksModal = ({
             form={form}
             disabled={busy}
             requesterId={requesterId}
+            workTime={workTime}
             onFinish={fields =>
               mutate(
                 async () => {

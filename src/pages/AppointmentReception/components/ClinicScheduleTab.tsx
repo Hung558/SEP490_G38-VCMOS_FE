@@ -27,7 +27,7 @@ import {
   getAppointmentOwnerPhone,
   getAppointmentPetName,
   getAppointmentStatusColor,
-  getAppointmentStatusLabel,
+  getOrderStatusText,
   getVietnamTodayString,
 } from '@/services/AppointmentOrderService';
 import {
@@ -35,6 +35,7 @@ import {
   getAppointmentServiceStaffName,
   getAppointmentServiceStatusColor,
   getAppointmentServiceStatusLabel,
+  getServiceRefCategory,
 } from '@/services/AppointmentServiceService';
 import { getAssignmentCageLabel } from '@/services/CageAssignmentService';
 import {
@@ -225,7 +226,7 @@ const ClinicScheduleTab = ({
             {order.code}
           </Text>
           <Tag color={getAppointmentStatusColor(order.derivedStatus)}>
-            {getAppointmentStatusLabel(order.derivedStatus)}
+            {getOrderStatusText(order)}
           </Tag>
           <Tag color={order.isOnline ? 'blue' : 'purple'}>
             {order.isOnline ? 'Online' : 'Tại chỗ'}
@@ -247,7 +248,10 @@ const ClinicScheduleTab = ({
                   : ''}{' '}
                 · {getAppointmentServiceStaffName(s.assignedStaffId)}{' '}
                 <Tag color={getAppointmentServiceStatusColor(s.status)}>
-                  {getAppointmentServiceStatusLabel(s.status)}
+                  {getAppointmentServiceStatusLabel(
+                    s.status,
+                    getServiceRefCategory(s.serviceId)
+                  )}
                 </Tag>
               </li>
             ))}
@@ -263,7 +267,9 @@ const ClinicScheduleTab = ({
             icon={<EyeOutlined />}
             onClick={act(() => onViewDetail(order))}
           >
-            {isReceptionist ? 'Chi tiết, đổi người' : 'Chi tiết'}
+            {isReceptionist && order.derivedStatus !== 'Booked'
+              ? 'Chi tiết, đổi người'
+              : 'Chi tiết'}
           </Button>
           {isReceptionist && order.derivedStatus === 'Booked' && (
             <Button

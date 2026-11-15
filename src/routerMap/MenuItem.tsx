@@ -9,6 +9,7 @@ import {
   BuildOutlined,
   ScheduleOutlined,
   UnorderedListOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -130,6 +131,11 @@ export const MenuItemReceptionist = (): MenuItem[] => {
       label: 'Sơ đồ chuồng',
       icon: <BuildOutlined />,
     },
+    {
+      key: ROUTER.STAFF_SCHEDULES,
+      label: 'Ca làm việc',
+      icon: <CalendarOutlined />,
+    },
   ];
 };
 
@@ -150,6 +156,11 @@ export const MenuItemAdmin = (): MenuItem[] => {
       key: ROUTER.ADMIN_PRODUCTS,
       label: 'Quản lý sản phẩm',
       icon: <ShoppingOutlined />,
+    },
+    {
+      key: ROUTER.STAFF_SCHEDULES,
+      label: 'Ca làm việc',
+      icon: <CalendarOutlined />,
     },
     {
       key: ROUTER.CLINIC_APPOINTMENTS,
@@ -173,6 +184,11 @@ export const MenuItemClinicalStaff = (role: string): MenuItem[] => {
       key: ROUTER.STAFF_QUEUE,
       label: role === 'Groomer' ? 'Hàng đợi spa' : 'Hàng đợi khám',
       icon: <UnorderedListOutlined />,
+    },
+    {
+      key: ROUTER.STAFF_SCHEDULES,
+      label: 'Lịch làm việc của tôi',
+      icon: <CalendarOutlined />,
     },
     {
       key: ROUTER.CAGES,

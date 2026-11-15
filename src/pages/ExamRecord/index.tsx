@@ -36,6 +36,7 @@ import AppointmentServiceService, {
   getPreviousServiceMessage,
   getPreviousUnfinishedService,
   getQueueOrder,
+  getServiceRefCategory,
 } from '@/services/AppointmentServiceService';
 import MedicalRecordService, {
   getRecordServiceRef,
@@ -298,6 +299,11 @@ const ExamRecordCase = ({
     readReceptionIntake(order?.intake);
   const appointmentNote = recordOrder?.note ?? order?.note;
   const status = item.status as AppointmentServiceStatus;
+  // Nghiệp vụ 5: a running exam reads "Đang khám"
+  const statusLabel = getAppointmentServiceStatusLabel(
+    status,
+    getServiceRefCategory(item.serviceId)
+  );
   const examAction = getExamAction(item, role);
   const renderBody = () => {
     if (record && isMedicalRecordLocked(record)) {
@@ -405,7 +411,7 @@ const ExamRecordCase = ({
       <Alert
         type="warning"
         showIcon
-        message={`Ca khám ở trạng thái "${getAppointmentServiceStatusLabel(status)}", không ghi được bệnh án.`}
+        message={`Ca khám ở trạng thái "${statusLabel}", không ghi được bệnh án.`}
       />
     );
   };
@@ -423,7 +429,7 @@ const ExamRecordCase = ({
               {order && <Tag>{dayjs(order.date).format('DD/MM/YYYY')}</Tag>}
               {item.isEmergency && <Tag color="red">Cấp cứu</Tag>}
               <Tag color={getAppointmentServiceStatusColor(status)}>
-                {getAppointmentServiceStatusLabel(status)}
+                {statusLabel}
               </Tag>
               {order && (
                 <Text type="secondary">
@@ -480,6 +486,7 @@ const ExamRecordCase = ({
       {subtasksOpen && (examAction === 'continue' || examAction === 'view') && (
         <ServiceSubtasksModal
           serviceId={appointmentServiceId}
+          workTime={item.scheduledStart || order?.slotStart}
           requesterId={user?._id}
           canCreate={
             examAction === 'continue' &&

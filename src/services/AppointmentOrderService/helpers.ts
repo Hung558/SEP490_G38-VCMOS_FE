@@ -1,9 +1,11 @@
 import type {
   AppointmentStatus,
   CheckInAppointmentPayload,
+  CheckInServiceAssignment,
   CreateOnlineBookingPayload,
   ListMyOnlineBookingsParams,
   ListStaffAppointmentsParams,
+  OrderCageRef,
   PopulatedOwnerRef,
   PopulatedPetRef,
   ReceptionCageSelection,
@@ -21,13 +23,76 @@ export const buildReceptionCageSelection = (
     : { cageId };
 };
 
-/** Omit the body entirely for legacy check-in without intake or a cage. */
+/** Keep one assignment per service, both ids present; the BE rejects an empty list */
+export const buildCheckInServiceAssignments = (
+  items?: readonly CheckInServiceAssignment[]
+): CheckInServiceAssignment[] => {
+  const seen = new Set<string>();
+  const result: CheckInServiceAssignment[] = [];
+  for (const item of items || []) {
+    const appointmentServiceId = item?.appointmentServiceId?.trim();
+    const assignedStaffId = item?.assignedStaffId?.trim();
+    if (!appointmentServiceId || !assignedStaffId) continue;
+    if (seen.has(appointmentServiceId)) continue;
+    seen.add(appointmentServiceId);
+    result.push({ appointmentServiceId, assignedStaffId });
+  }
+  return result;
+};
+
+/**
+ * Body of PATCH /appointment-orders/:id/check-in: cage, intake and the staff of
+ * each service in one request. The BE's `note` is never sent: it would replace
+ * the owner's note, which the vet has to read (nghiệp vụ 5). Undefined when
+ * there is nothing to send; the BE then uses the cage reserved at booking.
+ */
 export const buildCheckInRequest = (
   values?: CheckInAppointmentPayload
 ): CheckInAppointmentPayload | undefined => {
   const intake = buildCheckInPayload(values?.intake);
   const cage = buildReceptionCageSelection(values);
-  return intake || cage.cageId ? { ...intake, ...cage } : undefined;
+  const body: CheckInAppointmentPayload = { ...intake, ...cage };
+  const serviceAssignments = buildCheckInServiceAssignments(
+    values?.serviceAssignments
+  );
+  if (serviceAssignments.length > 0)
+    body.serviceAssignments = serviceAssignments;
+  return Object.keys(body).length > 0 ? body : undefined;
+};
+
+const isCageRef = (value: unknown): value is OrderCageRef =>
+  Boolean(value && typeof value === 'object' && 'label' in value);
+
+/** Cage reserved for the visit day at booking, when the BE populated it */
+export const getReservedCage = (order?: {
+  reservedCageId?: unknown;
+}): OrderCageRef | undefined =>
+  isCageRef(order?.reservedCageId) ? order.reservedCageId : undefined;
+
+/** "khám tổng quát" after "Đang"; acronyms such as "SPA" keep their case */
+const lowerFirst = (text: string): string =>
+  text.length > 1 && text[1] === text[1].toLocaleLowerCase('vi')
+    ? text[0].toLocaleLowerCase('vi') + text.slice(1)
+    : text;
+
+/**
+ * Order status as people read it: an order In progress shows "Đang + tên dịch
+ * vụ" (nghiệp vụ 8.2), using the service the BE marks as current.
+ */
+export const getOrderStatusText = (order?: {
+  derivedStatus?: string;
+  currentService?: { status?: string; serviceId?: unknown } | null;
+}): string => {
+  const label = getAppointmentStatusLabel(order?.derivedStatus);
+  const current = order?.currentService;
+  if (order?.derivedStatus !== 'InProgress' || current?.status !== 'InProgress')
+    return label;
+  const ref = current.serviceId;
+  const name =
+    ref && typeof ref === 'object' && 'name' in ref
+      ? String((ref as { name?: unknown }).name || '').trim()
+      : '';
+  return name ? `Đang ${lowerFirst(name)}` : label;
 };
 
 /** The BE uses plain messages for cage conflicts, not a machine-readable code. */

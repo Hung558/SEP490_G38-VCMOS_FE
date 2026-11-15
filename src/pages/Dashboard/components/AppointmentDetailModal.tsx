@@ -32,6 +32,7 @@ import { isMedicalServiceCategory } from '@/services/MedicalRecordService';
 
 import AppointmentOrderService, {
   getAppointmentStatusLabel,
+  getOrderStatusText,
   getAppointmentStatusColor,
   extractApiError,
   canOwnerCancelAppointment,
@@ -47,6 +48,7 @@ import AppointmentServiceService, {
   getAppointmentServiceStatusColor,
   getAppointmentServiceName,
   getAppointmentServiceStaffName,
+  getServiceRefCategory,
 } from '@/services/AppointmentServiceService';
 import type { PopulatedServiceRef } from '@/services/AppointmentServiceService';
 import {
@@ -387,7 +389,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                   color={getAppointmentStatusColor(appointment.derivedStatus)}
                   style={{ fontSize: 13, padding: '4px 10px', borderRadius: 6 }}
                 >
-                  {getAppointmentStatusLabel(appointment.derivedStatus)}
+                  {getOrderStatusText(appointment)}
                 </Tag>
               </div>
             </div>
@@ -403,8 +405,9 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                   style={{ margin: '16px 0' }}
                   items={APPOINTMENT_PROGRESS_STEPS.map((step, index) => ({
                     title:
-                      progress.status === 'error' && index === progress.current
-                        ? getAppointmentStatusLabel(appointment.derivedStatus)
+                      index === progress.current &&
+                      (progress.status === 'error' || step === 'InProgress')
+                        ? getOrderStatusText(appointment)
                         : getAppointmentStatusLabel(step),
                   }))}
                 />
@@ -445,8 +448,8 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                 <Tag
                   color={getAppointmentStatusColor(appointment.derivedStatus)}
                 >
-                  {getAppointmentStatusLabel(appointment.derivedStatus)} (
-                  {appointment.derivedStatus})
+                  {getOrderStatusText(appointment)} ({appointment.derivedStatus}
+                  )
                 </Tag>
               </Descriptions.Item>
 
@@ -604,7 +607,10 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                             <Tag
                               color={getAppointmentServiceStatusColor(s.status)}
                             >
-                              {getAppointmentServiceStatusLabel(s.status)}
+                              {getAppointmentServiceStatusLabel(
+                                s.status,
+                                getServiceRefCategory(s.serviceId)
+                              )}
                             </Tag>
                           </div>
                         </div>

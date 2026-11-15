@@ -666,10 +666,13 @@ export const validateOnlineBookingForm = (
 };
 
 /**
- * Trả về nhãn tiếng Việt cho trạng thái dịch vụ lịch hẹn
+ * Trả về nhãn tiếng Việt cho trạng thái dịch vụ lịch hẹn. Truyền loại dịch vụ
+ * để dịch vụ đang làm hiện "Đang khám" (bác sĩ) hoặc "Đang spa" (groomer)
+ * theo nghiệp vụ 5, 6.
  */
 export const getAppointmentServiceStatusLabel = (
-  status?: AppointmentServiceStatus | string
+  status?: AppointmentServiceStatus | string,
+  category?: string
 ): string => {
   switch (status) {
     case 'Booked':
@@ -677,7 +680,8 @@ export const getAppointmentServiceStatusLabel = (
     case 'Waiting':
       return 'Chờ thực hiện';
     case 'InProgress':
-      return 'Đang thực hiện';
+      if (!category) return 'Đang thực hiện';
+      return category === 'Grooming' ? 'Đang spa' : 'Đang khám';
     case 'Done':
       return 'Hoàn tất';
     case 'Cancelled':
@@ -761,6 +765,16 @@ export const getStaffRefId = (staffRef: unknown): string | undefined => {
   return undefined;
 };
 
+/** _id của dịch vụ trong danh mục, từ ref đã populate hoặc string ID */
+export const getServiceRefId = (serviceRef: unknown): string | undefined => {
+  if (!serviceRef) return undefined;
+  if (typeof serviceRef === 'string') return serviceRef;
+  if (typeof serviceRef === 'object' && '_id' in serviceRef) {
+    return String((serviceRef as PopulatedServiceRef)._id);
+  }
+  return undefined;
+};
+
 /** Nhóm dịch vụ (category) khi serviceId đã được populate */
 export const getServiceRefCategory = (
   serviceRef: unknown
@@ -784,11 +798,16 @@ export const ASSIGN_LOCKED_SERVICE_STATUSES = [
 export const isQueueingOrder = (orderStatus?: string): boolean =>
   orderStatus === 'CheckedIn' || orderStatus === 'InProgress';
 
+/** BE trả 409 khi phân công cho lịch chưa check-in */
+export const ASSIGN_AT_CHECK_IN_MESSAGE =
+  'Khách chưa check-in: phân công bác sĩ hoặc groomer ngay ở bước Check-in.';
+
 /** Lý do không phân công được nhân sự cho dịch vụ; undefined nếu được phép */
 export const getAssignStaffBlockReason = (
   serviceStatus?: string,
   orderStatus?: string
 ): string | undefined => {
+  if (orderStatus === 'Booked') return ASSIGN_AT_CHECK_IN_MESSAGE;
   if (
     BLOCKED_ORDER_STATUSES.includes(
       orderStatus as (typeof BLOCKED_ORDER_STATUSES)[number]
@@ -822,9 +841,12 @@ export const canSubmitAssignment = (
   return selectedStaffId !== getStaffRefId(service.assignedStaffId);
 };
 
-export type QueueView = 'active' | 'booked' | 'done' | 'all';
+export type QueueView = 'active' | 'done' | 'all';
 
-/** Các nhóm của hàng đợi nhân viên (SCR-22, SCR-26) */
+/**
+ * Các nhóm của hàng đợi nhân viên (SCR-22, SCR-26). Nghiệp vụ 5: chỉ có ca của
+ * đơn đã check-in, nên không còn nhóm "Chờ khách check-in".
+ */
 export const QUEUE_VIEWS: readonly {
   key: QueueView;
   label: string;
@@ -835,7 +857,6 @@ export const QUEUE_VIEWS: readonly {
     label: 'Đang chờ và đang làm',
     statuses: ['Waiting', 'InProgress'],
   },
-  { key: 'booked', label: 'Chờ khách check-in', statuses: ['Booked'] },
   { key: 'done', label: 'Đã xong', statuses: ['Done'] },
   { key: 'all', label: 'Tất cả' },
 ];
@@ -848,30 +869,115 @@ export const getQueueOrder = (item: {
     ? (item.orderId as QueueOrderRef)
     : null;
 
-/** Lọc hàng đợi theo nhóm trạng thái, và khi `todayOnly` thì chỉ lịch hẹn ngày `today` */
+/**
+ * Nghiệp vụ 5: giờ của ca. Lấy giờ BE xếp cho dịch vụ; nếu chưa có thì giờ hẹn
+ * của đơn (giờ khách tới, không phải giờ riêng của dịch vụ này).
+ */
+export const getQueueItemTime = (item: {
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  orderId?: unknown;
+}): string | undefined => {
+  if (item.scheduledStart)
+    return item.scheduledEnd
+      ? `${item.scheduledStart}–${item.scheduledEnd}`
+      : item.scheduledStart;
+  return getQueueOrder(item)?.slotStart || undefined;
+};
+
+/** Nghiệp vụ 5: ghi chú khách để lại khi đặt lịch */
+export const getQueueCustomerNote = (item: {
+  orderId?: unknown;
+}): string | undefined => getQueueOrder(item)?.note?.trim() || undefined;
+
+/** Khoảng ngày hẹn YYYY-MM-DD, tính cả hai đầu */
+export interface QueueDateRange {
+  from: string;
+  to: string;
+}
+
+export type QueuePeriod = 'day' | 'week' | 'month' | 'all';
+
+/** Nghiệp vụ 5, 6: bác sĩ và groomer lọc ca theo ngày, tuần, tháng */
+export const QUEUE_PERIODS: readonly { key: QueuePeriod; label: string }[] = [
+  { key: 'day', label: 'Ngày' },
+  { key: 'week', label: 'Tuần' },
+  { key: 'month', label: 'Tháng' },
+  { key: 'all', label: 'Tất cả' },
+];
+
+const parseDay = (value: string): Date | undefined => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return undefined;
+  const date = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  );
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
+const formatDay = (date: Date): string => date.toISOString().slice(0, 10);
+
+/**
+ * Ngày đầu và cuối của ngày, tuần (thứ Hai tới Chủ nhật) hoặc tháng chứa `anchor`.
+ * Undefined khi xem tất cả hoặc ngày không hợp lệ.
+ */
+export const getQueuePeriodRange = (
+  period: QueuePeriod,
+  anchor: string
+): QueueDateRange | undefined => {
+  const day = parseDay(anchor);
+  if (!day || period === 'all') return undefined;
+  if (period === 'day') return { from: anchor, to: anchor };
+  if (period === 'week') {
+    const start = new Date(day);
+    start.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+    const end = new Date(start);
+    end.setUTCDate(start.getUTCDate() + 6);
+    return { from: formatDay(start), to: formatDay(end) };
+  }
+  const year = day.getUTCFullYear();
+  const month = day.getUTCMonth();
+  return {
+    from: formatDay(new Date(Date.UTC(year, month, 1))),
+    to: formatDay(new Date(Date.UTC(year, month + 1, 0))),
+  };
+};
+
+/** `true` nghĩa là chỉ hôm nay (cách gọi cũ); một khoảng ngày lọc theo ngày hẹn */
+const toQueueRange = (
+  scope: boolean | QueueDateRange | undefined,
+  today: string
+): QueueDateRange | undefined =>
+  scope === true ? { from: today, to: today } : scope || undefined;
+
+/** Lọc hàng đợi theo nhóm trạng thái và theo khoảng ngày hẹn */
 export const filterMyQueue = <T extends { status?: string; orderId?: unknown }>(
   items: T[] | null | undefined,
   view: QueueView,
-  todayOnly: boolean,
+  scope: boolean | QueueDateRange | undefined,
   today: string
 ): T[] => {
   const statuses = QUEUE_VIEWS.find(v => v.key === view)?.statuses;
-  return (items || []).filter(
-    item =>
-      (!statuses || statuses.includes(item.status || '')) &&
-      (!todayOnly || getQueueOrder(item)?.date === today)
-  );
+  const range = toQueueRange(scope, today);
+  return (items || []).filter(item => {
+    // A Booked service belongs to an order not checked in yet (nghiệp vụ 5)
+    if (item.status === 'Booked') return false;
+    if (statuses && !statuses.includes(item.status || '')) return false;
+    if (!range) return true;
+    const date = getQueueOrder(item)?.date;
+    return Boolean(date && date >= range.from && date <= range.to);
+  });
 };
 
 /** Số dịch vụ của từng nhóm, để hiện trên bộ lọc */
 export const countMyQueue = <T extends { status?: string; orderId?: unknown }>(
   items: T[] | null | undefined,
-  todayOnly: boolean,
+  scope: boolean | QueueDateRange | undefined,
   today: string
 ): Record<QueueView, number> =>
   QUEUE_VIEWS.reduce(
     (acc, view) => {
-      acc[view.key] = filterMyQueue(items, view.key, todayOnly, today).length;
+      acc[view.key] = filterMyQueue(items, view.key, scope, today).length;
       return acc;
     },
     {} as Record<QueueView, number>

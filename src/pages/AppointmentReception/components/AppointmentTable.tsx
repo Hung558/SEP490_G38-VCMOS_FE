@@ -13,7 +13,7 @@ import {
   getAppointmentOwnerPhone,
   getAppointmentPetName,
   getAppointmentStatusColor,
-  getAppointmentStatusLabel,
+  getOrderStatusText,
 } from '@/services/AppointmentOrderService';
 import { getAssignmentCageLabel } from '@/services/CageAssignmentService';
 import { ActionsWrapper } from './styles';
@@ -135,10 +135,17 @@ const AppointmentTable = ({
       render: (status: string, record: StaffAppointment) => {
         const tag = (
           <Tag color={getAppointmentStatusColor(status)}>
-            {getAppointmentStatusLabel(status)}
+            {getOrderStatusText(record)}
           </Tag>
         );
         const activeCage = getActiveCage(record);
+        // Nghiệp vụ 4.5: the BE frees the cage when a service starts; between
+        // services and after the last one the receptionist puts the pet back
+        const needsCage =
+          isReceptionist &&
+          !activeCage &&
+          CAGE_ASSIGNABLE_STATUSES.has(status) &&
+          record.currentService?.status !== 'InProgress';
         return (
           <Space direction="vertical" size={4}>
             {status === 'Cancelled' && record.cancelReason ? (
@@ -154,6 +161,13 @@ const AppointmentTable = ({
               >
                 <Tag color="cyan" icon={<BuildOutlined />}>
                   Đã phân chuồng
+                </Tag>
+              </Tooltip>
+            )}
+            {needsCage && (
+              <Tooltip title="Thú cưng đang ở phòng khám nhưng chưa có chuồng. Bấm Phân chuồng để xếp.">
+                <Tag color="warning" icon={<BuildOutlined />}>
+                  Chờ xếp chuồng
                 </Tag>
               </Tooltip>
             )}
@@ -219,7 +233,7 @@ const AppointmentTable = ({
                   icon={<HomeOutlined />}
                   onClick={() => onViewCage(activeCage)}
                 >
-                  Xem chuồng
+                  Chuồng {getAssignmentCageLabel(activeCage.cageId)}
                 </Button>
               )}
               {canCancel && (

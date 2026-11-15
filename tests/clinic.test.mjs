@@ -53,7 +53,7 @@ test('medical record, queue and cage URLs match the BE routes', () => {
   );
 });
 
-test('buildMedicalRecordPayload sends every SOAP field and the prescriptions, trimmed', () => {
+test('buildMedicalRecordPayload sends O, A, P and the prescriptions, trimmed; never the locked S', () => {
   const payload = medical.buildMedicalRecordPayload({
     subjectiveNote: '  Bé gãi tai  ',
     objectiveNote: '',
@@ -73,7 +73,6 @@ test('buildMedicalRecordPayload sends every SOAP field and the prescriptions, tr
     ],
   });
   assert.deepEqual(payload, {
-    subjectiveNote: 'Bé gãi tai',
     objectiveNote: '',
     assessment: '',
     plan: 'Kháng sinh 5 ngày',
@@ -94,7 +93,7 @@ test('buildMedicalRecordPayload sends every SOAP field and the prescriptions, tr
   assert.deepEqual(empty.prescriptions, []);
 });
 
-test('findMissingSoapFields lists the empty parts of S-O-A-P (BR-13)', () => {
+test('findMissingSoapFields lists the empty parts the vet writes, O-A-P (BR-13)', () => {
   assert.deepEqual(
     medical.findMissingSoapFields({
       subjectiveNote: 'S',
@@ -106,6 +105,16 @@ test('findMissingSoapFields lists the empty parts of S-O-A-P (BR-13)', () => {
   assert.deepEqual(
     medical.findMissingSoapFields({
       subjectiveNote: 'S',
+      objectiveNote: 'O',
+      assessment: 'A',
+      plan: 'P',
+    }),
+    []
+  );
+  // S is filled by the BE: an empty S never blocks completion
+  assert.deepEqual(
+    medical.findMissingSoapFields({
+      subjectiveNote: '',
       objectiveNote: 'O',
       assessment: 'A',
       plan: 'P',
@@ -225,7 +234,7 @@ const queueItem = (status, date, category = 'Examination', extra = {}) => ({
   ...extra,
 });
 
-test('the work queue filters by status group and by today', () => {
+test('the work queue filters by status group and by today; Booked services are left out (nghiệp vụ 5)', () => {
   const items = [
     queueItem('Waiting', '2026-11-10'),
     queueItem('InProgress', '2026-11-10'),
@@ -248,13 +257,12 @@ test('the work queue filters by status group and by today', () => {
   );
   assert.equal(
     orderServices.filterMyQueue(items, 'all', false, today).length,
-    5
+    4
   );
   assert.deepEqual(orderServices.countMyQueue(items, true, today), {
     active: 2,
-    booked: 1,
     done: 0,
-    all: 3,
+    all: 2,
   });
   assert.deepEqual(orderServices.filterMyQueue(null, 'all', false, today), []);
 });
@@ -426,7 +434,7 @@ test('cage weight limits and canCageHoldPet enforce BR-11 for Vet and Groomer wa
   assert.equal(cages.canCageHoldPet(mediumCage, 18.0, false), false);
 });
 
-test('completion sends the current SOAP values and a cage ID or explicit null', () => {
+test('completion sends the current SOAP values and no waiting cage (nghiệp vụ 4.5)', () => {
   const values = {
     subjectiveNote: ' S ',
     objectiveNote: 'O',
@@ -435,17 +443,12 @@ test('completion sends the current SOAP values and a cage ID or explicit null', 
     weight: 8.5,
   };
   const draft = medical.buildMedicalRecordPayload(values);
-  const cageId = '6ad96d4a9664da6b2c0d8c01';
-  assert.equal(draft.subjectiveNote, 'S');
+  assert.equal('subjectiveNote' in draft, false);
   assert.equal('waitingCageId' in draft, false);
-  assert.deepEqual(medical.buildCompleteMedicalRecordPayload(values), {
-    ...draft,
-    waitingCageId: null,
-  });
-  assert.deepEqual(medical.buildCompleteMedicalRecordPayload(values, cageId), {
-    ...draft,
-    waitingCageId: cageId,
-  });
+  // The receptionist puts the pet in a cage after the exam, not the vet
+  const complete = medical.buildCompleteMedicalRecordPayload(values);
+  assert.deepEqual(complete, draft);
+  assert.equal('waitingCageId' in complete, false);
 });
 
 test('only unfinished earlier services from the same order block a waiting appointment service', () => {

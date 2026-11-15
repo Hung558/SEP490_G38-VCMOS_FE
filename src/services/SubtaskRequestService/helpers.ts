@@ -4,6 +4,8 @@ import type {
   SubtaskResult,
   SubtaskStatus,
 } from './types';
+import type { ClinicalStaffRole } from '../../types/api/staff.api';
+import { getServiceStaffRole } from '../StaffService/helpers.ts';
 
 /** Sub-tasks that still block finishing the main exam (MSG26, BR-13) */
 export const countOpenSubtasks = (
@@ -21,6 +23,54 @@ export const SUBTASK_TASK_TYPES = [
   'Tắm thuốc',
   'Cạo lông',
 ] as const;
+
+/** Ai làm từng chỉ định thường dùng: việc chăm sóc da, lông cho Groomer, còn lại cho bác sĩ */
+export const SUBTASK_TASK_TYPE_ROLES: Record<
+  (typeof SUBTASK_TASK_TYPES)[number],
+  ClinicalStaffRole
+> = {
+  'Xét nghiệm máu': 'Veterinarian',
+  'Sinh hóa máu': 'Veterinarian',
+  'Chụp X-quang': 'Veterinarian',
+  'Siêu âm': 'Veterinarian',
+  'Thay băng vết thương': 'Veterinarian',
+  'Tắm thuốc': 'Groomer',
+  'Cạo lông': 'Groomer',
+};
+
+const sameName = (a: string, b: string): boolean =>
+  a.trim().toLocaleLowerCase('vi') === b.trim().toLocaleLowerCase('vi');
+
+/**
+ * Nghiệp vụ 5: bác sĩ giao thêm dịch vụ cho nhân viên khác, nên người thực hiện
+ * phải đúng vai trò của chỉ định:
+ * - dịch vụ trong danh mục: vai trò BE quy định, gửi kèm `serviceId` để BE kiểm lại;
+ * - chỉ định thường dùng: theo bảng SUBTASK_TASK_TYPE_ROLES;
+ * - tên tự nhập khác: chưa biết vai trò.
+ */
+export const resolveSubtaskTarget = (
+  taskType: string | undefined,
+  services: readonly {
+    _id: string;
+    name: string;
+    category?: string;
+    requiredRole?: string | null;
+  }[]
+): { role?: ClinicalStaffRole; serviceId?: string } => {
+  const name = taskType?.trim();
+  if (!name) return {};
+  const service = services.find(s => sameName(s.name, name));
+  if (service)
+    return { role: getServiceStaffRole(service), serviceId: service._id };
+  const common = SUBTASK_TASK_TYPES.find(type => sameName(type, name));
+  return common ? { role: SUBTASK_TASK_TYPE_ROLES[common] } : {};
+};
+
+/** Chỉ người đúng vai trò; chưa biết vai trò thì hiện cả bác sĩ và groomer */
+export const filterSubtaskPerformers = <T extends { role?: string }>(
+  staff: readonly T[],
+  role?: ClinicalStaffRole
+): T[] => (role ? staff.filter(s => s.role === role) : [...staff]);
 
 export const SUBTASK_LIMIT = {
   taskType: 200,
@@ -72,11 +122,13 @@ export const buildSubtaskCreate = (input: CreateSubtask): CreateSubtask => {
   ) {
     throw new Error('Tên chỉ định hoặc hướng dẫn không hợp lệ.');
   }
+  const serviceId = input.serviceId?.trim();
   return {
     appointmentServiceId: input.appointmentServiceId,
     assignedStaffId: input.assignedStaffId,
     taskType,
     ...(instructions ? { instructions } : {}),
+    ...(serviceId ? { serviceId } : {}),
   };
 };
 
