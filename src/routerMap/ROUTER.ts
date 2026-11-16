@@ -15,6 +15,7 @@ const ROUTER = {
   CLINIC_APPOINTMENTS: '/clinic/appointments',
   // Veterinarian / Groomer work queue (SCR-22, SCR-26)
   STAFF_QUEUE: '/clinic/my-queue',
+  INPATIENT_CARE: '/clinic/inpatient',
   // SCR-30 ca làm việc: Admin quản lý, Lễ tân xem, Bác sĩ/Groomer xem của mình
   STAFF_SCHEDULES: '/staff-schedules',
   // SOAP exam of one appointment service (SCR-23); build with generatePath

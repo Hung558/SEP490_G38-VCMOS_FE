@@ -10,6 +10,7 @@ import {
   ScheduleOutlined,
   UnorderedListOutlined,
   CalendarOutlined,
+  MedicineBoxOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -185,6 +186,15 @@ export const MenuItemClinicalStaff = (role: string): MenuItem[] => {
       label: role === 'Groomer' ? 'Hàng đợi spa' : 'Hàng đợi khám',
       icon: <UnorderedListOutlined />,
     },
+    ...(role === 'Veterinarian'
+      ? [
+          {
+            key: ROUTER.INPATIENT_CARE,
+            label: 'Nội trú',
+            icon: <MedicineBoxOutlined />,
+          },
+        ]
+      : []),
     {
       key: ROUTER.STAFF_SCHEDULES,
       label: 'Lịch làm việc của tôi',

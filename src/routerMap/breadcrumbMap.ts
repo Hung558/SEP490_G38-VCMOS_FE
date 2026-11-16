@@ -16,5 +16,6 @@ export const breadcrumbMap: Record<string, string> = {
   appointments: 'Tiếp nhận lịch hẹn',
   'my-queue': 'Hàng đợi của tôi',
   exam: 'Khám bệnh',
+  inpatient: 'Nội trú',
   'staff-schedules': 'Ca làm việc',
 };

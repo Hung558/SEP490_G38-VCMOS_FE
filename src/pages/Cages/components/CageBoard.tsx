@@ -236,7 +236,10 @@ const CageBoard = ({
 
   const renderActions = (cage: Cage, assignment?: CageAssignment) => {
     if (!canManage) return null;
+    const inpatientWard = cage.zone === 'InpatientWard';
     if (cage.status === 'Available') {
+      if (inpatientWard)
+        return <Text type="secondary">Bác sĩ xếp chuồng khi nhập viện.</Text>;
       return (
         <Button
           size="small"
@@ -256,7 +259,11 @@ const CageBoard = ({
       <>
         <Popconfirm
           title={`Giải phóng chuồng ${cage.label}?`}
-          description="Thú cưng được đưa ra khỏi chuồng, chuồng trở lại trạng thái Trống."
+          description={
+            inpatientWard
+              ? 'Chỉ giải phóng khi bác sĩ đã xác nhận xuất viện và chủ đã đến đón.'
+              : 'Thú cưng được đưa ra khỏi chuồng, chuồng trở lại trạng thái Trống.'
+          }
           okText="Giải phóng"
           cancelText="Không"
           okButtonProps={{ danger: true }}
@@ -344,6 +351,9 @@ const CageBoard = ({
                     </Text>
                   </div>
                   <Space size={4} wrap style={{ justifyContent: 'flex-end' }}>
+                    {cage.zone === 'InpatientWard' && (
+                      <Tag color="blue">Nội trú</Tag>
+                    )}
                     {cage.isIsolated && <Tag color="error">Cách ly</Tag>}
                     {occupied ? (
                       <Tag key="occupied" style={OCCUPIED_TAG}>

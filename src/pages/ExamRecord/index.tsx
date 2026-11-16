@@ -62,6 +62,8 @@ import SubtaskRequestService, {
 } from '@/services/SubtaskRequestService';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { normalizeRole } from '@/constants/roles';
+import AdmissionModal from '@/pages/InpatientCare/AdmissionModal';
+import { canAdmitFromExam } from '@/services/InpatientRecordService/helpers';
 
 const { Title, Text } = Typography;
 
@@ -93,6 +95,8 @@ const ExamRecordCase = ({
   const { user } = useAuth();
   const role = normalizeRole(user?.role || user?.systemRole);
   const [subtasksOpen, setSubtasksOpen] = useState(false);
+  const [admissionOpen, setAdmissionOpen] = useState(false);
+  const [admittedRecordId, setAdmittedRecordId] = useState<string>();
   // T-36 / MSG26: sub-tasks still Pending or InProgress block "Hoàn tất ca khám"
   const [openSubtasks, setOpenSubtasks] = useState<number>();
   useEffect(() => {
@@ -305,6 +309,14 @@ const ExamRecordCase = ({
     getServiceRefCategory(item.serviceId)
   );
   const examAction = getExamAction(item, role);
+  const admissionPetId = pet?._id || order?.petId;
+  const admissionOrderId = order?._id;
+  const canAdmit = Boolean(
+    !loading &&
+      admissionPetId &&
+      admissionOrderId &&
+      canAdmitFromExam(status, order?.derivedStatus)
+  );
   const renderBody = () => {
     if (record && isMedicalRecordLocked(record)) {
       return (
@@ -440,6 +452,23 @@ const ExamRecordCase = ({
           </div>
           <Space wrap>
             {backToQueue}
+            {admittedRecordId ? (
+              <Button
+                onClick={() =>
+                  navigate(
+                    `${ROUTER.INPATIENT_CARE}?record=${encodeURIComponent(admittedRecordId)}`
+                  )
+                }
+              >
+                Xem hồ sơ nội trú
+              </Button>
+            ) : (
+              canAdmit && (
+                <Button onClick={() => setAdmissionOpen(true)}>
+                  Nhập viện nội trú
+                </Button>
+              )
+            )}
             {(examAction === 'continue' || examAction === 'view') && (
               <Button onClick={() => setSubtasksOpen(true)}>
                 Cận lâm sàng
@@ -480,9 +509,30 @@ const ExamRecordCase = ({
             <ReceptionIntakeDetails intake={intake} />
           </div>
         )}
+        {status === 'Done' && order?.derivedStatus === 'InProgress' && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="Có thể nhập viện sau khi các dịch vụ của lịch hẹn đã xong."
+          />
+        )}
         {renderBody()}
       </Card>
 
+      {admissionOpen && canAdmit && admissionPetId && admissionOrderId && (
+        <AdmissionModal
+          petId={admissionPetId}
+          petName={pet?.name}
+          petWeight={pet?.weight}
+          orderId={admissionOrderId}
+          onClose={() => setAdmissionOpen(false)}
+          onAdmitted={saved => {
+            setAdmittedRecordId(saved._id);
+            setAdmissionOpen(false);
+          }}
+        />
+      )}
       {subtasksOpen && (examAction === 'continue' || examAction === 'view') && (
         <ServiceSubtasksModal
           serviceId={appointmentServiceId}
