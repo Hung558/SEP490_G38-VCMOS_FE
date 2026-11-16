@@ -202,4 +202,20 @@ export const PetProfileWrapper = styled.div`
       margin-bottom: 8px;
     }
   }
+
+  .inpatient-logs-title {
+    margin-top: 0;
+    scroll-margin-top: 100px;
+  }
+
+  .inpatient-log-entry {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .inpatient-log-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
 `;
