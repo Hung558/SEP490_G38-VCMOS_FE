@@ -1,7 +1,7 @@
 import { Alert, Button, Skeleton, Typography } from 'antd';
 import dayjs from 'dayjs';
 import styled from 'styled-components';
-import { RECEPTION_TODAY_GROUPS } from './receptionToday';
+import { isAtClinicStatus, RECEPTION_TODAY_GROUPS } from './receptionToday';
 import type {
   ReceptionTodayCounts,
   ReceptionTodayGroup,
@@ -126,6 +126,9 @@ const ReceptionTodayOverview = ({
             <Count>{counts[group.key]}</Count>
             {group.key === 'total' && (
               <Text type="secondary">Mọi trạng thái, kể cả lịch đã hủy</Text>
+            )}
+            {isAtClinicStatus(group.status) && (
+              <Text type="secondary">Đang ở phòng khám, mọi ngày hẹn</Text>
             )}
           </MetricButton>
         ))}

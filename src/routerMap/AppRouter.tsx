@@ -30,6 +30,9 @@ import StaffQueuePage from '@/pages/StaffQueue';
 import StaffSchedulesPage from '@/pages/StaffSchedules';
 import ExamRecordPage from '@/pages/ExamRecord';
 import InpatientCarePage from '@/pages/InpatientCare';
+import MyInvoicesPage from '@/pages/MyInvoices';
+import ClinicInvoicesPage from '@/pages/ClinicInvoices';
+import VnpayReturnPage from '@/pages/VnpayReturn';
 import { useScrollTopOnNavigate } from '@/hooks/Common/useScrollTopOnNavigate';
 
 const AppRouter = () => {
@@ -70,6 +73,15 @@ const AppRouter = () => {
       element: (
         <Suspense fallback={<SpinCustom spinning={true} />}>
           <LoginRegisterPage />
+        </Suspense>
+      ),
+    },
+    {
+      // Whoever paid lands here from VNPay, signed in or not
+      path: ROUTER.VNPAY_RETURN,
+      element: (
+        <Suspense fallback={<SpinCustom spinning={true} />}>
+          <VnpayReturnPage />
         </Suspense>
       ),
     },
@@ -129,6 +141,15 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <AppointmentReceptionPage />
+            </Suspense>
+          ),
+        },
+        {
+          // GET /invoices is Receptionist and Admin; only the receptionist takes payment
+          path: ROUTER.CLINIC_INVOICES,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <ClinicInvoicesPage />
             </Suspense>
           ),
         },
@@ -200,6 +221,15 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <DashboardPage />
+            </Suspense>
+          ),
+        },
+        {
+          // GET /invoices/me is PetOwner only (SCR-15)
+          path: ROUTER.MY_INVOICES,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <MyInvoicesPage />
             </Suspense>
           ),
         },

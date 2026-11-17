@@ -11,6 +11,7 @@ import {
   Typography,
 } from 'antd';
 import {
+  DollarOutlined,
   FieldTimeOutlined,
   FileTextOutlined,
   ReloadOutlined,
@@ -19,6 +20,8 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import styled from 'styled-components';
 import type {
+  Invoice,
+  ListInvoicesResponse,
   MedicalRecord,
   OnlineAppointment,
   PetAppointmentNote,
@@ -31,7 +34,18 @@ import MedicalRecordService, {
   getRecordOrderCode,
 } from '@/services/MedicalRecordService';
 import PetService from '@/services/PetService';
+import InvoiceService, {
+  filterInvoicesByPet,
+  formatVnd,
+  getInvoiceStatusColor,
+  getInvoiceStatusLabel,
+  indexInvoicesByOrderCode,
+  INVOICE_LIST_LIMIT_MAX,
+  PAY_AT_COUNTER_TEXT,
+} from '@/services/InvoiceService';
 import MedicalRecordView from '@/components/medical/MedicalRecordView';
+import InvoiceDetailView from '@/components/invoice/InvoiceDetailView';
+import InvoicePdfButton from '@/components/invoice/InvoicePdfButton';
 import {
   buildPetMilestones,
   getActiveVisitRange,
@@ -77,7 +91,7 @@ interface PetVisitTimelineProps {
 /**
  * Nghiệp vụ 3.3, 3.7: mỗi lần khám hoặc dịch vụ là một mốc, luôn hiện trạng thái
  * gần nhất từ lúc đặt tới khi xong; bệnh án SOAP gắn vào mốc khi khám xong.
- * Hóa đơn chưa có API nên chưa hiện.
+ * Hóa đơn gắn vào mốc cùng mã lịch hẹn, chỉ chủ pet xem được (H7, BR-23).
  */
 const PetVisitTimeline = ({
   petId,
@@ -87,6 +101,8 @@ const PetVisitTimeline = ({
   const [notes, setNotes] = useState<PetAppointmentNote[]>(initialNotes || []);
   const [orders, setOrders] = useState<OnlineAppointment[]>([]);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [openInvoice, setOpenInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(!initialNotes);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,19 +129,34 @@ const PetVisitTimeline = ({
             : (await PetService.getPetById(petId)).appointmentNotes || [];
         firstLoadRef.current = false;
         const range = ownerView ? getActiveVisitRange(visits) : undefined;
-        const [recordResult, orderResult] = await Promise.allSettled([
-          MedicalRecordService.getPetHistory(petId, { signal }),
-          range
-            ? AppointmentOrderService.listMyOnlineBookings(
-                { ...range, limit: 50 },
-                { signal }
-              )
-            : Promise.resolve({ data: [] as OnlineAppointment[] }),
-        ]);
+        const [recordResult, orderResult, invoiceResult] =
+          await Promise.allSettled([
+            MedicalRecordService.getPetHistory(petId, { signal }),
+            range
+              ? AppointmentOrderService.listMyOnlineBookings(
+                  { ...range, limit: 50 },
+                  { signal }
+                )
+              : Promise.resolve({ data: [] as OnlineAppointment[] }),
+            // Bills are for the pet's owner only (GET /invoices/me, BR-23)
+            ownerView
+              ? InvoiceService.listMine(
+                  { petId, limit: INVOICE_LIST_LIMIT_MAX },
+                  { signal }
+                )
+              : Promise.resolve<ListInvoicesResponse>({
+                  items: [],
+                  pagination: { page: 1, limit: 0, total: 0, totalPages: 0 },
+                }),
+          ]);
         if (signal.aborted) return;
         setNotes(visits);
         if (recordResult.status === 'fulfilled')
           setRecords(recordResult.value.records || []);
+        if (invoiceResult.status === 'fulfilled')
+          setInvoices(
+            filterInvoicesByPet(invoiceResult.value.items || [], petId)
+          );
         // Staff and walk-in visits only have the order status
         setOrders(
           orderResult.status === 'fulfilled' ? orderResult.value.data || [] : []
@@ -185,6 +216,11 @@ const PetVisitTimeline = ({
     [notes, orders, recordsByCode]
   );
 
+  const invoicesByCode = useMemo(
+    () => indexInvoicesByOrderCode(invoices),
+    [invoices]
+  );
+
   const shownRecords = openRecords
     ? records.filter(r => openRecords.ids.includes(r._id))
     : [];
@@ -197,7 +233,9 @@ const PetVisitTimeline = ({
       </div>
       <div className="timeline-subtitle">
         Mỗi lần khám hoặc làm dịch vụ là một mốc, luôn hiện trạng thái mới nhất.
-        Khám xong, bệnh án được gắn vào mốc.
+        {ownerView
+          ? ' Xong việc, bệnh án và hóa đơn được gắn vào mốc.'
+          : ' Khám xong, bệnh án được gắn vào mốc.'}
       </div>
       <Space size={8} wrap style={{ marginBottom: 12 }}>
         <Button
@@ -238,61 +276,102 @@ const PetVisitTimeline = ({
         />
       ) : (
         <Timeline
-          items={milestones.map(m => ({
-            key: m.id,
-            color: m.active ? 'blue' : m.status === 'Done' ? 'green' : 'gray',
-            children: (
-              <MilestoneBody>
-                <div className="milestone-head">
-                  <strong>{dayjs(m.date).format('DD/MM/YYYY')}</strong>
-                  {m.slotStart && <Text type="secondary">{m.slotStart}</Text>}
-                  <Tag color={getAppointmentStatusColor(m.status)}>
-                    {m.statusText}
-                  </Tag>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {m.code}
-                    {m.isOnline === false ? ' · khám tại chỗ' : ''}
-                  </Text>
-                </div>
-                {m.services.length > 0 && (
-                  <div className="milestone-line">
-                    Dịch vụ: {m.services.join(' → ')}
+          items={milestones.map(m => {
+            const invoice = ownerView ? invoicesByCode.get(m.code) : undefined;
+            return {
+              key: m.id,
+              color: m.active ? 'blue' : m.status === 'Done' ? 'green' : 'gray',
+              children: (
+                <MilestoneBody>
+                  <div className="milestone-head">
+                    <strong>{dayjs(m.date).format('DD/MM/YYYY')}</strong>
+                    {m.slotStart && <Text type="secondary">{m.slotStart}</Text>}
+                    <Tag color={getAppointmentStatusColor(m.status)}>
+                      {m.statusText}
+                    </Tag>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {m.code}
+                      {m.isOnline === false ? ' · khám tại chỗ' : ''}
+                    </Text>
                   </div>
-                )}
-                {m.symptoms && (
-                  <div className="milestone-line">
-                    Triệu chứng lúc đến: {m.symptoms}
-                  </div>
-                )}
-                {m.note && (
-                  <div className="milestone-line">Ghi chú: {m.note}</div>
-                )}
-                {ownerView && m.status === 'WaitOwner' && (
-                  <Alert
-                    type="success"
-                    showIcon
-                    message="Bé đã xong dịch vụ, mời bạn tới phòng khám đón bé."
-                    style={{ marginTop: 4 }}
-                  />
-                )}
-                {m.recordIds.length > 0 && (
-                  <div>
-                    <Button
-                      size="small"
-                      icon={<FileTextOutlined />}
-                      onClick={() =>
-                        setOpenRecords({ code: m.code, ids: m.recordIds })
-                      }
-                    >
-                      Xem bệnh án ({m.recordIds.length})
-                    </Button>
-                  </div>
-                )}
-              </MilestoneBody>
-            ),
-          }))}
+                  {m.services.length > 0 && (
+                    <div className="milestone-line">
+                      Dịch vụ: {m.services.join(' → ')}
+                    </div>
+                  )}
+                  {m.symptoms && (
+                    <div className="milestone-line">
+                      Triệu chứng lúc đến: {m.symptoms}
+                    </div>
+                  )}
+                  {m.note && (
+                    <div className="milestone-line">Ghi chú: {m.note}</div>
+                  )}
+                  {ownerView && m.status === 'WaitOwner' && (
+                    <Alert
+                      type="success"
+                      showIcon
+                      message="Bé đã xong dịch vụ, mời bạn tới phòng khám đón bé."
+                      description={PAY_AT_COUNTER_TEXT}
+                      style={{ marginTop: 4 }}
+                    />
+                  )}
+                  {invoice && (
+                    <div className="milestone-line">
+                      Hóa đơn {invoice.code} · {formatVnd(invoice.totalAmount)}{' '}
+                      <Tag color={getInvoiceStatusColor(invoice.paymentStatus)}>
+                        {getInvoiceStatusLabel(invoice.paymentStatus)}
+                      </Tag>
+                    </div>
+                  )}
+                  {(m.recordIds.length > 0 || invoice) && (
+                    <Space size={8} wrap>
+                      {m.recordIds.length > 0 && (
+                        <Button
+                          size="small"
+                          icon={<FileTextOutlined />}
+                          onClick={() =>
+                            setOpenRecords({ code: m.code, ids: m.recordIds })
+                          }
+                        >
+                          Xem bệnh án ({m.recordIds.length})
+                        </Button>
+                      )}
+                      {invoice && (
+                        <Button
+                          size="small"
+                          icon={<DollarOutlined />}
+                          onClick={() => setOpenInvoice(invoice)}
+                        >
+                          Xem hóa đơn
+                        </Button>
+                      )}
+                    </Space>
+                  )}
+                </MilestoneBody>
+              ),
+            };
+          })}
         />
       )}
+
+      <Modal
+        open={Boolean(openInvoice)}
+        title={openInvoice ? `Hóa đơn ${openInvoice.code}` : ''}
+        footer={null}
+        width={760}
+        onCancel={() => setOpenInvoice(null)}
+        destroyOnHidden
+      >
+        {openInvoice && (
+          <InvoiceDetailView
+            invoice={openInvoice}
+            showOwner={false}
+            payAtCounterHint
+            actions={<InvoicePdfButton invoice={openInvoice} />}
+          />
+        )}
+      </Modal>
 
       <Modal
         open={Boolean(openRecords)}

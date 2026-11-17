@@ -21,6 +21,7 @@ import CustomerLookupPanel from './components/CustomerLookupPanel';
 import WalkInModal from './components/WalkInModal';
 import ClinicScheduleTab from './components/ClinicScheduleTab';
 import ReceptionTodayOverview from './components/ReceptionTodayOverview';
+import CheckoutModal from '@/components/invoice/CheckoutModal';
 
 const { Title, Text } = Typography;
 
@@ -111,6 +112,7 @@ const AppointmentReceptionPage = () => {
         onAssignCage={state.openCreateAssignment}
         onViewCage={state.openAssignmentDetail}
         onCancelAppointment={state.openCancel}
+        onCheckout={state.openCheckout}
       />
     </>
   );
@@ -208,6 +210,14 @@ const AppointmentReceptionPage = () => {
           onUpdated={state.refreshAppointmentList}
           onCancelAppointment={state.openCancel}
           serviceRefreshTrigger={state.serviceRefreshTrigger}
+        />
+
+        <CheckoutModal
+          open={Boolean(state.checkoutTarget)}
+          order={state.checkoutTarget}
+          canPay={state.isReceptionist}
+          onClose={state.closeCheckout}
+          onChanged={state.refreshAppointmentList}
         />
 
         {state.isReceptionist && (

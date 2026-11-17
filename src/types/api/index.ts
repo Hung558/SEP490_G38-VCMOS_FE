@@ -11,3 +11,4 @@ export * from './staff.api';
 export * from './staff-schedule.api';
 export * from './walk-in.api';
 export * from './medical-record.api';
+export * from './invoice.api';

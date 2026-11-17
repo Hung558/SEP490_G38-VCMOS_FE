@@ -13,12 +13,26 @@ export type ReceptionTodayGroup = (typeof RECEPTION_TODAY_GROUPS)[number];
 export type ReceptionTodayKey = ReceptionTodayGroup['key'];
 export type ReceptionTodayCounts = Record<ReceptionTodayKey, number>;
 
+/**
+ * The pet is at the clinic in these states. Nghiệp vụ 4.3 lets the owner come
+ * early or late, so the appointment date may not be today: a pet booked for
+ * tomorrow and checked in today still has to be served and billed today (4.6).
+ * These counters and their lists therefore cover every appointment date.
+ */
+const AT_CLINIC_STATUSES: ReadonlySet<string> = new Set([
+  'CheckedIn',
+  'InProgress',
+  'WaitOwner',
+]);
+
+export const isAtClinicStatus = (status?: string) =>
+  Boolean(status && AT_CLINIC_STATUSES.has(status));
+
 export const getReceptionTodayCountQuery = (
   day: string,
   status: ReceptionTodayGroup['status']
 ): ListStaffAppointmentsParams => ({
-  from: day,
-  to: day,
+  ...(isAtClinicStatus(status) ? {} : { from: day, to: day }),
   page: 1,
   limit: 1,
   ...(status ? { status } : {}),
@@ -41,13 +55,11 @@ export const getSelectedReceptionTodayGroup = (
     'from' | 'to' | 'status' | 'code' | 'isOnline'
   >
 ): ReceptionTodayKey | undefined => {
-  if (
-    filters.from !== day ||
-    filters.to !== day ||
-    filters.code?.trim() ||
-    filters.isOnline !== undefined
-  )
-    return;
+  if (filters.code?.trim() || filters.isOnline !== undefined) return;
+  const datesMatch = isAtClinicStatus(filters.status)
+    ? !filters.from && !filters.to
+    : filters.from === day && filters.to === day;
+  if (!datesMatch) return;
   return RECEPTION_TODAY_GROUPS.find(group => group.status === filters.status)
     ?.key;
 };
@@ -60,7 +72,11 @@ export const getReceptionNextAction = (status: AppointmentStatus) => {
       return { kind: 'detail' as const, hint: 'Kiểm tra dịch vụ và phân công' };
     case 'InProgress':
       return { kind: 'detail' as const, hint: 'Theo dõi tiến độ dịch vụ' };
+    // Nghiệp vụ 4.6: khách đến đón thì lễ tân lập hóa đơn và thu tiền
     case 'WaitOwner':
-      return { kind: 'detail' as const, hint: 'Kiểm tra trước khi bàn giao' };
+      return {
+        kind: 'checkout' as const,
+        hint: 'Lập hóa đơn và thu tiền khi chủ đến đón',
+      };
   }
 };

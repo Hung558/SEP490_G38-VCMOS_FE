@@ -213,6 +213,84 @@ const SectionCard = styled(Card)`
   }
 `;
 
+// Appointment list (yêu cầu 17/11): the status tag wraps instead of being cut,
+// and the actions start on the left so "Chi tiết" lines up on every row
+const StatusCell = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+
+  .ant-tag {
+    margin-inline-end: 0;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 18px;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  .status-hint {
+    font-size: 12px;
+    line-height: 16px;
+    color: #64748b;
+  }
+`;
+
+const RowActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+
+  && .ant-btn {
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: none;
+  }
+
+  && .act-view {
+    color: #0f766e;
+    background: #f0fdfa;
+    border-color: #99f6e4;
+  }
+  && .act-view:not(:disabled):hover {
+    color: #0d9488;
+    background: #ccfbf1;
+    border-color: #5eead4;
+  }
+
+  && .act-add {
+    color: #0369a1;
+    background: #f0f9ff;
+    border-color: #bae6fd;
+  }
+  && .act-add:not(:disabled):hover {
+    color: #0284c7;
+    background: #e0f2fe;
+    border-color: #7dd3fc;
+  }
+
+  && .act-cancel {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fecaca;
+  }
+  && .act-cancel:not(:disabled):hover {
+    color: #dc2626;
+    background: #fee2e2;
+    border-color: #fca5a5;
+  }
+  && .act-cancel:disabled {
+    color: #94a3b8;
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+`;
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -536,16 +614,20 @@ const DashboardPage: React.FC = () => {
       title: 'Mã lượt hẹn',
       dataIndex: 'code',
       key: 'code',
-      width: 115,
+      width: 128,
       render: (code: string) => (
-        <strong style={{ color: '#0d9488', letterSpacing: 0.5 }}>{code}</strong>
+        <strong
+          style={{ color: '#0d9488', letterSpacing: 0.5, whiteSpace: 'nowrap' }}
+        >
+          {code}
+        </strong>
       ),
     },
     {
       title: 'Thú cưng',
       dataIndex: 'petId',
       key: 'petId',
-      width: 130,
+      width: 102,
       render: (petId: string) => {
         const p = petsMap.get(petId);
         if (p) {
@@ -571,7 +653,7 @@ const DashboardPage: React.FC = () => {
       title: 'Ngày hẹn khám',
       dataIndex: 'date',
       key: 'date',
-      width: 125,
+      width: 110,
       render: (date: string, record: OnlineAppointment) => (
         <div>
           <div>{date ? dayjs(date).format('DD/MM/YYYY') : '—'}</div>
@@ -587,7 +669,7 @@ const DashboardPage: React.FC = () => {
     {
       title: 'Người phụ trách',
       key: 'staff',
-      width: 150,
+      width: 120,
       render: (_: unknown, record: OnlineAppointment) => {
         if (record.derivedStatus === 'Cancelled') {
           return <Text type="secondary">—</Text>;
@@ -619,50 +701,43 @@ const DashboardPage: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'derivedStatus',
       key: 'derivedStatus',
-      width: 120,
+      width: 140,
       render: (derivedStatus: AppointmentStatus, record: OnlineAppointment) => {
         const tag = (
           <Tag color={getAppointmentStatusColor(derivedStatus)}>
             {getOrderStatusText(record)}
           </Tag>
         );
-        if (derivedStatus === 'Cancelled' && record.cancelReason) {
-          return (
-            <Tooltip title={`Lý do hủy: ${record.cancelReason}`}>{tag}</Tooltip>
-          );
-        }
-        return tag;
+        return (
+          <StatusCell>
+            {derivedStatus === 'Cancelled' && record.cancelReason ? (
+              <Tooltip title={`Lý do hủy: ${record.cancelReason}`}>
+                {tag}
+              </Tooltip>
+            ) : (
+              tag
+            )}
+            {/* Nghiệp vụ 4.6: the bill is made and paid at the desk on pick-up */}
+            {derivedStatus === 'WaitOwner' && (
+              <span className="status-hint">Đến đón, thanh toán tại quầy</span>
+            )}
+          </StatusCell>
+        );
       },
     },
     {
       title: 'Hành động',
       key: 'action',
-      width: 280,
+      width: 320,
       fixed: 'right' as const,
-      align: 'center' as const,
       render: (_: unknown, record: OnlineAppointment) => {
         const isEligible = isAppointmentEligibleForService(record);
         return (
-          <Space
-            size={6}
-            style={{
-              display: 'inline-flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <RowActions>
             <Button
-              type="link"
               size="small"
+              className="act-view"
               icon={<EyeOutlined />}
-              style={{
-                color: '#0d9488',
-                fontWeight: 600,
-                padding: '2px 4px',
-                height: 'auto',
-                lineHeight: 1.4,
-              }}
               onClick={() => {
                 setSelectedAppointmentId(record._id);
                 setIsAppointmentDetailOpen(true);
@@ -672,16 +747,9 @@ const DashboardPage: React.FC = () => {
             </Button>
             {isPetOwner && isEligible && (
               <Button
-                type="link"
                 size="small"
+                className="act-add"
                 icon={<PlusCircleOutlined />}
-                style={{
-                  color: '#0284c7',
-                  fontWeight: 600,
-                  padding: '2px 4px',
-                  height: 'auto',
-                  lineHeight: 1.4,
-                }}
                 onClick={() => {
                   setAppointmentToAddService(record);
                   setIsAddServiceModalOpen(true);
@@ -692,15 +760,8 @@ const DashboardPage: React.FC = () => {
             )}
             {isPetOwner && canOwnerCancelAppointment(record) && (
               <Button
-                type="link"
                 size="small"
-                danger
-                style={{
-                  fontWeight: 600,
-                  padding: '2px 4px',
-                  height: 'auto',
-                  lineHeight: 1.4,
-                }}
+                className="act-cancel"
                 onClick={() => {
                   if (!canOwnerCancelAppointment(record)) {
                     toast.warning(OWNER_CANCEL_DEADLINE_MESSAGE);
@@ -715,28 +776,19 @@ const DashboardPage: React.FC = () => {
             )}
             {isPetOwner && getOwnerCancelState(record) === 'disabled' && (
               <Tooltip title={OWNER_CANCEL_DEADLINE_MESSAGE}>
-                <span
-                  style={{ display: 'inline-block', cursor: 'not-allowed' }}
-                >
+                <span style={{ display: 'inline-flex', cursor: 'not-allowed' }}>
                   <Button
-                    type="link"
                     size="small"
-                    danger
+                    className="act-cancel"
                     disabled
-                    style={{
-                      pointerEvents: 'none',
-                      fontWeight: 600,
-                      padding: '2px 4px',
-                      height: 'auto',
-                      lineHeight: 1.4,
-                    }}
+                    style={{ pointerEvents: 'none' }}
                   >
                     Hủy lịch
                   </Button>
                 </span>
               </Tooltip>
             )}
-          </Space>
+          </RowActions>
         );
       },
     },
@@ -1216,7 +1268,7 @@ const DashboardPage: React.FC = () => {
               columns={appointmentColumns}
               dataSource={appointments}
               loading={appointmentsLoading}
-              scroll={{ x: 960 }}
+              scroll={{ x: 1000 }}
               pagination={{
                 current: appointmentPage,
                 pageSize: appointmentLimit,

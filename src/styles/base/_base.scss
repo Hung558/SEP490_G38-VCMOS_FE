@@ -2,10 +2,16 @@
 html {
   scroll-behavior: smooth;
   max-width: 100vw;
-  overflow-x: hidden;
 }
 
+// overflow-x lives on body, not html. With html left visible the browser hands
+// body's overflow to the viewport, so the page still never scrolls sideways.
+// When an antd Modal/Drawer locks scrolling it sets overflow-y: hidden on body;
+// with overflow on html, body then became its own scroll box and the sticky
+// sidebar (MainLayout Sider) stuck to the top of the scrolled-away page instead
+// of the screen: the menu jumped up whenever a modal opened (bug 17/11).
 body {
+  overflow-x: hidden;
   font-family: var(--font-base);
   background-color: var(--bg-secondary);
   color: var(--text-color);
