@@ -10,3 +10,8 @@
 | Chủ nuôi         | `GET /inpatient-records/pets/:petId/daily-logs?page=&limit=` → nhật ký chỉ đọc gộp qua các đợt. API chỉ trả thú cưng Active của chính chủ; không có endpoint chủ nuôi để đọc tình trạng hồ sơ nội trú.                                                                                                                                                                                                                   |
 
 Chỉ hiển thị nhập viện từ ca `Done` với đơn `WaitOwner`: BE hiện không phân biệt `Holding` và `InpatientWard` khi bắt đầu dịch vụ kế tiếp và tự nhả chuồng theo đơn. Giữ các thao tác nhận/trả chuồng của quy trình sẵn có, không tự đồng bộ trạng thái đơn hẹn với nội trú. BE vẫn là nguồn kiểm tra quyền, xung đột, tình trạng, email và phân chuồng.
+
+## Điều kiện chạy trên môi trường thật
+
+- BE `b9d476a` phải có sẵn chuồng `InpatientWard` còn trống: API quản lý chuồng hiện không cho ghi `zone`; seed hiện chỉ tạo `C-01` với zone mặc định `Holding` và gắn một hồ sơ mẫu. FE không xem chuồng Holding là chuồng nội trú và không tự đổi cấu hình BE/dữ liệu.
+- API phân chuồng và API hồ sơ nội trú là hai luồng riêng. Sơ đồ chuồng hỗ trợ nhắc lễ tân chỉ giải phóng sau xác nhận xuất viện và bàn giao; quyền và trạng thái cần được kiểm tra ở BE nếu muốn chặn tuyệt đối việc trả chuồng sớm. Sơ đồ chuồng không sửa hoặc suy diễn trạng thái hồ sơ nội trú.

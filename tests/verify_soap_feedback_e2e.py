@@ -6,13 +6,14 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
-BASE_URL = os.getenv("FE_BASE_URL", "http://localhost:3000")
+BASE_URL = os.getenv("FE_BASE_URL", "http://localhost:3000").rstrip("/")
+if BASE_URL not in {"http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.2:3000", "http://[::1]:3000"}:
+    raise SystemExit("FE_BASE_URL must be a dedicated loopback Vite listener on port 3000.")
 SERVICE = "6ad96d4a9664da6b2c0d8b01"
 ORDER = "6ad96d4a9664da6b2c0d8a01"
 PET = "6ad96d4a9664da6b2c0d8d70"
 VET = "6ad96d4a9664da6b2c0d8d61"
 PRODUCT = "6ad96d4a9664da6b2c0d8c51"
-MEDIUM_CAGE = "6ad96d4a9664da6b2c0d8c02"
 RECORD_PATH = f"/api/medical-records/service/{SERVICE}"
 SUBTASK_ERROR = "Còn chỉ định cận lâm sàng chưa hoàn thành"
 SOAP = {
@@ -64,7 +65,7 @@ class SoapFeedbackTests(unittest.TestCase):
         self.order_status = "InProgress"
         self.complete_error = None
         self.save_error = None
-        self.cage_error = False
+        self.cage_reads = 0
         self.writes = []
         context.route(f"{BASE_URL}/api/**", self.api)
         self.page.goto(BASE_URL)
@@ -124,13 +125,8 @@ class SoapFeedbackTests(unittest.TestCase):
                 "appointmentServiceId": "previous-service",
             }]}
         elif path == "/api/cages":
-            if self.cage_error:
-                return route.fulfill(status=503, json={"message": "Danh sách chuồng tạm gián đoạn"})
-            body = {"data": {"items": [
-                {"_id": "small", "label": "W-S01", "size": "S", "status": "Available"},
-                {"_id": MEDIUM_CAGE, "label": "W-M01", "size": "M", "status": "Available"},
-                {"_id": "occupied", "label": "W-L01", "size": "L", "status": "Occupied"},
-            ]}}
+            self.cage_reads += 1
+            return route.fulfill(status=503, json={"message": "Danh sách chuồng tạm gián đoạn"})
         elif path == "/api/products":
             query = urlparse(route.request.url).query
             items = [] if "category=Vaccine" in query else [{
@@ -178,7 +174,7 @@ class SoapFeedbackTests(unittest.TestCase):
         expect(plan).to_have_value("Phác đồ chưa lưu")
         expect(self.page.get_by_label("Liều mỗi lần")).to_have_value("Một viên")
         self.assertEqual([kind for kind, _ in self.writes], ["start", "complete"])
-        self.assertIsNone(self.writes[-1][1]["waitingCageId"])
+        self.assertNotIn("waitingCageId", self.writes[-1][1])
         self.complete_error = None
         self.open_complete().get_by_role("button", name="Hoàn tất", exact=True).click()
         expect(self.page.get_by_text("Lịch hẹn: Chờ chủ đón", exact=True)).to_be_visible()
@@ -187,26 +183,18 @@ class SoapFeedbackTests(unittest.TestCase):
         self.assertEqual(self.writes[-1][1]["prescriptions"][0]["productId"], PRODUCT)
         self.assertEqual(self.writes[-1][1]["plan"], "Phác đồ chưa lưu")
 
-    def test_cage_error_retry_and_eligible_selection(self):
-        self.cage_error = True
+    def test_soap_completion_leaves_pickup_cage_to_reception(self):
         self.open_exam()
         dialog = self.open_complete()
-        expect(dialog.get_by_text("Không thể tải chuồng trống.", exact=False)).to_be_visible()
-        confirm = dialog.get_by_role("button", name="Hoàn tất", exact=True)
-        expect(confirm).to_be_enabled()
-        self.cage_error = False
-        dialog.get_by_role("button", name="Tải lại chuồng").click()
-        dialog.get_by_role("combobox", name="Chuồng chờ đón sau khám").click()
-        options = self.page.locator(".ant-select-item-option")
-        expect(options.filter(has_text="W-S01")).to_have_class(
-            re.compile(r"\bant-select-item-option-disabled\b")
-        )
-        expect(options.filter(has_text="W-L01")).to_have_count(0)
-        options.filter(has_text="W-M01").click()
-        confirm.click()
+        expect(dialog.get_by_text("lễ tân sẽ xếp bé vào chuồng chờ chủ đón", exact=False)).to_be_visible()
+        expect(dialog.get_by_role("combobox")).to_have_count(0)
+        dialog.get_by_role("button", name="Hoàn tất", exact=True).click()
         expect(self.page.get_by_text("Lịch hẹn: Chờ chủ đón", exact=True)).to_be_visible()
-        self.assertEqual(self.writes[0][1]["waitingCageId"], MEDIUM_CAGE)
+        expect(self.button("Nhập viện nội trú")).to_be_enabled()
         self.assertEqual(len(self.writes), 1)
+        self.assertEqual(self.writes[0][0], "complete")
+        self.assertNotIn("waitingCageId", self.writes[0][1])
+        self.assertEqual(self.cage_reads, 0)
 
     def test_save_validation_and_server_finalized_view_with_history(self):
         self.open_exam()
