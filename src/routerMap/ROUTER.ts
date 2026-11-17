@@ -20,6 +20,11 @@ const ROUTER = {
   STAFF_SCHEDULES: '/staff-schedules',
   // SOAP exam of one appointment service (SCR-23); build with generatePath
   EXAM_RECORD: '/clinic/exam/:appointmentServiceId',
+  // Hóa đơn: chủ nuôi (SCR-15), Lễ tân và Admin (SCR-20 tra cứu)
+  MY_INVOICES: '/invoices',
+  CLINIC_INVOICES: '/clinic/invoices',
+  // VNPay đưa người trả tiền về đây (BE VNP_RETURN_URL)
+  VNPAY_RETURN: '/payment/vnpay-return',
   NOT_FOUND: '*',
 };
 

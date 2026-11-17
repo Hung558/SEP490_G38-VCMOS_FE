@@ -18,4 +18,5 @@ export const breadcrumbMap: Record<string, string> = {
   exam: 'Khám bệnh',
   inpatient: 'Nội trú',
   'staff-schedules': 'Ca làm việc',
+  invoices: 'Hóa đơn',
 };

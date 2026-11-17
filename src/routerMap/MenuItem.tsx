@@ -11,6 +11,7 @@ import {
   UnorderedListOutlined,
   CalendarOutlined,
   MedicineBoxOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -95,6 +96,11 @@ export const MenuItemCommon = (): MenuItem[] => {
       icon: <DashboardOutlined />,
     },
     {
+      key: ROUTER.MY_INVOICES,
+      label: 'Hóa đơn',
+      icon: <DollarOutlined />,
+    },
+    {
       key: ROUTER.PROFILE,
       label: 'Thông tin tài khoản',
       icon: <UserOutlined />,
@@ -126,6 +132,11 @@ export const MenuItemReceptionist = (): MenuItem[] => {
       key: ROUTER.CLINIC_APPOINTMENTS,
       label: 'Tiếp nhận lịch hẹn',
       icon: <ScheduleOutlined />,
+    },
+    {
+      key: ROUTER.CLINIC_INVOICES,
+      label: 'Hóa đơn',
+      icon: <DollarOutlined />,
     },
     {
       key: ROUTER.CAGES,
@@ -167,6 +178,11 @@ export const MenuItemAdmin = (): MenuItem[] => {
       key: ROUTER.CLINIC_APPOINTMENTS,
       label: 'Tiếp nhận lịch hẹn',
       icon: <ScheduleOutlined />,
+    },
+    {
+      key: ROUTER.CLINIC_INVOICES,
+      label: 'Hóa đơn',
+      icon: <DollarOutlined />,
     },
     {
       key: ROUTER.CAGES,

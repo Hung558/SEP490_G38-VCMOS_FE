@@ -58,7 +58,20 @@ import {
 } from '@/services/ServiceService';
 import { STORAGE, storage } from '@/lib/storage';
 import { useAuth } from '@/contexts/routerProvider/authContext';
-import type { OnlineAppointment, OnlineAppointmentService, Pet } from '@/types';
+import InvoiceService, {
+  formatVnd,
+  getInvoiceStatusColor,
+  getInvoiceStatusLabel,
+  PAY_AT_COUNTER_TEXT,
+} from '@/services/InvoiceService';
+import InvoiceDetailView from '@/components/invoice/InvoiceDetailView';
+import InvoicePdfButton from '@/components/invoice/InvoicePdfButton';
+import type {
+  Invoice,
+  OnlineAppointment,
+  OnlineAppointmentService,
+  Pet,
+} from '@/types';
 
 const { Text } = Typography;
 
@@ -144,6 +157,33 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   // Service whose SOAP record is open
   const [recordServiceId, setRecordServiceId] = useState<string | null>(null);
+  // The bill of this visit, once the receptionist issued it (nghiệp vụ 4.6, 3.3)
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+
+  const orderId = appointment?._id;
+  const orderStatus = appointment?.derivedStatus;
+  useEffect(() => {
+    setInvoice(null);
+    if (
+      !open ||
+      !resolvedIsPetOwner ||
+      !orderId ||
+      (orderStatus !== 'WaitOwner' && orderStatus !== 'Done')
+    )
+      return;
+    let cancelled = false;
+    InvoiceService.listMine({ orderId, limit: 1 })
+      .then(res => {
+        if (!cancelled) setInvoice(res.items?.[0] || null);
+      })
+      .catch(() => {
+        if (!cancelled) setInvoice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, resolvedIsPetOwner, orderId, orderStatus]);
 
   // Cancel Whole Appointment State
   const [isCancelApptOpen, setIsCancelApptOpen] = useState(false);
@@ -413,6 +453,40 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                 />
               );
             })()}
+
+            {/* Nghiệp vụ 8.2, 4.6: Wait Owner → the owner comes, the
+                receptionist bills, the owner pays at the desk → Done */}
+            {resolvedIsPetOwner &&
+              appointment.derivedStatus === 'WaitOwner' && (
+                <Alert
+                  type="success"
+                  showIcon
+                  message="Bé đã xong dịch vụ, đang chờ bạn đến đón."
+                  description={PAY_AT_COUNTER_TEXT}
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+            {invoice && (
+              <Alert
+                type={invoice.paymentStatus === 'Paid' ? 'info' : 'warning'}
+                showIcon
+                icon={<DollarOutlined />}
+                style={{ marginBottom: 16 }}
+                message={
+                  <span>
+                    Hóa đơn {invoice.code} · {formatVnd(invoice.totalAmount)}{' '}
+                    <Tag color={getInvoiceStatusColor(invoice.paymentStatus)}>
+                      {getInvoiceStatusLabel(invoice.paymentStatus)}
+                    </Tag>
+                  </span>
+                }
+                action={
+                  <Button size="small" onClick={() => setInvoiceOpen(true)}>
+                    Xem hóa đơn
+                  </Button>
+                }
+              />
+            )}
 
             <Descriptions bordered column={1} size="middle">
               <Descriptions.Item label="Thú cưng tiếp nhận">
@@ -744,14 +818,17 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
               )}
             </div>
 
-            <Alert
-              type="info"
-              showIcon
-              icon={<InfoCircleOutlined />}
-              message="Lưu ý tiếp nhận"
-              description="Khi đến phòng khám, bạn chỉ cần xuất trình mã lượt hẹn trên cho nhân viên lễ tân để được hỗ trợ tiếp nhận nhanh chóng."
-              style={{ marginTop: 20 }}
-            />
+            {/* Only before check-in: after it the pet is already at the desk */}
+            {appointment.derivedStatus === 'Booked' && (
+              <Alert
+                type="info"
+                showIcon
+                icon={<InfoCircleOutlined />}
+                message="Lưu ý tiếp nhận"
+                description="Khi đến phòng khám, bạn chỉ cần xuất trình mã lượt hẹn trên cho nhân viên lễ tân để được hỗ trợ tiếp nhận nhanh chóng."
+                style={{ marginTop: 20 }}
+              />
+            )}
           </>
         ) : null}
       </DetailWrapper>
@@ -760,6 +837,24 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
         appointmentServiceId={recordServiceId}
         onClose={() => setRecordServiceId(null)}
       />
+
+      <Modal
+        open={invoiceOpen && Boolean(invoice)}
+        title={invoice ? `Hóa đơn ${invoice.code}` : ''}
+        footer={null}
+        width={760}
+        onCancel={() => setInvoiceOpen(false)}
+        destroyOnHidden
+      >
+        {invoice && (
+          <InvoiceDetailView
+            invoice={invoice}
+            showOwner={false}
+            payAtCounterHint
+            actions={<InvoicePdfButton invoice={invoice} />}
+          />
+        )}
+      </Modal>
 
       {/* Cancel Whole Appointment Modal */}
       {appointment && (

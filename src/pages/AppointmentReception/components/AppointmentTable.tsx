@@ -5,6 +5,8 @@ import {
   EyeOutlined,
   BuildOutlined,
   HomeOutlined,
+  DollarOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { CageAssignment, StaffAppointment } from '@/types';
@@ -42,6 +44,8 @@ interface AppointmentTableProps {
   onAssignCage: (appointment: StaffAppointment) => void;
   onViewCage: (assignment: CageAssignment) => void;
   onCancelAppointment?: (appointment: StaffAppointment) => void;
+  /** Bill a Wait Owner order (Receptionist) or open the bill of a Done one */
+  onCheckout?: (appointment: StaffAppointment) => void;
 }
 
 const AppointmentTable = ({
@@ -58,6 +62,7 @@ const AppointmentTable = ({
   onAssignCage,
   onViewCage,
   onCancelAppointment,
+  onCheckout,
 }: AppointmentTableProps) => {
   const getActiveCage = (record: StaffAppointment) =>
     isReceptionist ? activeCageByOrderId.get(record._id) : undefined;
@@ -195,6 +200,10 @@ const AppointmentTable = ({
         const activeCage = getActiveCage(record);
         const canAssignCage =
           isReceptionist && !activeCage && CAGE_ASSIGNABLE_STATUSES.has(status);
+        const canCheckout =
+          Boolean(onCheckout) && nextAction?.kind === 'checkout';
+        // Admin reads the bills too (GET /invoices is Receptionist and Admin)
+        const canViewInvoice = Boolean(onCheckout) && status === 'Done';
 
         return (
           <Space direction="vertical" size={4}>
@@ -214,6 +223,25 @@ const AppointmentTable = ({
                   onClick={() => onCheckIn(record)}
                 >
                   Check-in
+                </Button>
+              )}
+              {canCheckout && (
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<DollarOutlined />}
+                  onClick={() => onCheckout?.(record)}
+                >
+                  Thanh toán
+                </Button>
+              )}
+              {canViewInvoice && (
+                <Button
+                  size="small"
+                  icon={<FileTextOutlined />}
+                  onClick={() => onCheckout?.(record)}
+                >
+                  Hóa đơn
                 </Button>
               )}
               {canAssignCage && (
@@ -246,7 +274,8 @@ const AppointmentTable = ({
                 </Button>
               )}
             </ActionsWrapper>
-            {nextAction?.kind === 'detail' && (
+            {(nextAction?.kind === 'detail' ||
+              nextAction?.kind === 'checkout') && (
               <Text type="secondary">{nextAction.hint}</Text>
             )}
           </Space>

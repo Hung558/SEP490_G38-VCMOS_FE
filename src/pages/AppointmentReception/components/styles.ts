@@ -17,13 +17,14 @@ export const FilterCard = styled.div`
   margin-bottom: 16px;
 `;
 
-// Row actions stay on one line; the column width is sized for the widest row
-// (Booked: Chi tiết + Check-in + Hủy hẹn)
+// The column is sized for one line of Booked actions (Chi tiết + Check-in + Hủy
+// hẹn). A Wait Owner row has Chi tiết + Thanh toán + the cage button, which
+// wraps to a second line instead of widening the table past 1366px.
 export const ActionsWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
+  gap: 6px 8px;
+  flex-wrap: wrap;
   white-space: nowrap;
 `;
 

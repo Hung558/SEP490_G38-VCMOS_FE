@@ -23,7 +23,10 @@ import CageAssignmentService from '@/services/CageAssignmentService';
 import { useActiveCageAssignments } from './useActiveCageAssignments';
 import { useCageAvailability } from './useCageAvailability';
 import { matchesActiveCageAssignment } from './activeCageAssignments';
-import { getSelectedReceptionTodayGroup } from './receptionToday';
+import {
+  getSelectedReceptionTodayGroup,
+  isAtClinicStatus,
+} from './receptionToday';
 import type { ReceptionTodayGroup } from './receptionToday';
 import { useReceptionToday } from './useReceptionToday';
 
@@ -324,7 +327,9 @@ export const useAppointmentReception = () => {
     setFilterStatus(status);
     setFilterIsOnline(undefined);
     setFilterCode(undefined);
-    setDateFilter(undefined);
+    // Pets at the clinic are listed whatever their appointment date (4.3, 4.6);
+    // an empty object clears the date, undefined falls back to today
+    setDateFilter(isAtClinicStatus(status) ? {} : undefined);
     setPage(1);
   };
 
@@ -345,6 +350,14 @@ export const useAppointmentReception = () => {
     setDetailOpen(false);
     setSelectedAppointment(null);
   };
+
+  // Checkout (nghiệp vụ 4.6, SCR-20): bill a Wait Owner order or show its bill
+  const [checkoutTarget, setCheckoutTarget] = useState<StaffAppointment | null>(
+    null
+  );
+  const openCheckout = (appointment: StaffAppointment) =>
+    setCheckoutTarget(appointment);
+  const closeCheckout = () => setCheckoutTarget(null);
 
   // Check-In Actions (Receptionist only)
   const openCheckIn = (appointment: StaffAppointment) => {
@@ -642,6 +655,10 @@ export const useAppointmentReception = () => {
     selectedAppointment,
     openDetail,
     closeDetail,
+    // Checkout
+    checkoutTarget,
+    openCheckout,
+    closeCheckout,
     // Check-In
     checkInOpen,
     checkInTarget,
