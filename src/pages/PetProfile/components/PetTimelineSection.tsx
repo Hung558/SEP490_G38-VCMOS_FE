@@ -2,9 +2,8 @@ import React from 'react';
 import { HistoryOutlined } from '@ant-design/icons';
 import PetMedicalHistory from '@/components/medical/PetMedicalHistory';
 
-// Medical records come from GET /medical-records/pet/:petId. The unified
-// timeline (spa, inpatient stays, invoices) is task T-41 and still waits for BE
-// APIs, so only the visits with a SOAP record are listed for now.
+// This section is SOAP visit history from GET /medical-records/pet/:petId.
+// Owner inpatient logs appear in their own section.
 const PetTimelineSection: React.FC<{ petId: string }> = ({ petId }) => (
   <div className="timeline-card">
     <div className="timeline-title">

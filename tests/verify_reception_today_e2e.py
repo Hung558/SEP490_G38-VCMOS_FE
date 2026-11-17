@@ -24,7 +24,7 @@ LIST = '/api/appointment-orders'
 CAGES = '/api/cage-assignments'
 TOKEN = 'reception-today-qa-fixture-no-real-token'
 METRICS = {'all': 'Tổng lịch hôm nay', 'Booked': 'Chờ tiếp nhận',
-           'CheckedIn': 'Đã tiếp nhận', 'WaitOwner': 'Chờ chủ đón'}
+           'CheckedIn': 'Đã tiếp nhận', 'InProgress': 'Đang thực hiện', 'WaitOwner': 'Chờ chủ đón'}
 ERROR = 'QA: dịch vụ tổng quan tạm thời gián đoạn'
 
 
@@ -77,6 +77,8 @@ class ReceptionTodayE2E(unittest.TestCase):
         self.queries = []
         self.writes = []
         self.assignments = []
+        self.cage = {'_id': oid(903), 'label': 'HOLD-QA-R1', 'size': 'M', 'status': 'Available',
+                     'zone': 'Holding', 'isIsolated': False}
         self.unhandled = []
         self.errors = []
         self.summary_fails = False
@@ -113,15 +115,28 @@ class ReceptionTodayE2E(unittest.TestCase):
             start = (page - 1) * limit
             return route.fulfill(json={'data': orders[start:start+limit], 'pagination': {
                 'page': page, 'limit': limit, 'total': len(orders), 'totalPages': math.ceil(len(orders)/limit)}})
+        if method == 'GET' and path == '/api/cages':
+            items = [self.cage] if read_query(req.url).get('status', self.cage['status']) == self.cage['status'] else []
+            return route.fulfill(json={'success': True, 'data': {
+                'items': items, 'page': 1, 'limit': 100, 'total': len(items), 'totalPages': int(bool(items)),
+            }})
+        if method == 'GET' and path == f'/api/pets/{oid(900)}':
+            return route.fulfill(json={'pet': {**self.orders[0]['petId'], 'weight': 8}, 'appointmentNotes': []})
         if method == 'GET' and path == CAGES:
             return route.fulfill(json={'data': self.assignments, 'count': len(self.assignments)})
         if method == 'GET' and path in ('/api/appointment-services', '/api/users/staff'):
             return route.fulfill(json={'data': [], 'items': []})
         if method == 'PATCH' and path == f'{LIST}/{oid(100)}/check-in' and self.role == 'Receptionist':
-            self.writes.append((method, path, req.post_data_buffer))
+            payload = req.post_data_json
+            self.writes.append((method, path, payload))
+            if not payload or payload.get('cageId') != self.cage['_id']:
+                return route.fulfill(status=400, json={'message': 'Thiếu chuồng giữ QA'})
             self.orders[0].update(derivedStatus='CheckedIn', checkedInAt=f'{TODAY}T02:30:00Z')
             self.assignments = [{'_id': oid(902), 'orderId': oid(100), 'cageId': oid(903), 'releasedAt': None}]
-            return route.fulfill(json={'message': 'Check-in thành công', 'data': self.orders[0]})
+            self.cage['status'] = 'Occupied'
+            return route.fulfill(json={'message': 'Check-in thành công', 'data': {
+                **self.orders[0], 'cageAssignment': self.assignments[0],
+            }})
         self.unhandled.append((method, origin, path))
         return route.fulfill(status=501, json={'message': f'Missing fixture: {method} {path}'})
 
@@ -163,8 +178,8 @@ class ReceptionTodayE2E(unittest.TestCase):
                 rf'(?=.*{re.escape(METRICS[group])})(?=.*(?<!\d){value}(?!\d))', re.I)))
             expect(match).to_be_visible()
 
-    def expect_totals(self, total=21, booked=10, checked=5, wait=3):
-        for key, expected in (('all', total), ('Booked', booked), ('CheckedIn', checked), ('WaitOwner', wait)):
+    def expect_totals(self, total=21, booked=10, checked=5, progress=1, wait=3):
+        for key, expected in (('all', total), ('Booked', booked), ('CheckedIn', checked), ('InProgress', progress), ('WaitOwner', wait)):
             self.expect_metric(key, expected)
 
     def change_day(self, day):
@@ -242,7 +257,7 @@ class ReceptionTodayE2E(unittest.TestCase):
     def test_row_cta_opens_matching_modal_and_terminal_row_stays_read_only(self):
         self.open()
         button(self.row(100), 'Check-in').click()
-        modal = self.page.get_by_role('dialog', name=re.compile('Xác nhận tiếp nhận lịch hẹn'))
+        modal = self.page.get_by_role('dialog', name=re.compile('Tiếp nhận lịch hẹn'))
         expect(modal.get_by_text('APT-000100', exact=True)).to_be_visible()
         button(modal, 'Hủy bỏ').click()
         expect(modal).to_have_count(0)
@@ -281,7 +296,7 @@ class ReceptionTodayE2E(unittest.TestCase):
     def test_zero_counts_only_after_successful_summary_responses(self):
         self.orders = [row for row in self.orders if row['date'] != TODAY]
         self.open()
-        self.expect_totals(total=0, booked=0, checked=0, wait=0)
+        self.expect_totals(total=0, booked=0, checked=0, progress=0, wait=0)
         expect(self.overview().get_by_role('alert')).to_have_count(0)
         self.assertEqual({q.get('status', 'all') for q in self.queries if self.is_summary(q)}, set(METRICS))
 
@@ -290,8 +305,12 @@ class ReceptionTodayE2E(unittest.TestCase):
         self.expect_totals()
         before = len([q for q in self.queries if self.is_summary(q)])
         button(self.row(100), 'Check-in').click()
-        modal = self.page.get_by_role('dialog', name=re.compile('Xác nhận tiếp nhận lịch hẹn'))
+        modal = self.page.get_by_role('dialog', name=re.compile('Tiếp nhận lịch hẹn'))
         expect(modal.get_by_text('Phiếu tiếp nhận', exact=True)).to_have_count(0)
+        picker = modal.get_by_role('combobox', name=re.compile('Chuồng lưu giữ'))
+        expect(picker).to_be_enabled()
+        picker.press('ArrowDown')
+        self.page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter(has_text=self.cage['label']).click()
         button(modal, 'Xác nhận Check-in').click()
         expect(self.row(100).get_by_text('Đã tiếp nhận', exact=True)).to_be_visible()
         expect(button(self.row(100), 'Check-in')).to_have_count(0)
@@ -299,14 +318,14 @@ class ReceptionTodayE2E(unittest.TestCase):
         expect(self.row(100).get_by_text('Đã phân chuồng', exact=True)).to_be_visible()
         self.expect_totals(booked=9, checked=6)
         self.assertGreater(len([q for q in self.queries if self.is_summary(q)]), before)
-        self.assertEqual(self.writes, [('PATCH', f'{LIST}/{oid(100)}/check-in', None)])
+        self.assertEqual(self.writes, [('PATCH', f'{LIST}/{oid(100)}/check-in', {'cageId': self.cage['_id']})])
 
     def test_manual_refresh_shows_order_newly_waiting_for_pickup(self):
         self.open()
         self.expect_totals()
         self.orders[2]['derivedStatus'] = 'WaitOwner'
         button(self.page, 'Làm mới').click()
-        self.expect_totals(wait=4)
+        self.expect_totals(progress=0, wait=4)
         expect(self.row(102).get_by_text('Kiểm tra trước khi bàn giao', exact=True)).to_be_visible()
         self.metric('WaitOwner').click()
         expect(self.row(102)).to_be_visible()

@@ -29,6 +29,7 @@ import AppointmentReceptionPage from '@/pages/AppointmentReception';
 import StaffQueuePage from '@/pages/StaffQueue';
 import StaffSchedulesPage from '@/pages/StaffSchedules';
 import ExamRecordPage from '@/pages/ExamRecord';
+import InpatientCarePage from '@/pages/InpatientCare';
 import { useScrollTopOnNavigate } from '@/hooks/Common/useScrollTopOnNavigate';
 
 const AppRouter = () => {
@@ -170,6 +171,14 @@ const AppRouter = () => {
       // Start, save and complete a SOAP record are Veterinarian-only on the BE
       element: <RoleRoute allowRoles={['Veterinarian']} />,
       children: [
+        {
+          path: ROUTER.INPATIENT_CARE,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <InpatientCarePage />
+            </Suspense>
+          ),
+        },
         {
           path: ROUTER.EXAM_RECORD,
           element: (

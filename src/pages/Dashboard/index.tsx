@@ -15,7 +15,6 @@ import {
   Tag,
   Space,
   Button,
-  Modal,
   Segmented,
   Avatar,
   Tooltip,
@@ -28,7 +27,7 @@ import {
   CalendarOutlined,
   PlusOutlined,
   MedicineBoxOutlined,
-  HeartOutlined,
+  ReadOutlined,
   CheckCircleOutlined,
   EyeOutlined,
   ReloadOutlined,
@@ -60,8 +59,14 @@ import QuickBookingSection from '@/pages/Home/components/QuickBookingSection';
 import { parseDashboardTab, type DashboardTab } from './dashboardTabs';
 import { STORAGE, storage } from '@/lib/storage';
 import { useAuth } from '@/contexts/routerProvider/authContext';
-import { generatePath, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  generatePath,
+  Link,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
+import { PET_INPATIENT_LOGS_HASH } from '@/pages/PetProfile/components/inpatientLogsSection';
 import { toast } from 'sonner';
 import AiAssessmentSection from './components/AiAssessmentSection';
 import PetService from '@/services/PetService';
@@ -118,89 +123,6 @@ const DashboardWrapper = styled.div`
   }
 `;
 
-// Inpatient Stay Progress Banner
-const InpatientBanner = styled.div`
-  background: #f0fdfa;
-  border: 1.5px solid #99f6e4;
-  border-radius: 12px;
-  padding: 18px 24px;
-  margin-bottom: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-
-  .banner-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-
-    .icon-wrap {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      background: #0d9488;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      flex-shrink: 0;
-    }
-
-    .info {
-      .tag-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 4px;
-
-        .badge-pulse {
-          font-size: 11.5px;
-          font-weight: 700;
-          color: #0f766e;
-          background: #ccfbf1;
-          padding: 2px 8px;
-          border-radius: 4px;
-        }
-      }
-
-      .title {
-        font-size: 15px;
-        font-weight: 750;
-        color: #0f172a;
-        margin-bottom: 2px;
-      }
-
-      .sub {
-        font-size: 13px;
-        color: #475569;
-      }
-    }
-  }
-
-  .btn-view-progress {
-    background: #0d9488;
-    color: #ffffff;
-    border: none;
-    height: 38px;
-    padding: 0 18px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 13.5px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.15s;
-
-    &:hover {
-      background: #0f766e;
-    }
-  }
-`;
-
 const StatCard = styled(Card)`
   border-radius: 12px;
   border: 1px solid #e2e8f0;
@@ -245,10 +167,6 @@ const StatCard = styled(Card)`
       &.blue {
         background: #f0f9ff;
         color: #0284c7;
-      }
-      &.amber {
-        background: #fffbeb;
-        color: #d97706;
       }
       &.green {
         background: #f0fdf4;
@@ -298,7 +216,6 @@ const SectionCard = styled(Card)`
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isInpatientModalOpen, setIsInpatientModalOpen] = useState(false);
 
   // Tabs (file 2): the active one lives in ?tab= so a reload or a link from
   // another page lands on it; ?book= opens the booking form in "Quản lí lịch đặt"
@@ -357,9 +274,6 @@ const DashboardPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-
-  // Dynamic appointments and inpatient data
-  const [inpatientStay] = useState<any | null>(null);
 
   const [appointments, setAppointments] = useState<OnlineAppointment[]>([]);
   const [appointmentsTotal, setAppointmentsTotal] = useState(0);
@@ -978,7 +892,7 @@ const DashboardPage: React.FC = () => {
       title: 'Thao tác nhanh',
       key: 'action',
       render: (_: any, record: Pet) => (
-        <Space size="small">
+        <Space size="small" wrap>
           <Button
             size="small"
             icon={<EyeOutlined />}
@@ -991,6 +905,23 @@ const DashboardPage: React.FC = () => {
           >
             Chi tiết
           </Button>
+
+          {isPetOwner && record.status === 'Active' && (
+            <Link
+              to={{
+                pathname: generatePath(ROUTER.PET_PROFILE, {
+                  petId: record._id,
+                }),
+                hash: PET_INPATIENT_LOGS_HASH,
+              }}
+              aria-label={`Nhật ký nội trú của ${record.name}`}
+            >
+              <Space size={4}>
+                <ReadOutlined aria-hidden="true" />
+                Nhật ký nội trú
+              </Space>
+            </Link>
+          )}
 
           {record.status === 'Active' && (
             <Button
@@ -1072,46 +1003,9 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Inpatient Stay Banner - Only shown when there is an active inpatient pet */}
-      {inpatientStay && (
-        <InpatientBanner>
-          <div className="banner-left">
-            <div className="icon-wrap">
-              <HeartOutlined />
-            </div>
-            <div className="info">
-              <div className="tag-row">
-                <span className="badge-pulse">LƯU CHUỒNG ĐIỀU TRỊ NỘI TRÚ</span>
-                <Tag color="cyan">
-                  {inpatientStay.room || 'Chuồng C-01'} (Occupied)
-                </Tag>
-              </div>
-              <div className="title">
-                Bé {inpatientStay.petName || 'Thú cưng'} đang được theo dõi điều
-                trị nội trú (Ngày thứ {inpatientStay.days || 1})
-              </div>
-              <div className="sub">
-                Bác sĩ điều trị:{' '}
-                <strong>{inpatientStay.doctor || 'Bác sĩ trực'}</strong> · Chẩn
-                đoán: {inpatientStay.diagnosis || 'Đang theo dõi'} · Sinh hiệu:{' '}
-                {inpatientStay.vitals || 'Ổn định'}
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="btn-view-progress"
-            onClick={() => setIsInpatientModalOpen(true)}
-          >
-            <EyeOutlined /> Theo dõi nhật ký lâm sàng từ xa
-          </button>
-        </InpatientBanner>
-      )}
-
       {/* Stats Cards */}
       <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={8}>
           <StatCard>
             <div className="stat-header">
               <span className="label">Thú cưng đã đăng ký</span>
@@ -1132,7 +1026,7 @@ const DashboardPage: React.FC = () => {
           </StatCard>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={8}>
           <StatCard>
             <div className="stat-header">
               <span className="label">Lịch hẹn trực tuyến</span>
@@ -1149,24 +1043,7 @@ const DashboardPage: React.FC = () => {
           </StatCard>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard>
-            <div className="stat-header">
-              <span className="label">Đang nằm viện nội trú</span>
-              <div className="icon-box amber">
-                <HeartOutlined />
-              </div>
-            </div>
-            <div className="num">{inpatientStay ? 1 : 0}</div>
-            <div className="sub">
-              {inpatientStay
-                ? `${inpatientStay.room} (Ngày ${inpatientStay.days})`
-                : 'Không có thú cưng lưu chuồng'}
-            </div>
-          </StatCard>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={8}>
           <StatCard>
             <div className="stat-header">
               <span className="label">Lịch hiển thị hiện tại</span>
@@ -1465,6 +1342,14 @@ const DashboardPage: React.FC = () => {
             </Space>
           }
         >
+          {isPetOwner && (
+            <Alert
+              type="info"
+              showIcon
+              message="Bạn có thể xem nhật ký nội trú (nếu có) trong hồ sơ của từng thú cưng đang nuôi."
+              style={{ marginBottom: 16 }}
+            />
+          )}
           <Table
             columns={petsColumns}
             dataSource={pets}
@@ -1543,96 +1428,6 @@ const DashboardPage: React.FC = () => {
           }}
         />
       )}
-
-      {/* Inpatient Modal Detail */}
-      <Modal
-        title="Nhật Ký Điều Trị Nội Trú Thú Cưng Từ Xa"
-        open={isInpatientModalOpen}
-        onCancel={() => setIsInpatientModalOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsInpatientModalOpen(false)}>
-            Đóng
-          </Button>,
-          <Button
-            key="call"
-            type="primary"
-            style={{ background: '#0d9488' }}
-            onClick={() => {
-              window.location.href = 'tel:02473008888';
-            }}
-          >
-            Gọi hotline phòng khám (024) 7300 8888
-          </Button>,
-        ]}
-        width={720}
-      >
-        <div style={{ padding: '12px 0' }}>
-          <div
-            style={{
-              background: '#f8fafc',
-              padding: 16,
-              borderRadius: 8,
-              marginBottom: 16,
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 10,
-                fontSize: 13.5,
-              }}
-            >
-              <div>
-                Thú cưng: <strong>Bé Milo (Chó Poodle · 5.2 kg)</strong>
-              </div>
-              <div>
-                Vị trí: <strong>Lồng nội trú C-01</strong>
-              </div>
-              <div>
-                Bác sĩ điều trị: <strong>BS. Trần Thị B (USR-000002)</strong>
-              </div>
-              <div>
-                Chẩn đoán ban đầu: <strong>Viêm dạ dày ruột cấp tính</strong>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14 }}>
-            Nhật ký lâm sàng hàng ngày (Daily Rounds):
-          </div>
-
-          <div
-            style={{
-              borderLeft: '3px solid #0d9488',
-              paddingLeft: 14,
-              marginBottom: 14,
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
-              Hôm nay (25/10/2026 - Ngày 2) - Ghi nhận lúc 11:30
-            </div>
-            <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>
-              • Thân nhiệt: 38.6°C (Bình thường), nhịp thở đều, mắt linh hoạt.
-              <br />
-              • Dinh dưỡng: Đã tự ăn được 50g cháo dinh dưỡng chuyên dụng, không
-              còn nôn ói.
-              <br />• Dùng thuốc: Tiêm kháng sinh Amoxicillin liều ngày 2,
-              truyền dịch Glucose 5%.
-            </div>
-          </div>
-
-          <div style={{ borderLeft: '3px solid #cbd5e1', paddingLeft: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>
-              Hôm qua (24/10/2026 - Ngày 1) - Tiếp nhận cấp cứu
-            </div>
-            <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-              • Thân nhiệt: 39.5°C (Sốt nhẹ), mất nước thể nhẹ.
-              <br />• Tiến hành hạ sốt, cách ly theo dõi tại Chuồng C-01.
-            </div>
-          </div>
-        </div>
-      </Modal>
 
       {/* Pet Create/Edit Modal */}
       <PetFormModal

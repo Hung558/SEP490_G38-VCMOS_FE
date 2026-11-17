@@ -6,11 +6,13 @@ import PetService from '@/services/PetService';
 import ROUTER from '@/routerMap/ROUTER';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { getRoleGroup } from '@/constants/roles';
+import { isUserPetOwner } from '@/services/AppointmentServiceService';
 import { STORAGE, storage } from '@/lib/storage';
 import type { Pet, PetAppointmentNote } from '@/types';
 import PetFormModal from '@/pages/Dashboard/components/PetFormModal';
 import DeletePetModal from '@/pages/Dashboard/components/DeletePetModal';
 import PetProfileView from './components/PetProfileView';
+import PetInpatientLogs from './components/PetInpatientLogs';
 import PetTimelineSection from './components/PetTimelineSection';
 import PetVisitTimeline from './components/PetVisitTimeline';
 import { getBookingLink } from '@/pages/Dashboard/dashboardTabs';
@@ -23,8 +25,7 @@ type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
  * and can edit it; vets and groomers open it from their queue to read the
  * timeline and past records only (nghiệp vụ 5, 6).
  */
-const PetProfilePage: React.FC = () => {
-  const { petId } = useParams<{ petId: string }>();
+const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const storedUser = storage.getLocalStorage<{
@@ -38,6 +39,7 @@ const PetProfilePage: React.FC = () => {
         storedUser?.role ||
         storedUser?.systemRole
     ) === 'owner';
+  const canReadInpatientLogs = isUserPetOwner(user ?? storedUser);
   const [pet, setPet] = useState<Pet | null>(null);
   const [visits, setVisits] = useState<PetAppointmentNote[]>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
@@ -143,6 +145,10 @@ const PetProfilePage: React.FC = () => {
         <PetProfileView pet={pet} />
       )}
 
+      {canReadInpatientLogs && pet.status === 'Active' && (
+        <PetInpatientLogs petId={pet._id} />
+      )}
+
       <PetVisitTimeline
         key={pet._id}
         petId={pet._id}
@@ -170,6 +176,13 @@ const PetProfilePage: React.FC = () => {
       )}
     </PetProfileWrapper>
   );
+};
+
+const PetProfilePage: React.FC = () => {
+  const { petId } = useParams<{ petId: string }>();
+  const { user } = useAuth();
+  // Route or account changes must never display the previous pet's records.
+  return <PetProfile key={JSON.stringify([user?._id, petId])} petId={petId} />;
 };
 
 export default PetProfilePage;
