@@ -45,6 +45,10 @@ interface VnpayPaymentPanelProps {
   /** The IPN has turned the bill Paid */
   onPaid: (invoice: Invoice) => void;
   onSwitchToCash: () => void;
+  /** Whether a VNPay link made here can still take money */
+  onLiveChange?: (live: boolean) => void;
+  /** The other QR method already has a live code on screen */
+  otherLiveQr?: string;
 }
 
 /**
@@ -57,6 +61,8 @@ const VnpayPaymentPanel = ({
   invoice,
   onPaid,
   onSwitchToCash,
+  onLiveChange,
+  otherLiveQr,
 }: VnpayPaymentPanelProps) => {
   const [payment, setPayment] = useState<VnpayPayment>();
   const [creating, setCreating] = useState(false);
@@ -67,6 +73,10 @@ const VnpayPaymentPanel = ({
 
   const expired = Boolean(payment) && secondsLeft <= 0;
   const waiting = Boolean(payment) && !expired;
+
+  useEffect(() => {
+    onLiveChange?.(waiting);
+  }, [waiting, onLiveChange]);
 
   const createLink = async () => {
     setCreating(true);
@@ -135,6 +145,14 @@ const VnpayPaymentPanel = ({
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      {otherLiveQr && !payment && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`Mã ${otherLiveQr} vẫn còn hiệu lực`}
+          description={`Chỉ đưa khách một mã. Nếu khách đã quét mã ${otherLiveQr}, quay lại mục đó để chờ xác nhận.`}
+        />
+      )}
       {!payment ? (
         <Button
           type="primary"

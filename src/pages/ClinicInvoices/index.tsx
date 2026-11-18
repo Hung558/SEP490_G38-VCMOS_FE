@@ -45,7 +45,7 @@ const ClinicInvoicesPage = () => {
             </Title>
             <Text type="secondary">
               {canPay
-                ? 'Khách đến đón bé: lập hóa đơn, thu tiền mặt hoặc VNPay QR. Thanh toán xong đơn chuyển Hoàn tất.'
+                ? 'Khách đến đón bé: lập hóa đơn, thu tiền mặt, VNPay QR hoặc chuyển khoản VietQR (PayOS). Thanh toán xong đơn chuyển Hoàn tất.'
                 : 'Xem các đơn chờ thanh toán và hóa đơn của phòng khám.'}
             </Text>
           </div>

@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, DatePicker, Input, Select } from 'antd';
-import { DollarOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Alert, Button, DatePicker, Input, Select, Tooltip } from 'antd';
+import {
+  DollarOutlined,
+  EyeOutlined,
+  QrcodeOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import axios from 'axios';
+import { toast } from 'sonner';
 import type {
   Invoice,
   InvoicePaymentMethod,
@@ -10,9 +16,14 @@ import type {
 import InvoiceService, {
   getInvoiceMethodLabel,
   getInvoiceStatusLabel,
+  getPayosStatusLabel,
+  hasPendingPayosCode,
   INVOICE_METHODS,
   INVOICE_STATUSES,
+  MSG_PAYMENT_SUCCESS,
+  PAYOS_CHECK_UNREACHABLE,
   readInvoiceError,
+  readPayosError,
 } from '@/services/InvoiceService';
 import InvoiceTable from '@/components/invoice/InvoiceTable';
 import {
@@ -38,7 +49,9 @@ interface IssuedInvoicesTabProps {
 
 /**
  * K4 (GET /api/invoices): hóa đơn đã lập, mặc định của hôm nay; lọc theo số hóa
- * đơn, trạng thái, phương thức, ngày lập.
+ * đơn, trạng thái, phương thức, ngày lập. Hóa đơn chưa trả đã có mã PayOS có nút
+ * hỏi PayOS: ở localhost không có webhook, nên hóa đơn chỉ sang Paid khi có
+ * người hỏi.
  */
 const IssuedInvoicesTab = ({
   canPay,
@@ -55,6 +68,30 @@ const IssuedInvoicesTab = ({
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [checkingId, setCheckingId] = useState<string>();
+
+  const checkPayos = async (invoice: Invoice) => {
+    setCheckingId(invoice._id);
+    try {
+      const res = await InvoiceService.getPayosStatus(invoice._id);
+      if (res.data?.paymentStatus === 'Paid') {
+        toast.success(`${invoice.code}: ${MSG_PAYMENT_SUCCESS}`);
+        onRefresh();
+      } else {
+        toast.info(`${invoice.code}: ${getPayosStatusLabel(res.payosStatus)}`);
+      }
+    } catch (err) {
+      toast.error(
+        readPayosError(
+          err,
+          'Không kiểm tra được thanh toán PayOS',
+          PAYOS_CHECK_UNREACHABLE
+        ).message
+      );
+    } finally {
+      setCheckingId(undefined);
+    }
+  };
 
   const from = range?.[0]?.format('YYYY-MM-DD');
   const to = range?.[1]?.format('YYYY-MM-DD');
@@ -180,26 +217,41 @@ const IssuedInvoicesTab = ({
           showTotal: t => `${t} hóa đơn`,
           onChange: setPage,
         }}
-        renderActions={invoice =>
-          canPay && invoice.paymentStatus === 'Unpaid' ? (
-            <Button
-              size="small"
-              type="primary"
-              icon={<DollarOutlined />}
-              onClick={() => onOpen(invoice)}
-            >
-              Thu tiền
-            </Button>
-          ) : (
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => onOpen(invoice)}
-            >
-              Xem
-            </Button>
-          )
-        }
+        renderActions={invoice => (
+          <>
+            {canPay && invoice.paymentStatus === 'Unpaid' ? (
+              <Button
+                size="small"
+                type="primary"
+                icon={<DollarOutlined />}
+                onClick={() => onOpen(invoice)}
+              >
+                Thu tiền
+              </Button>
+            ) : (
+              <Button
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => onOpen(invoice)}
+              >
+                Xem
+              </Button>
+            )}
+            {hasPendingPayosCode(invoice) && (
+              <Tooltip title="Hỏi PayOS xem khách đã chuyển khoản bằng mã VietQR chưa">
+                <Button
+                  size="small"
+                  icon={<QrcodeOutlined />}
+                  loading={checkingId === invoice._id}
+                  disabled={Boolean(checkingId) && checkingId !== invoice._id}
+                  onClick={() => checkPayos(invoice)}
+                >
+                  Kiểm tra PayOS
+                </Button>
+              </Tooltip>
+            )}
+          </>
+        )}
       />
     </>
   );

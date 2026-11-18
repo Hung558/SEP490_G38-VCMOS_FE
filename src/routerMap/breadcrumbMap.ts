@@ -10,6 +10,7 @@ export const breadcrumbMap: Record<string, string> = {
   users: 'Quản lý tài khoản',
   services: 'Quản lý dịch vụ',
   products: 'Quản lý sản phẩm',
+  reports: 'Thống kê',
   // Staff call the page 'Sơ đồ chuồng', Admin 'Quản lý chuồng'
   cages: 'Chuồng',
   clinic: 'Phòng khám',

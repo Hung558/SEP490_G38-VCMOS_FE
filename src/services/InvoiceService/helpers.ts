@@ -1,4 +1,5 @@
 import type {
+  BestSellingParams,
   CreateInvoicePayload,
   Invoice,
   InvoiceItem,
@@ -10,6 +11,8 @@ import type {
   InvoicePetRef,
   InvoiceProductLine,
   ListInvoicesParams,
+  PayosPayment,
+  UpdateInvoiceItemsPayload,
 } from '../../types/api/invoice.api';
 
 /** Limits of the BE validator (invoice.validator.js) */
@@ -20,6 +23,15 @@ export const INVOICE_LIST_LIMIT_MAX = 100;
 export const VNPAY_LINK_MINUTES = 15;
 /** How often SCR-20 asks whether the IPN has turned the invoice Paid */
 export const VNPAY_POLL_MS = 5000;
+/** How often SCR-20 asks PayOS (through the BE) whether the transfer arrived */
+export const PAYOS_POLL_MS = 5000;
+/** Slower while the receptionist looks at another method: still catches a late scan */
+export const PAYOS_POLL_HIDDEN_MS = 15000;
+/** localStorage key of the live PayOS code of one invoice */
+export const PAYOS_CACHE_PREFIX = 'vcmos.payos.';
+/** Limits of the best-selling report (invoice.validator.js) */
+export const BEST_SELLING_LIMIT_MAX = 50;
+export const BEST_SELLING_MAX_DAYS = 366;
 
 export const INVOICE_STATUS_LABELS: Record<InvoicePaymentStatus, string> = {
   Unpaid: 'Chưa thanh toán',
@@ -36,6 +48,8 @@ export const INVOICE_STATUS_COLORS: Record<InvoicePaymentStatus, string> = {
 export const INVOICE_METHOD_LABELS: Record<InvoicePaymentMethod, string> = {
   Cash: 'Tiền mặt',
   VNPay: 'VNPay',
+  // Same words as the BE receipt PDF
+  PayOS: 'PayOS (VietQR)',
 };
 
 export const INVOICE_ITEM_TYPE_LABELS: Record<InvoiceItemType, string> = {
@@ -49,7 +63,175 @@ export const INVOICE_STATUSES: InvoicePaymentStatus[] = [
   'Paid',
   'Refunded',
 ];
-export const INVOICE_METHODS: InvoicePaymentMethod[] = ['Cash', 'VNPay'];
+export const INVOICE_METHODS: InvoicePaymentMethod[] = [
+  'Cash',
+  'VNPay',
+  'PayOS',
+];
+
+const PAYOS_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Đang chờ khách chuyển khoản',
+  PROCESSING: 'PayOS đang xử lý giao dịch',
+  PAID: 'Đã thanh toán',
+  UNDERPAID: 'Khách chuyển thiếu tiền',
+  CANCELLED: 'Giao dịch đã bị hủy',
+  EXPIRED: 'Mã đã hết hạn',
+  FAILED: 'Giao dịch thất bại',
+};
+
+export const getPayosStatusLabel = (status?: string | null) =>
+  status ? PAYOS_STATUS_LABELS[status] || status : '-';
+
+/**
+ * A PayOS code that can no longer take money. Only then is a new code safe:
+ * the BE replaces the invoice's code, so a transfer made with the old code
+ * would never mark the invoice Paid.
+ */
+export const isPayosCodeClosed = (status?: string | null) =>
+  status === 'CANCELLED' || status === 'EXPIRED' || status === 'FAILED';
+
+/** An Unpaid bill that already got a PayOS code, e.g. before the modal closed */
+export const hasPendingPayosCode = (
+  invoice?: Pick<Invoice, 'paymentStatus' | 'payosOrderCode'>
+) =>
+  invoice?.paymentStatus === 'Unpaid' &&
+  typeof invoice.payosOrderCode === 'number' &&
+  Number.isFinite(invoice.payosOrderCode);
+
+/**
+ * The BE hands out the VietQR text only once, when the code is made, and keeps
+ * just the order code. This browser keeps the whole code until it expires, so
+ * closing the checkout does not cost a new code (which would orphan a transfer
+ * made with the old one) or extra calls to PayOS.
+ */
+export interface PayosCacheStorage {
+  readonly length: number;
+  key(index: number): string | null;
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+const browserStorage = (): PayosCacheStorage | undefined => {
+  try {
+    return typeof window === 'undefined' ? undefined : window.localStorage;
+  } catch {
+    return undefined; // blocked site data, private mode
+  }
+};
+
+const payosCacheKey = (invoiceId: string) =>
+  `${PAYOS_CACHE_PREFIX}${invoiceId}`;
+
+export const clearPayosPayment = (
+  invoiceId: string,
+  storage: PayosCacheStorage | undefined = browserStorage()
+) => {
+  try {
+    storage?.removeItem(payosCacheKey(invoiceId));
+  } catch {
+    // nothing to do: the code simply is not restored
+  }
+};
+
+/** Drop expired or broken codes of any invoice */
+export const prunePayosPayments = (
+  storage: PayosCacheStorage | undefined = browserStorage(),
+  now = Date.now()
+) => {
+  try {
+    if (!storage) return;
+    for (let i = storage.length - 1; i >= 0; i -= 1) {
+      const key = storage.key(i);
+      if (!key?.startsWith(PAYOS_CACHE_PREFIX)) continue;
+      let alive = false;
+      try {
+        const saved = JSON.parse(storage.getItem(key) || 'null');
+        alive = getSecondsLeft(String(saved?.expiresAt), now) > 0;
+      } catch {
+        alive = false;
+      }
+      if (!alive) storage.removeItem(key);
+    }
+  } catch {
+    // storage unavailable
+  }
+};
+
+export const savePayosPayment = (
+  payment: PayosPayment,
+  storage: PayosCacheStorage | undefined = browserStorage(),
+  now = Date.now()
+) => {
+  try {
+    prunePayosPayments(storage, now);
+    storage?.setItem(
+      payosCacheKey(String(payment.invoiceId)),
+      JSON.stringify(payment)
+    );
+  } catch {
+    // full or blocked storage: the panel still works, without restoring
+  }
+};
+
+/**
+ * The saved code of this bill, only while it is the code the BE holds, for the
+ * current total, and not expired; anything else is dropped.
+ */
+export const readPayosPayment = (
+  invoice: Pick<
+    Invoice,
+    '_id' | 'paymentStatus' | 'payosOrderCode' | 'totalAmount'
+  >,
+  storage: PayosCacheStorage | undefined = browserStorage(),
+  now = Date.now()
+): PayosPayment | undefined => {
+  try {
+    const raw = storage?.getItem(payosCacheKey(invoice._id));
+    if (!raw) return undefined;
+    const saved = JSON.parse(raw) as Partial<PayosPayment> | null;
+    const usable =
+      invoice.paymentStatus === 'Unpaid' &&
+      typeof saved?.qrCode === 'string' &&
+      saved.qrCode.length > 0 &&
+      Number(saved.orderCode) === invoice.payosOrderCode &&
+      Number(saved.amount) === invoice.totalAmount &&
+      getSecondsLeft(String(saved.expiresAt), now) > 0;
+    if (!usable) {
+      clearPayosPayment(invoice._id, storage);
+      return undefined;
+    }
+    return saved as PayosPayment;
+  } catch {
+    clearPayosPayment(invoice._id, storage);
+    return undefined;
+  }
+};
+
+/** PayOS page of a code made elsewhere: it shows that code's QR */
+export const getPayosCheckoutUrl = (paymentLinkId?: string | null) =>
+  paymentLinkId && /^[A-Za-z0-9]+$/.test(paymentLinkId)
+    ? `https://pay.payos.vn/web/${paymentLinkId}`
+    : undefined;
+
+/** Query of the best-selling report without empty values, limit kept to 1..50 */
+export const buildBestSellingQuery = (
+  params?: BestSellingParams
+): Record<string, string | number> => {
+  const query: Record<string, string | number> = {};
+  for (const key of ['from', 'to', 'category', 'sortBy'] as const) {
+    const value = params?.[key]?.trim();
+    if (value) query[key] = value;
+  }
+  const limit = params?.limit;
+  if (typeof limit === 'number' && Number.isFinite(limit)) {
+    query.limit = Math.min(
+      Math.max(Math.trunc(limit), 1),
+      BEST_SELLING_LIMIT_MAX
+    );
+  }
+  return query;
+};
 
 /** SRS messages used on SCR-20 and SCR-15 */
 export const MSG_PAYMENT_SUCCESS = 'Thanh toán thành công. Đơn đã hoàn tất.'; // MSG29
@@ -60,10 +242,11 @@ export const MSG_PRODUCT_INACTIVE =
 
 /**
  * Nghiệp vụ 4.6: "Khi khách đến đón, lễ tân tạo hóa đơn. Khách thanh toán tiền
- * mặt hoặc quét QR VNPay." The owner pays at the desk, not in the app.
+ * mặt hoặc quét QR VNPay." The owner pays at the desk, not in the app. The
+ * clinic also takes a VietQR bank transfer through PayOS (BE 39a55d6).
  */
 export const PAY_AT_COUNTER_TEXT =
-  'Lễ tân lập hóa đơn khi bạn đến đón bé. Bạn thanh toán tại quầy bằng tiền mặt hoặc quét mã VNPay.';
+  'Lễ tân lập hóa đơn khi bạn đến đón bé. Bạn thanh toán tại quầy bằng tiền mặt, hoặc quét mã QR (VNPay hoặc chuyển khoản VietQR) do lễ tân đưa.';
 
 export const getInvoiceStatusLabel = (status?: string) =>
   INVOICE_STATUS_LABELS[status as InvoicePaymentStatus] || status || '-';
@@ -141,6 +324,56 @@ export const getCashChange = (
     return undefined;
   if (received < total) return undefined;
   return received - total;
+};
+
+export interface AddToBillPatch {
+  payload: UpdateInvoiceItemsPayload;
+  /** Quantity of the one line the product now has, when lines were merged */
+  mergedQuantity?: number;
+  /** Lines were left apart because one line would pass the BE limit */
+  overLimit: boolean;
+}
+
+/**
+ * PATCH body that adds a product to an issued bill. The BE always appends a new
+ * line, so adding the same product again would split it over several lines.
+ * When the bill already has lines of this product at today's price, the BE is
+ * asked in the same request to drop them and write one line with the sum (it
+ * removes before it adds). Lines at an older price stay apart: their price was
+ * fixed when they were added (BR-16). A sum above the BE limit stays apart too.
+ */
+export const buildAddToBillPatch = (
+  items: readonly Pick<
+    InvoiceItem,
+    '_id' | 'type' | 'refId' | 'unitPriceSnapshot' | 'quantity'
+  >[],
+  product: { _id: string; unitPrice?: number | null },
+  quantity: number,
+  max = RETAIL_QUANTITY_MAX
+): AddToBillPatch => {
+  const qty = Math.max(1, Math.trunc(quantity));
+  const addOnly: AddToBillPatch = {
+    payload: { addItems: [{ productId: product._id, quantity: qty }] },
+    overLimit: false,
+  };
+  const same = items.filter(
+    item =>
+      item.type === 'Product' &&
+      item.refId === product._id &&
+      typeof product.unitPrice === 'number' &&
+      item.unitPriceSnapshot === product.unitPrice
+  );
+  if (same.length === 0) return addOnly;
+  const total = same.reduce((sum, item) => sum + (item.quantity || 0), qty);
+  if (total > max) return { ...addOnly, overLimit: true };
+  return {
+    payload: {
+      removeItemIds: same.map(item => item._id),
+      addItems: [{ productId: product._id, quantity: total }],
+    },
+    mergedQuantity: total,
+    overLimit: false,
+  };
 };
 
 /** Add `quantity` of a product to a list; the same product shares one line */
@@ -321,6 +554,30 @@ export const readInvoiceError = (error: unknown, fallback: string) => {
     status,
     message: detail ? `${message}: ${detail}` : message,
   };
+};
+
+const GENERIC_INVOICE_ERROR = 'Lỗi máy chủ khi xử lý hóa đơn và thanh toán';
+export const PAYOS_CHECK_UNREACHABLE =
+  'Chưa hỏi được PayOS (mạng tới PayOS đang chậm hoặc gián đoạn). Mã vẫn còn hiệu lực, hãy thử lại sau ít giây.';
+export const PAYOS_CREATE_UNREACHABLE =
+  'Chưa tạo được mã: không kết nối được tới PayOS. Thử lại sau ít giây hoặc chọn phương thức khác.';
+
+/**
+ * The BE does not always reach PayOS: it answers 502/504, or a bare 500 when
+ * the connection itself times out. Say that plainly; keep any other message
+ * (missing PayOS keys, 409 already paid...).
+ */
+export const readPayosError = (
+  error: unknown,
+  fallback: string,
+  unreachableText: string
+) => {
+  const read = readInvoiceError(error, fallback);
+  const unreachable =
+    read.status === 502 ||
+    read.status === 504 ||
+    (read.status === 500 && read.message === GENERIC_INVOICE_ERROR);
+  return unreachable ? { ...read, message: unreachableText } : read;
 };
 
 /** The 409 the BE answers while the pet is still admitted */

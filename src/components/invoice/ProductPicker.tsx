@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, InputNumber, Select, Space } from 'antd';
+import { Button, ConfigProvider, InputNumber, Select, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ProductService, {
   productCategoryLabels,
@@ -68,46 +68,50 @@ const ProductPicker = ({
   };
 
   return (
-    <Space.Compact style={{ width: '100%' }}>
-      <Select
-        showSearch
-        allowClear
-        value={selectedId}
-        placeholder="Tìm sản phẩm đang bán"
-        filterOption={false}
-        onSearch={setSearch}
-        onChange={value => setSelectedId(value)}
-        loading={fetching}
-        disabled={disabled}
-        notFoundContent={fetching ? 'Đang tìm…' : 'Không có sản phẩm phù hợp'}
-        style={{ flex: 1, minWidth: 0 }}
-        aria-label="Sản phẩm"
-        options={products.map(product => ({
-          value: product._id,
-          label: `${product.name} (${product.unit}) · ${formatVnd(product.unitPrice)} · ${
-            productCategoryLabels[product.category] || product.category
-          }`,
-        }))}
-      />
-      <InputNumber
-        min={1}
-        max={RETAIL_QUANTITY_MAX}
-        precision={0}
-        value={quantity}
-        onChange={value => setQuantity(value)}
-        disabled={disabled}
-        aria-label="Số lượng"
-        style={{ width: 80 }}
-      />
-      <Button
-        icon={<PlusOutlined />}
-        onClick={handleAdd}
-        disabled={disabled || !canAdd}
-        loading={loading}
-      >
-        {addLabel}
-      </Button>
-    </Space.Compact>
+    // The theme makes buttons 38px but leaves inputs at 32px; in one compact
+    // row that left the search box lower than the quantity and the button
+    <ConfigProvider theme={{ token: { controlHeight: 38 } }}>
+      <Space.Compact style={{ width: '100%' }}>
+        <Select
+          showSearch
+          allowClear
+          value={selectedId}
+          placeholder="Tìm sản phẩm đang bán"
+          filterOption={false}
+          onSearch={setSearch}
+          onChange={value => setSelectedId(value)}
+          loading={fetching}
+          disabled={disabled}
+          notFoundContent={fetching ? 'Đang tìm…' : 'Không có sản phẩm phù hợp'}
+          style={{ flex: 1, minWidth: 0 }}
+          aria-label="Sản phẩm"
+          options={products.map(product => ({
+            value: product._id,
+            label: `${product.name} (${product.unit}) · ${formatVnd(product.unitPrice)} · ${
+              productCategoryLabels[product.category] || product.category
+            }`,
+          }))}
+        />
+        <InputNumber
+          min={1}
+          max={RETAIL_QUANTITY_MAX}
+          precision={0}
+          value={quantity}
+          onChange={value => setQuantity(value)}
+          disabled={disabled}
+          aria-label="Số lượng"
+          style={{ width: 80 }}
+        />
+        <Button
+          icon={<PlusOutlined />}
+          onClick={handleAdd}
+          disabled={disabled || !canAdd}
+          loading={loading}
+        >
+          {addLabel}
+        </Button>
+      </Space.Compact>
+    </ConfigProvider>
   );
 };
 

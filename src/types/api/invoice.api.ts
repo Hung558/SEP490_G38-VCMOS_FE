@@ -1,10 +1,11 @@
-// Invoices and payment (UC-45..48, SCR-15, SCR-20): /api/invoices (BE 8aa9a16).
+// Invoices and payment (UC-45..48, SCR-15, SCR-20): /api/invoices (BE 39a55d6).
 // Lines keep the name and unit price of the moment the invoice was issued
-// (BR-16). Only the VNPay IPN or a cash payment turns an invoice Paid (BR-17).
+// (BR-16). A cash payment, the VNPay IPN or a PayOS confirmation (its webhook,
+// or the BE asking PayOS on GET /invoices/:id) turns an invoice Paid.
 
 export type InvoiceItemType = 'Service' | 'Product' | 'InpatientDay';
 export type InvoicePaymentStatus = 'Unpaid' | 'Paid' | 'Refunded';
-export type InvoicePaymentMethod = 'Cash' | 'VNPay';
+export type InvoicePaymentMethod = 'Cash' | 'VNPay' | 'PayOS';
 
 export interface InvoiceItem {
   _id: string;
@@ -77,6 +78,9 @@ export interface Invoice {
   issuedAt?: string | null;
   paidAt?: string | null;
   vnpayTxnRef?: string | null;
+  /** Set by POST /invoices/:id/payos-url; each new code replaces the last */
+  payosOrderCode?: number | null;
+  payosPaymentLinkId?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -177,4 +181,82 @@ export interface VnpayReturnResult {
     | 'vnpayTxnRef'
   > | null;
   message: string;
+}
+
+/** POST /api/invoices/:id/payos-url (Receptionist): a real VietQR, 15 minutes */
+export interface PayosPayment {
+  invoiceId: string;
+  invoiceCode: string;
+  orderCode: number;
+  paymentLinkId: string | null;
+  amount: number;
+  /** PayOS page with the same QR, larger */
+  checkoutUrl: string;
+  paymentUrl: string;
+  /** VietQR (EMVCo) text that any Vietnamese banking app can scan */
+  qrCode: string;
+  accountName: string | null;
+  accountNumber: string | null;
+  bin: string | null;
+  expiresAt: string;
+}
+
+export interface PayosUrlResponse {
+  message: string;
+  data: PayosPayment;
+}
+
+/** Status of a payment link as PayOS reports it */
+export type PayosStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'PAID'
+  | 'UNDERPAID'
+  | 'CANCELLED'
+  | 'EXPIRED'
+  | 'FAILED';
+
+/**
+ * GET /api/invoices/:id/payos-status: the BE asks PayOS and, when it says PAID,
+ * turns the invoice Paid right away (order Done, record locked, cage freed).
+ */
+export interface PayosStatusResponse {
+  message: string;
+  data: Invoice;
+  payosStatus: PayosStatus | string;
+}
+
+export type BestSellingSortBy = 'quantity' | 'revenue';
+export type BestSellingCategory = 'Medicine' | 'Vaccine' | 'Retail';
+
+/** GET /api/invoices/reports/best-selling-products (Admin) */
+export interface BestSellingParams {
+  /** YYYY-MM-DD, Vietnam time, both ends included; at most 366 days */
+  from?: string;
+  to?: string;
+  category?: BestSellingCategory;
+  sortBy?: BestSellingSortBy;
+  /** 1..50, BE default 10 */
+  limit?: number;
+}
+
+export interface BestSellingItem {
+  rank: number;
+  productId: string;
+  /** Left out when the product no longer exists; the name then comes from the bill */
+  code?: string;
+  name: string;
+  category?: BestSellingCategory;
+  unit?: string;
+  totalQuantity: number;
+  totalRevenue: number;
+  invoiceCount: number;
+}
+
+export interface BestSellingResponse {
+  from: string;
+  to: string;
+  sortBy: BestSellingSortBy;
+  category: BestSellingCategory | null;
+  items: BestSellingItem[];
 }

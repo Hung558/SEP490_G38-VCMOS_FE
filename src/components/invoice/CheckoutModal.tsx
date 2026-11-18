@@ -15,11 +15,14 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import type { Invoice, InvoiceItem, PayCashResponse } from '@/types';
 import InvoiceService, {
+  buildAddToBillPatch,
   formatVnd,
   getInvoiceMethodLabel,
   isInvoiceUnpaid,
   MSG_PAYMENT_SUCCESS,
   readInvoiceError,
+  readPayosPayment,
+  RETAIL_QUANTITY_MAX,
 } from '@/services/InvoiceService';
 import type { Product } from '@/services/ProductService';
 import CreateInvoicePanel from './CreateInvoicePanel';
@@ -28,11 +31,12 @@ import InvoicePdfButton from './InvoicePdfButton';
 import ProductPicker from './ProductPicker';
 import CashPaymentPanel from './CashPaymentPanel';
 import VnpayPaymentPanel from './VnpayPaymentPanel';
+import PayosPaymentPanel from './PayosPaymentPanel';
 
 const { Title, Text } = Typography;
 
 type Phase = 'loading' | 'create' | 'invoice' | 'none' | 'error';
-type Method = 'cash' | 'vnpay';
+type Method = 'cash' | 'vnpay' | 'payos';
 
 interface CheckoutModalProps {
   open: boolean;
@@ -49,7 +53,9 @@ interface CheckoutModalProps {
 
 /**
  * SCR-20 thu ngân (nghiệp vụ 4.6, UC-45..47): lập hóa đơn cho đơn "Chờ chủ
- * đón", thêm bớt hàng bán lẻ, thu tiền mặt hoặc VNPay QR, in biên lai.
+ * đón", thêm bớt hàng bán lẻ, thu tiền mặt, VNPay QR hoặc chuyển khoản VietQR
+ * (PayOS), in biên lai. Các khung thanh toán luôn được giữ lại khi đổi phương
+ * thức, để mã QR đã đưa khách vẫn còn trên màn và vẫn được kiểm tra.
  */
 const CheckoutModal = ({
   open,
@@ -63,6 +69,8 @@ const CheckoutModal = ({
   const [invoice, setInvoice] = useState<Invoice>();
   const [loadError, setLoadError] = useState<string>();
   const [method, setMethod] = useState<Method>('cash');
+  const [vnpayLive, setVnpayLive] = useState(false);
+  const [payosLive, setPayosLive] = useState(false);
   const [cashResult, setCashResult] = useState<PayCashResponse>();
   const [itemsBusy, setItemsBusy] = useState(false);
   const [removingId, setRemovingId] = useState<string>();
@@ -91,6 +99,8 @@ const CheckoutModal = ({
       }
       if (signal.aborted) return;
       setInvoice(found);
+      // Back to the VietQR the customer may be scanning, when this browser has it
+      if (found && canPay && readPayosPayment(found)) setMethod('payos');
       setPhase(found ? 'invoice' : canPay && orderId ? 'create' : 'none');
     } catch (err) {
       if (axios.isCancel(err) || signal.aborted) return;
@@ -102,6 +112,8 @@ const CheckoutModal = ({
   useEffect(() => {
     if (!open) return;
     setMethod('cash');
+    setVnpayLive(false);
+    setPayosLive(false);
     setCashResult(undefined);
     setItemsError(undefined);
     void load();
@@ -127,14 +139,15 @@ const CheckoutModal = ({
   const changeItems = async (
     payload: Parameters<typeof InvoiceService.updateItems>[1],
     removing?: string
-  ) => {
-    if (!invoice) return;
+  ): Promise<boolean> => {
+    if (!invoice) return false;
     setItemsBusy(true);
     setRemovingId(removing);
     setItemsError(undefined);
     try {
       setInvoice((await InvoiceService.updateItems(invoice._id, payload)).data);
       onChanged?.();
+      return true;
     } catch (err) {
       const { message, status } = readInvoiceError(
         err,
@@ -142,14 +155,23 @@ const CheckoutModal = ({
       );
       setItemsError(message);
       if (status === 409) void reloadInvoice();
+      return false;
     } finally {
       setItemsBusy(false);
       setRemovingId(undefined);
     }
   };
 
-  const addProduct = (product: Product, quantity: number) =>
-    changeItems({ addItems: [{ productId: product._id, quantity }] });
+  // The same product at the same price goes onto its existing line
+  const addProduct = async (product: Product, quantity: number) => {
+    if (!invoice) return;
+    const patch = buildAddToBillPatch(invoice.items, product, quantity);
+    const saved = await changeItems(patch.payload);
+    if (saved && patch.overLimit)
+      toast.info(
+        `${product.name}: một dòng tối đa ${RETAIL_QUANTITY_MAX}, phần thêm được ghi thành dòng riêng.`
+      );
+  };
 
   const removeLine = (item: InvoiceItem) =>
     changeItems({ removeItemIds: [item._id] }, item._id);
@@ -161,7 +183,8 @@ const CheckoutModal = ({
     onChanged?.();
   };
 
-  const handleVnpayPaid = useCallback(
+  // VNPay or PayOS confirmed the payment
+  const handleQrPaid = useCallback(
     (paid: Invoice) => {
       setInvoice(paid);
       toast.success(MSG_PAYMENT_SUCCESS);
@@ -215,7 +238,7 @@ const CheckoutModal = ({
           >
             Chỉ bỏ được dòng thuốc và sản phẩm. Muốn đổi số lượng thuốc kê đơn
             thì bỏ dòng đó rồi thêm lại với số lượng mới. Đổi hàng sau khi đã
-            tạo mã VNPay thì phải tạo mã mới.
+            tạo mã VNPay hoặc VietQR thì phải tạo mã mới.
           </Text>
           {itemsError && (
             <Alert
@@ -239,23 +262,43 @@ const CheckoutModal = ({
             options={[
               { label: 'Tiền mặt', value: 'cash' },
               { label: 'VNPay QR', value: 'vnpay' },
+              { label: 'VietQR (PayOS)', value: 'payos' },
             ]}
           />
-          {method === 'cash' ? (
-            <CashPaymentPanel
-              key={`cash-${bill.totalAmount}`}
-              invoice={bill}
-              onPaid={handleCashPaid}
-              onStale={reloadInvoice}
-            />
-          ) : (
-            <VnpayPaymentPanel
-              key={`vnpay-${bill._id}-${bill.totalAmount}`}
-              invoice={bill}
-              onPaid={handleVnpayPaid}
-              onSwitchToCash={() => setMethod('cash')}
-            />
-          )}
+          {/* Hidden, not unmounted: a QR shown to the customer keeps its
+              countdown and its check while the receptionist looks elsewhere.
+              One wrapper, so the hidden panels leave no gap in the Space */}
+          <div>
+            <div hidden={method !== 'cash'}>
+              <CashPaymentPanel
+                key={`cash-${bill.totalAmount}`}
+                invoice={bill}
+                onPaid={handleCashPaid}
+                onStale={reloadInvoice}
+              />
+            </div>
+            <div hidden={method !== 'vnpay'}>
+              <VnpayPaymentPanel
+                key={`vnpay-${bill._id}-${bill.totalAmount}`}
+                invoice={bill}
+                onPaid={handleQrPaid}
+                onSwitchToCash={() => setMethod('cash')}
+                onLiveChange={setVnpayLive}
+                otherLiveQr={payosLive ? 'VietQR (PayOS)' : undefined}
+              />
+            </div>
+            <div hidden={method !== 'payos'}>
+              <PayosPaymentPanel
+                key={`payos-${bill._id}-${bill.totalAmount}`}
+                invoice={bill}
+                active={method === 'payos'}
+                onPaid={handleQrPaid}
+                onSwitchToCash={() => setMethod('cash')}
+                onLiveChange={setPayosLive}
+                otherLiveQr={vnpayLive ? 'VNPay' : undefined}
+              />
+            </div>
+          </div>
         </>
       )}
       {!canPay && isInvoiceUnpaid(bill) && (
