@@ -12,6 +12,7 @@ import {
   CalendarOutlined,
   MedicineBoxOutlined,
   DollarOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -71,6 +72,10 @@ export const MenuItemBreadcrumbs = () => {
     {
       label: 'Quản lý sản phẩm',
       key: ROUTER.ADMIN_PRODUCTS,
+    },
+    {
+      label: 'Thống kê',
+      key: ROUTER.ADMIN_REPORTS,
     },
     {
       label: 'Quản lý chuồng',
@@ -168,6 +173,11 @@ export const MenuItemAdmin = (): MenuItem[] => {
       key: ROUTER.ADMIN_PRODUCTS,
       label: 'Quản lý sản phẩm',
       icon: <ShoppingOutlined />,
+    },
+    {
+      key: ROUTER.ADMIN_REPORTS,
+      label: 'Thống kê',
+      icon: <BarChartOutlined />,
     },
     {
       key: ROUTER.STAFF_SCHEDULES,

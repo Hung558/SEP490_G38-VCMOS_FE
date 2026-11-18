@@ -11,6 +11,8 @@ const ROUTER = {
   ADMIN_USERS: '/admin/users',
   ADMIN_SERVICES: '/admin/services',
   ADMIN_PRODUCTS: '/admin/products',
+  // SCR-28 thống kê (nghiệp vụ 7.3): sản phẩm bán chạy
+  ADMIN_REPORTS: '/admin/reports',
   CAGES: '/cages',
   CLINIC_APPOINTMENTS: '/clinic/appointments',
   // Veterinarian / Groomer work queue (SCR-22, SCR-26)

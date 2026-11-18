@@ -1,21 +1,28 @@
 import type { AxiosResponse } from 'axios';
 import api from '../01_axios';
 import type {
+  BestSellingParams,
+  BestSellingResponse,
   CreateInvoicePayload,
   InvoiceResponse,
   ListInvoicesParams,
   ListInvoicesResponse,
   PayCashPayload,
   PayCashResponse,
+  PayosStatusResponse,
+  PayosUrlResponse,
   UpdateInvoiceItemsPayload,
   VnpayReturnResult,
   VnpayUrlResponse,
 } from '@/types';
-import { buildInvoiceListQuery } from './helpers';
+import { buildBestSellingQuery, buildInvoiceListQuery } from './helpers';
 import {
+  apiBestSellingProducts,
   apiInvoiceDetail,
   apiInvoiceItems,
   apiInvoicePayCash,
+  apiInvoicePayosStatus,
+  apiInvoicePayosUrl,
   apiInvoicePdf,
   apiInvoiceVnpayUrl,
   apiInvoices,
@@ -77,6 +84,37 @@ const createVnpayUrl = (id: string): Promise<VnpayUrlResponse> =>
   api.post(apiInvoiceVnpayUrl(id));
 
 /**
+ * Tạo mã VietQR thật qua PayOS, hiệu lực 15 phút. Mỗi lần gọi BE thay mã cũ của
+ * hóa đơn bằng mã mới. POST /api/invoices/:id/payos-url
+ */
+const createPayosUrl = (id: string): Promise<PayosUrlResponse> =>
+  api.post(apiInvoicePayosUrl(id));
+
+/**
+ * Hỏi PayOS khách đã chuyển khoản chưa; nếu PAID thì BE chốt hóa đơn Paid ngay
+ * (chạy được ở localhost, không cần webhook). 400 khi hóa đơn chưa có mã PayOS.
+ * GET /api/invoices/:id/payos-status
+ */
+const getPayosStatus = (
+  id: string,
+  options?: Options
+): Promise<PayosStatusResponse> =>
+  api.get(apiInvoicePayosStatus(id), { signal: options?.signal });
+
+/**
+ * Sản phẩm bán chạy (Admin, nghiệp vụ 7.3 "số liệu sản phẩm bán"): chỉ tính hóa
+ * đơn đã thanh toán, theo ngày thanh toán. GET /api/invoices/reports/best-selling-products
+ */
+const getBestSellingProducts = (
+  params?: BestSellingParams,
+  options?: Options
+): Promise<BestSellingResponse> =>
+  api.get(apiBestSellingProducts, {
+    params: buildBestSellingQuery(params),
+    signal: options?.signal,
+  });
+
+/**
  * Kiểm tra kết quả VNPay trả về trình duyệt (API-04). Chỉ đọc: hóa đơn chỉ đổi
  * khi VNPay gọi IPN. `search` là chuỗi query VNPay gắn vào trang trả về.
  */
@@ -116,8 +154,11 @@ const InvoiceService = {
   updateItems,
   payCash,
   createVnpayUrl,
+  createPayosUrl,
+  getPayosStatus,
   verifyVnpayReturn,
   getPdf,
+  getBestSellingProducts,
 };
 
 export * from './urls';

@@ -30,7 +30,7 @@ interface InvoiceDetailViewProps {
   payAtCounterHint?: boolean;
 }
 
-/** SCR-15 invoice detail: header, lines, total, VNPay transaction number */
+/** SCR-15 invoice detail: header, lines, total, VNPay or PayOS transaction number */
 const InvoiceDetailView = ({
   invoice,
   showOwner = true,
@@ -50,7 +50,7 @@ const InvoiceDetailView = ({
           type="warning"
           showIcon
           message="Hóa đơn chưa thanh toán"
-          description="Bạn thanh toán tại quầy lễ tân khi đón bé, bằng tiền mặt hoặc quét mã VNPay do lễ tân đưa. Thanh toán xong, lịch hẹn chuyển Hoàn tất."
+          description="Bạn thanh toán tại quầy lễ tân khi đón bé, bằng tiền mặt hoặc quét mã QR (VNPay hoặc chuyển khoản VietQR) do lễ tân đưa. Thanh toán xong, lịch hẹn chuyển Hoàn tất."
         />
       )}
       <Descriptions
@@ -114,6 +114,15 @@ const InvoiceDetailView = ({
                   key: 'txn',
                   label: 'Mã giao dịch VNPay',
                   children: invoice.vnpayTxnRef,
+                },
+              ]
+            : []),
+          ...(invoice.payosOrderCode && invoice.paymentMethod === 'PayOS'
+            ? [
+                {
+                  key: 'payos',
+                  label: 'Mã giao dịch PayOS',
+                  children: String(invoice.payosOrderCode),
                 },
               ]
             : []),

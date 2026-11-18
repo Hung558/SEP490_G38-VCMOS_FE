@@ -23,6 +23,7 @@ import LoginRegisterPage from '@/pages/ANONYMOUS/Login_Register';
 import AdminUsersPage from '@/pages/AdminUsers';
 import AdminServicesPage from '@/pages/AdminServices';
 import AdminProductsPage from '@/pages/AdminProducts';
+import AdminReportsPage from '@/pages/AdminReports';
 import PetProfilePage from '@/pages/PetProfile';
 import CagesPage from '@/pages/Cages';
 import AppointmentReceptionPage from '@/pages/AppointmentReception';
@@ -109,6 +110,14 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <AdminProductsPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: ROUTER.ADMIN_REPORTS,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <AdminReportsPage />
             </Suspense>
           ),
         },

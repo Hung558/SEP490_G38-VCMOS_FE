@@ -127,7 +127,7 @@ const MyInvoicesPage = () => {
             <Text type="secondary">
               Hóa đơn các lần khám và dịch vụ của các bé. Lễ tân lập hóa đơn khi
               bạn đến đón bé; bạn thanh toán tại quầy bằng tiền mặt hoặc quét mã
-              VNPay.
+              QR (VNPay hoặc chuyển khoản VietQR).
             </Text>
           </div>
         </PageHeader>
