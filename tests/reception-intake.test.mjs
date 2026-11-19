@@ -9,10 +9,20 @@ import { pickSpecialtyAssignment } from '../src/services/StaffService/specialty.
 import {
   buildCheckInRequest,
   isReceptionCageError,
+  toCheckInFieldPath,
 } from '../src/services/AppointmentOrderService/helpers.ts';
 
 test('legacy check-in has no body; intake check-in only sends the two trimmed fields', () => {
   assert.equal(buildCheckInPayload(), undefined);
+  assert.equal(buildCheckInPayload(undefined), undefined);
+  assert.equal(
+    buildCheckInPayload({ symptoms: '', initialCondition: '' }),
+    undefined
+  );
+  assert.equal(
+    buildCheckInPayload({ symptoms: '   ', initialCondition: '   ' }),
+    undefined
+  );
   assert.deepEqual(
     buildCheckInPayload({
       symptoms: ' Ho nhẹ  ',
@@ -29,6 +39,9 @@ test('intake validation rejects blank, malformed or oversized fields', () => {
     null,
     { symptoms: ' ', initialCondition: 'Tỉnh táo' },
     { symptoms: 'Ho nhẹ' },
+    { initialCondition: 'Tỉnh táo' },
+    { symptoms: 'Ho nhẹ', initialCondition: '' },
+    { symptoms: '', initialCondition: 'Tỉnh táo' },
     { symptoms: 'Ho nhẹ', initialCondition: 123 },
   ]) {
     assert.throws(() => buildCheckInPayload(malformed));
@@ -61,6 +74,26 @@ test('check-in includes a cage and isolation in the same request without changin
   });
   assert.deepEqual(
     buildCheckInRequest({
+      cageId,
+      intake: { symptoms: '', initialCondition: '' },
+    }),
+    { cageId }
+  );
+  assert.deepEqual(
+    buildCheckInRequest({
+      cageId,
+      intake: { symptoms: '   ', initialCondition: '   ' },
+    }),
+    { cageId }
+  );
+  assert.equal(
+    buildCheckInRequest({
+      intake: { symptoms: '', initialCondition: '' },
+    }),
+    undefined
+  );
+  assert.deepEqual(
+    buildCheckInRequest({
       intake,
       cageId: ` ${cageId} `,
       requiresIsolation: true,
@@ -75,6 +108,23 @@ test('check-in includes a cage and isolation in the same request without changin
   assert.throws(() =>
     buildCheckInRequest({ cageId, intake: { symptoms: 'Ho nhẹ' } })
   );
+  assert.throws(() =>
+    buildCheckInRequest({ cageId, intake: { initialCondition: 'Tỉnh táo' } })
+  );
+});
+
+test('toCheckInFieldPath maps BE error keys onto form fields', () => {
+  assert.deepEqual(toCheckInFieldPath('intake.symptoms'), [
+    'intake',
+    'symptoms',
+  ]);
+  assert.deepEqual(toCheckInFieldPath('intake.initialCondition'), [
+    'intake',
+    'initialCondition',
+  ]);
+  assert.equal(toCheckInFieldPath('cageId'), 'cageId');
+  assert.equal(toCheckInFieldPath('requiresIsolation'), 'requiresIsolation');
+  assert.equal(toCheckInFieldPath('unknown.field'), null);
 });
 
 test('cage errors are distinct from non-cage order conflicts and general failures', () => {

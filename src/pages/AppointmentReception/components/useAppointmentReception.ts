@@ -379,7 +379,11 @@ export const useAppointmentReception = () => {
         ? 'Chưa kiểm tra được chuồng hiện tại của lịch hẹn. Nếu tiếp nhận ngay, hệ thống dùng chuồng đã giữ chỗ (nếu có).'
         : undefined;
 
-  const confirmCheckIn = async (values: CheckInAppointmentPayload) => {
+  const confirmCheckIn = async (
+    values: CheckInAppointmentPayload
+  ): Promise<
+    { cageError?: string; fieldErrors?: Record<string, string> } | undefined
+  > => {
     if (!checkInTarget || !isReceptionist || checkInPendingRef.current) return;
     if (values.cageId && checkInCageBlockedReason)
       return { cageError: checkInCageBlockedReason };
@@ -433,7 +437,15 @@ export const useAppointmentReception = () => {
         return {
           cageError:
             fieldErrors.cageId || fieldErrors.requiresIsolation || message,
+          fieldErrors,
         };
+      }
+      if (
+        status === 400 &&
+        (fieldErrors['intake.symptoms'] ||
+          fieldErrors['intake.initialCondition'])
+      ) {
+        return { fieldErrors };
       }
       toast.error(message);
       // If 409 conflict or 404 not found, refresh page to reflect server reality

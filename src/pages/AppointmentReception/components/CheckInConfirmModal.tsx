@@ -29,7 +29,9 @@ import {
   getReservedCage,
   readReceptionIntake,
   RECEPTION_INTAKE_FIELD_LIMIT,
+  toCheckInFieldPath,
 } from '@/services/AppointmentOrderService';
+import type { CheckInFieldName } from '@/services/AppointmentOrderService';
 import AppointmentServiceService, {
   getAppointmentServiceName,
   getServiceRefCategory,
@@ -86,6 +88,11 @@ const AssignRow = styled.div`
   }
 `;
 
+export interface CheckInConfirmResult {
+  cageError?: string;
+  fieldErrors?: Record<string, string>;
+}
+
 interface CheckInConfirmModalProps {
   open: boolean;
   appointment: StaffAppointment | null;
@@ -93,7 +100,7 @@ interface CheckInConfirmModalProps {
   cageBlockedReason?: string;
   onConfirm: (
     values: CheckInAppointmentPayload
-  ) => Promise<{ cageError: string } | undefined>;
+  ) => Promise<CheckInConfirmResult | undefined>;
   onClose: () => void;
 }
 
@@ -337,10 +344,31 @@ const CheckInForm = ({
   const weightUnknown = cagesLoaded && petWeight === undefined;
 
   const submit = async (values: CheckInFormValues) => {
+    if (submitting) return;
+
     const intake = isReceptionIntakeEnabled
       ? readReceptionIntake(values.intake)
       : undefined;
-    if (submitting || (isReceptionIntakeEnabled && !intake)) return;
+
+    const rawSymptoms = values.intake?.symptoms?.trim();
+    const rawCondition = values.intake?.initialCondition?.trim();
+    if (
+      isReceptionIntakeEnabled &&
+      ((rawSymptoms && !rawCondition) || (!rawSymptoms && rawCondition))
+    ) {
+      form.setFields([
+        {
+          name: ['intake', 'symptoms'],
+          errors: !rawSymptoms ? ['Vui lòng nhập triệu chứng ban đầu.'] : [],
+        },
+        {
+          name: ['intake', 'initialCondition'],
+          errors: !rawCondition ? ['Vui lòng nhập tình trạng ban đầu.'] : [],
+        },
+      ]);
+      return;
+    }
+
     if (
       values.cageId &&
       (cageBlockedReason ||
@@ -367,10 +395,27 @@ const CheckInForm = ({
       serviceAssignments: buildCheckInAssignments(services, values.staff),
     });
     if (result) {
-      form.setFields([
-        { name: 'cageId', value: undefined, errors: [result.cageError] },
-      ]);
-      if (!cageBlockedReason) void loadCages();
+      if (result.cageError) {
+        form.setFields([
+          { name: 'cageId', value: undefined, errors: [result.cageError] },
+        ]);
+        if (!cageBlockedReason) void loadCages();
+      }
+      if (result.fieldErrors) {
+        const fieldsToSet: Array<{
+          name: CheckInFieldName;
+          errors: string[];
+        }> = [];
+        for (const [key, msg] of Object.entries(result.fieldErrors)) {
+          const path = toCheckInFieldPath(key);
+          if (path && msg) {
+            fieldsToSet.push({ name: path, errors: [msg] });
+          }
+        }
+        if (fieldsToSet.length > 0) {
+          form.setFields(fieldsToSet);
+        }
+      }
     }
   };
 
@@ -443,17 +488,32 @@ const CheckInForm = ({
     >
       {isReceptionIntakeEnabled && (
         <>
-          <Text strong>Phiếu tiếp nhận</Text>
+          <Text strong>Phiếu tiếp nhận ban đầu</Text>
           <Form.Item<CheckInFormValues>
-            label="Triệu chứng"
+            label="Triệu chứng ban đầu"
             style={{ marginBottom: 12 }}
             name={['intake', 'symptoms']}
+            dependencies={[['intake', 'initialCondition']]}
             rules={[
-              {
-                required: true,
-                whitespace: true,
-                message: 'Vui lòng nhập triệu chứng.',
-              },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const initialCondition = getFieldValue([
+                    'intake',
+                    'initialCondition',
+                  ]);
+                  const hasInitial =
+                    typeof initialCondition === 'string' &&
+                    initialCondition.trim().length > 0;
+                  const hasSymptoms =
+                    typeof value === 'string' && value.trim().length > 0;
+                  if (hasInitial && !hasSymptoms) {
+                    return Promise.reject(
+                      new Error('Vui lòng nhập triệu chứng ban đầu.')
+                    );
+                  }
+                  return Promise.resolve();
+                },
+              }),
             ]}
           >
             <Input.TextArea
@@ -466,12 +526,23 @@ const CheckInForm = ({
             label="Tình trạng ban đầu"
             style={{ marginBottom: 12 }}
             name={['intake', 'initialCondition']}
+            dependencies={[['intake', 'symptoms']]}
             rules={[
-              {
-                required: true,
-                whitespace: true,
-                message: 'Vui lòng nhập tình trạng ban đầu.',
-              },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const symptoms = getFieldValue(['intake', 'symptoms']);
+                  const hasSymptoms =
+                    typeof symptoms === 'string' && symptoms.trim().length > 0;
+                  const hasInitial =
+                    typeof value === 'string' && value.trim().length > 0;
+                  if (hasSymptoms && !hasInitial) {
+                    return Promise.reject(
+                      new Error('Vui lòng nhập tình trạng ban đầu.')
+                    );
+                  }
+                  return Promise.resolve();
+                },
+              }),
             ]}
           >
             <Input.TextArea
