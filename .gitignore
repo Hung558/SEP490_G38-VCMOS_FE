@@ -39,3 +39,6 @@ prompt_function-description/update/
 
 # Test artifacts
 tests/screenshots/
+
+# Python browser-test bytecode
+tests/__pycache__/

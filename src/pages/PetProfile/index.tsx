@@ -1,20 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Result, Skeleton } from 'antd';
 import { toast } from 'sonner';
 import PetService from '@/services/PetService';
 import ROUTER from '@/routerMap/ROUTER';
 import { useAuth } from '@/contexts/routerProvider/authContext';
-import { getRoleGroup } from '@/constants/roles';
 import { isUserPetOwner } from '@/services/AppointmentServiceService';
-import { STORAGE, storage } from '@/lib/storage';
-import type { Pet, PetAppointmentNote } from '@/types';
+import type { Pet } from '@/types';
 import PetFormModal from '@/pages/Dashboard/components/PetFormModal';
 import DeletePetModal from '@/pages/Dashboard/components/DeletePetModal';
 import PetProfileView from './components/PetProfileView';
 import PetInpatientLogs from './components/PetInpatientLogs';
-import PetTimelineSection from './components/PetTimelineSection';
-import PetVisitTimeline from './components/PetVisitTimeline';
+import PetTimeline from './components/PetTimeline';
 import { getBookingLink } from '@/pages/Dashboard/dashboardTabs';
 import { PetProfileWrapper } from './components/styles';
 
@@ -28,25 +25,18 @@ type LoadState = 'loading' | 'ready' | 'notFound' | 'error';
 const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const storedUser = storage.getLocalStorage<{
-    role?: string;
-    systemRole?: string;
-  }>(STORAGE.USER_INFO);
-  const isOwner =
-    getRoleGroup(
-      user?.role ||
-        user?.systemRole ||
-        storedUser?.role ||
-        storedUser?.systemRole
-    ) === 'owner';
-  const canReadInpatientLogs = isUserPetOwner(user ?? storedUser);
+  // AuthProvider already initializes from storage. Never revive a previous
+  // account's privileged role from storage after logout or a context change.
+  const effectiveRole = user?.role || user?.systemRole;
+  const isOwner = isUserPetOwner(user);
   const [pet, setPet] = useState<Pet | null>(null);
-  const [visits, setVisits] = useState<PetAppointmentNote[]>();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [petToDelete, setPetToDelete] = useState<Pet | null>(null);
+  const requestVersion = useRef(0);
 
   const fetchPet = useCallback(async () => {
+    const version = ++requestVersion.current;
     if (!petId) {
       setLoadState('notFound');
       return;
@@ -54,10 +44,11 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
     try {
       setLoadState('loading');
       const res = await PetService.getPetById(petId);
+      if (version !== requestVersion.current) return;
       setPet(res.pet);
-      setVisits(res.appointmentNotes || []);
       setLoadState('ready');
     } catch (error: any) {
+      if (version !== requestVersion.current) return;
       const status = error?.response?.status;
       // 400 = malformed id, 404 = no such pet or a pet of another owner
       setLoadState(status === 400 || status === 404 ? 'notFound' : 'error');
@@ -65,7 +56,10 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
   }, [petId]);
 
   useEffect(() => {
-    fetchPet();
+    void fetchPet();
+    return () => {
+      requestVersion.current += 1;
+    };
   }, [fetchPet]);
 
   // Called by DeletePetModal once the owner has typed the pet's name
@@ -145,18 +139,16 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
         <PetProfileView pet={pet} />
       )}
 
-      {canReadInpatientLogs && pet.status === 'Active' && (
+      {isOwner && pet.status === 'Active' && (
         <PetInpatientLogs petId={pet._id} />
       )}
 
-      <PetVisitTimeline
-        key={pet._id}
+      <PetTimeline
+        key={JSON.stringify([user?._id, effectiveRole, pet._id])}
         petId={pet._id}
-        initialNotes={visits}
-        ownerView={isOwner}
+        invoiceRole={effectiveRole}
+        sharedPostsVisible={isOwner}
       />
-
-      <PetTimelineSection petId={pet._id} />
 
       {isOwner && (
         <>
@@ -182,7 +174,12 @@ const PetProfilePage: React.FC = () => {
   const { petId } = useParams<{ petId: string }>();
   const { user } = useAuth();
   // Route or account changes must never display the previous pet's records.
-  return <PetProfile key={JSON.stringify([user?._id, petId])} petId={petId} />;
+  return (
+    <PetProfile
+      key={JSON.stringify([user?._id, user?.role, user?.systemRole, petId])}
+      petId={petId}
+    />
+  );
 };
 
 export default PetProfilePage;
