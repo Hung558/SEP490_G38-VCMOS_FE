@@ -24,6 +24,7 @@ const ROUTER = {
   EXAM_RECORD: '/clinic/exam/:appointmentServiceId',
   // Hóa đơn: chủ nuôi (SCR-15), Lễ tân và Admin (SCR-20 tra cứu)
   MY_INVOICES: '/invoices',
+  MY_COMMUNITY_POSTS: '/community/my-posts',
   CLINIC_INVOICES: '/clinic/invoices',
   // VNPay đưa người trả tiền về đây (BE VNP_RETURN_URL)
   VNPAY_RETURN: '/payment/vnpay-return',

@@ -13,6 +13,7 @@ import {
   MedicineBoxOutlined,
   DollarOutlined,
   BarChartOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -104,6 +105,11 @@ export const MenuItemCommon = (): MenuItem[] => {
       key: ROUTER.MY_INVOICES,
       label: 'Hóa đơn',
       icon: <DollarOutlined />,
+    },
+    {
+      key: ROUTER.MY_COMMUNITY_POSTS,
+      icon: <EditOutlined />,
+      label: 'Bài viết của tôi',
     },
     {
       key: ROUTER.PROFILE,

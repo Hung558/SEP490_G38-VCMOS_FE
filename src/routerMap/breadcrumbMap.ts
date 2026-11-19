@@ -20,4 +20,6 @@ export const breadcrumbMap: Record<string, string> = {
   inpatient: 'Nội trú',
   'staff-schedules': 'Ca làm việc',
   invoices: 'Hóa đơn',
+  community: 'Cộng đồng',
+  'my-posts': 'Bài viết của tôi',
 };

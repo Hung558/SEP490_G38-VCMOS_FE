@@ -3,11 +3,12 @@ import { useIsLogin } from '@/contexts/routerProvider/isLoginContext';
 import { useLogout } from '@/hooks/Common/useLogout';
 import ROUTER from '@/routerMap/ROUTER';
 import { getLandingLabel, getLandingPath } from '@/routerMap/roleAccess';
-import { getRoleLabel } from '@/constants/roles';
+import { getRoleLabel, normalizeRole } from '@/constants/roles';
 import {
   UserOutlined,
   DashboardOutlined,
   LogoutOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Avatar, Menu } from 'antd';
@@ -128,6 +129,19 @@ const MenuUser = () => {
               <Link className="btn-function" to={landingPath}>
                 <DashboardOutlined style={{ fontSize: '16px' }} />
                 <span>{getLandingLabel(role)}</span>
+              </Link>
+            ),
+          },
+        ]
+      : []),
+    ...(normalizeRole(role) === 'PetOwner'
+      ? [
+          {
+            key: ROUTER.MY_COMMUNITY_POSTS,
+            label: (
+              <Link className="btn-function" to={ROUTER.MY_COMMUNITY_POSTS}>
+                <EditOutlined style={{ fontSize: '16px' }} />
+                <span>Bài viết của tôi</span>
               </Link>
             ),
           },

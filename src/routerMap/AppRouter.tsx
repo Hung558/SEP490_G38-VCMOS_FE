@@ -32,6 +32,7 @@ import StaffSchedulesPage from '@/pages/StaffSchedules';
 import ExamRecordPage from '@/pages/ExamRecord';
 import InpatientCarePage from '@/pages/InpatientCare';
 import MyInvoicesPage from '@/pages/MyInvoices';
+import CommunityPostsPage from '@/pages/CommunityPosts';
 import ClinicInvoicesPage from '@/pages/ClinicInvoices';
 import VnpayReturnPage from '@/pages/VnpayReturn';
 import { useScrollTopOnNavigate } from '@/hooks/Common/useScrollTopOnNavigate';
@@ -220,6 +221,19 @@ const AppRouter = () => {
       ],
     },
 
+    {
+      element: <RoleRoute allowRoles={['PetOwner']} />,
+      children: [
+        {
+          path: ROUTER.MY_COMMUNITY_POSTS,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <CommunityPostsPage />
+            </Suspense>
+          ),
+        },
+      ],
+    },
     {
       // Pet owner pages: staff and Admin own no pets here (GET /pets only
       // returns the signed-in user's pets), so they go to their landing page
