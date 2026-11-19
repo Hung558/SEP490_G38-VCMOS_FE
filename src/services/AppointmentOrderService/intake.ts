@@ -19,20 +19,41 @@ export const readReceptionIntake = (
 };
 
 export const buildCheckInPayload = (
-  intake?: ReceptionIntake
+  intake?: Partial<ReceptionIntake> | null
 ): { intake: ReceptionIntake } | undefined => {
   if (intake === undefined) return undefined;
-  const normalized = readReceptionIntake(intake);
-  if (!normalized) {
+  if (!intake || typeof intake !== 'object') {
     throw new Error('Vui lòng nhập triệu chứng và tình trạng ban đầu.');
   }
+
+  const hasSymptomsField = 'symptoms' in intake;
+  const hasConditionField = 'initialCondition' in intake;
+
+  if (!hasSymptomsField && !hasConditionField) {
+    throw new Error('Vui lòng nhập triệu chứng và tình trạng ban đầu.');
+  }
+
+  const symptoms = trimText(intake.symptoms);
+  const initialCondition = trimText(intake.initialCondition);
+
+  // Cả hai trường đều để trống hoặc chỉ có khoảng trắng -> bỏ qua intake
+  if (!symptoms && !initialCondition) {
+    return undefined;
+  }
+
+  // Nhập thiếu một trong hai trường -> báo lỗi yêu cầu nhập đủ
+  if (!symptoms || !initialCondition) {
+    throw new Error('Vui lòng nhập triệu chứng và tình trạng ban đầu.');
+  }
+
   if (
-    normalized.symptoms.length > RECEPTION_INTAKE_FIELD_LIMIT ||
-    normalized.initialCondition.length > RECEPTION_INTAKE_FIELD_LIMIT
+    symptoms.length > RECEPTION_INTAKE_FIELD_LIMIT ||
+    initialCondition.length > RECEPTION_INTAKE_FIELD_LIMIT
   ) {
     throw new Error(
       `Mỗi trường của phiếu tiếp nhận tối đa ${RECEPTION_INTAKE_FIELD_LIMIT} ký tự.`
     );
   }
-  return { intake: normalized };
+
+  return { intake: { symptoms, initialCondition } };
 };

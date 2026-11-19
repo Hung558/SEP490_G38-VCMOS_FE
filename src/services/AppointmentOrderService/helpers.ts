@@ -479,6 +479,23 @@ export interface ExtractedApiError {
   statusCode?: number;
 }
 
+export type CheckInFieldName =
+  | 'cageId'
+  | 'requiresIsolation'
+  | ['intake', 'symptoms']
+  | ['intake', 'initialCondition'];
+
+/**
+ * Chuyển đổi key lỗi từ BE thành Form NamePath cho CheckInConfirmModal
+ */
+export const toCheckInFieldPath = (key: string): CheckInFieldName | null => {
+  if (key === 'intake.symptoms') return ['intake', 'symptoms'];
+  if (key === 'intake.initialCondition') return ['intake', 'initialCondition'];
+  if (key === 'cageId') return 'cageId';
+  if (key === 'requiresIsolation') return 'requiresIsolation';
+  return null;
+};
+
 /** Trích xuất message và fieldErrors từ backend error response */
 export const extractApiError = (
   error: unknown,
