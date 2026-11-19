@@ -39,12 +39,12 @@
 
 - `node --experimental-strip-types --test tests/community-post.test.mjs`:
   19 passing contract/transport tests.
-- `npm test`: 278 passing tests, zero failures.
+- `npm test`: 284 passing tests (integrated timeline/community branch), zero failures.
 - `npx tsc -b --pretty false`: passed.
 - `npx eslint src/services/CommunityPostService src/pages/CommunityPosts tests/community-post*.mjs`:
   passed.
 - `npm run build`: passed. Existing large application chunk warning remains.
-- Isolated headless Chrome harness: 8 passing checks, no page errors; covers
+- Isolated headless Chrome harness: 12 passing checks, no page errors; covers
   pagination/status filters, multipart PUT, retained draft/photo on 409, inline
   400 errors/retry, explicit delete/cancel/409, read-only Published, soft-delete
   refresh, keyboard/validation/manual timeline create and non-owner API guard.
@@ -63,8 +63,9 @@ real BE/Cloudinary. No persistent harness files or product routes are created.
 
 ## Remaining integration / verification
 
-- Lead must integrate the page route/navigation; that is intentionally outside
-  this commit's ownership.
+- Integrated owner-only route and sidebar/header navigation are included in the
+  final feature branch. Full-page community E2E: 9/9; see the integration plan for
+  complete regression evidence.
 - Real token/owner isolation, concurrent moderation with a real backend and real
   Cloudinary uploads still need integration QA. Browser QA uses mocked responses.
 - TimelineShare is authored manually; there is no automatic order/exam link.

@@ -97,4 +97,3 @@ def launch_browser():
     playwright = sync_playwright().start()
     browser = playwright.chromium.launch()
     return playwright, browser
-
