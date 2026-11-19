@@ -215,6 +215,18 @@ class InpatientCareE2E(unittest.TestCase):
             items = [p for p in self.pets.values() if p['ownerId'] == OWNER and
                      query.get('status', ['Active'])[0] in ('All', p['status'])]
             return 200, paginate(items, query)
+        timeline_path = re.fullmatch(r'/api/pets/([0-9a-f]{24})/timeline', path)
+        if method == 'GET' and timeline_path:
+            pet = self.pets.get(timeline_path[1])
+            if not pet or (self.role == 'PetOwner' and pet['ownerId'] != OWNER):
+                return 404, {'message': 'Không tìm thấy thú cưng'}
+            # BE #54 bare timeline response; this regression suite targets the
+            # separate, paginated owner daily-log section rather than timeline.
+            return 200, {'pet': pet, 'summary': {'totalVisits': 0, 'completedVisits': 0,
+                         'activeVisits': 0, 'totalMedicalRecords': 0, 'totalGroomingNotes': 0,
+                         'totalInpatientStays': 0, 'hasActiveInpatient': False},
+                         'activeInpatient': None, 'sharedPosts': [], 'timeline': [],
+                         'pagination': {'page': 1, 'limit': 10, 'total': 0, 'totalPages': 0}}
         if method == 'GET' and path.startswith('/api/pets/'):
             pet = self.pets.get(path.rsplit('/', 1)[-1])
             if not pet or (self.role == 'PetOwner' and pet['ownerId'] != OWNER):

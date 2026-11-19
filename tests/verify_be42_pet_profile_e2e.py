@@ -38,6 +38,13 @@ class PetProfileE2E(unittest.TestCase):
                         writes.append((req.method, path))
                         return r.fulfill(status=409, json={'message': CONFLICT})
                     return r.fulfill(json={'pet': pet})
+                if path == f'/api/pets/{PET}/timeline':
+                    return r.fulfill(json={'pet': pet,
+                        'summary': {'totalVisits': 0, 'completedVisits': 0, 'activeVisits': 0,
+                                    'totalMedicalRecords': 0, 'totalGroomingNotes': 0,
+                                    'totalInpatientStays': 0, 'hasActiveInpatient': False},
+                        'activeInpatient': None, 'sharedPosts': [], 'timeline': [],
+                        'pagination': {'page': 1, 'limit': 10, 'total': 0, 'totalPages': 0}})
                 if path == f'/api/medical-records/pet/{PET}':
                     return r.fulfill(json={'pet': pet, 'records': []})
                 if path in ('/api/users/me', '/api/auth/me', '/api/users/profile'):

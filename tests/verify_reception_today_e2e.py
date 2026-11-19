@@ -202,7 +202,9 @@ class ReceptionTodayE2E(unittest.TestCase):
         queries = [q for q in self.queries if self.is_summary(q)]
         self.assertEqual({q.get('status', 'all') for q in queries}, set(METRICS))
         for q in queries:
-            wanted = {'from': TODAY, 'to': TODAY, 'page': '1', 'limit': '1'}
+            wanted = {'page': '1', 'limit': '1'}
+            if q.get('status') not in ('CheckedIn', 'InProgress', 'WaitOwner'):
+                wanted.update({'from': TODAY, 'to': TODAY})
             if q.get('status'):
                 wanted['status'] = q['status']
             self.assertEqual(q, wanted)
@@ -241,7 +243,8 @@ class ReceptionTodayE2E(unittest.TestCase):
         with self.page.expect_response(lambda r: self.table_response(r, status='WaitOwner', page='1')) as changed:
             self.metric('WaitOwner').click()
         q = read_query(changed.value.url)
-        self.assertEqual((q.get('from'), q.get('to')), (TODAY, TODAY))
+        self.assertNotIn('from', q)
+        self.assertNotIn('to', q)
         self.assertNotIn('code', q)
         expect(code).to_have_value('')
         expect(self.row(103)).to_be_visible()
@@ -263,7 +266,7 @@ class ReceptionTodayE2E(unittest.TestCase):
         expect(modal).to_have_count(0)
         for number, hint in ((101, 'Kiểm tra dịch vụ và phân công'),
                              (102, 'Theo dõi tiến độ dịch vụ'),
-                             (103, 'Kiểm tra trước khi bàn giao')):
+                             (103, 'Lập hóa đơn và thu tiền khi chủ đến đón')):
             expect(self.row(number).get_by_text(hint, exact=True)).to_be_visible()
             button(self.row(number), 'Chi tiết').click()
             details = self.page.get_by_role('dialog', name=re.compile(f'Chi tiết lịch hẹn.*APT-{number:06d}'))
@@ -326,10 +329,26 @@ class ReceptionTodayE2E(unittest.TestCase):
         self.orders[2]['derivedStatus'] = 'WaitOwner'
         button(self.page, 'Làm mới').click()
         self.expect_totals(progress=0, wait=4)
-        expect(self.row(102).get_by_text('Kiểm tra trước khi bàn giao', exact=True)).to_be_visible()
+        expect(self.row(102).get_by_text('Lập hóa đơn và thu tiền khi chủ đến đón', exact=True)).to_be_visible()
         self.metric('WaitOwner').click()
         expect(self.row(102)).to_be_visible()
         expect(self.row(100)).to_have_count(0)
+        self.assertEqual(self.writes, [])
+
+    def test_at_clinic_metrics_include_early_and_late_appointments(self):
+        # FE #41: active clinic work is not hidden by the appointment date.
+        self.orders += [item(400, TOMORROW, 'CheckedIn'),
+                        item(401, YESTERDAY, 'InProgress'),
+                        item(402, TOMORROW, 'WaitOwner')]
+        self.open()
+        self.expect_totals(checked=6, progress=2, wait=4)
+        for status, number in [('CheckedIn', 400), ('InProgress', 401), ('WaitOwner', 402)]:
+            with self.page.expect_response(lambda r: self.table_response(r, status=status, page='1')) as changed:
+                self.metric(status).click()
+            q = read_query(changed.value.url)
+            self.assertNotIn('from', q)
+            self.assertNotIn('to', q)
+            expect(self.row(number)).to_be_visible()
         self.assertEqual(self.writes, [])
 
     def test_admin_has_no_summary_no_summary_requests_and_no_reception_ctas(self):

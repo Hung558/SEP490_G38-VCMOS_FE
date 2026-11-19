@@ -20,6 +20,7 @@ const source = `
   import '/src/styles/globals.css';
   function Harness() {
     const { login } = useAuth();
+    window.__communityLogin = login;
     useEffect(() => { login({ _id: 'owner', role: new URLSearchParams(location.search).get('role') || 'PetOwner' }); }, []);
     return <CommunityPosts />;
   }
@@ -355,6 +356,136 @@ try {
     .waitFor();
   assert.equal(calls.length, before);
   passed.push('non-owner does not mount or request owner APIs');
+
+  const beforeRoleOnly = calls.length;
+  await page.evaluate(() => window.__communityLogin({ role: 'PetOwner' }));
+  // Let the auth update and passive effects settle before asserting no requests.
+  await page.evaluate(
+    () =>
+      new Promise(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve));
+      })
+  );
+  await page
+    .getByText('Bài viết của tôi chỉ dành cho chủ nuôi đã đăng nhập.', {
+      exact: true,
+    })
+    .waitFor();
+  assert.equal(calls.length, beforeRoleOnly);
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Viết bài mới', exact: true })
+      .count(),
+    0
+  );
+  passed.push('role-only identity fails closed without owner API calls');
+
+  await go();
+  await page.getByRole('button', { name: 'Viết bài mới', exact: true }).click();
+  await create
+    .getByLabel('Nội dung (bắt buộc)', { exact: true })
+    .fill('Bản nháp riêng của owner');
+  await create.getByRole('button', { name: 'Hủy', exact: true }).click();
+  await page.getByText('Bỏ nội dung chưa lưu?', { exact: true }).waitFor();
+  const writesBeforeSwitch = calls.filter(call => call.method !== 'GET').length;
+  await page.evaluate(() =>
+    window.__communityLogin({ _id: 'owner-b', role: 'PetOwner' })
+  );
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+  await page.getByRole('heading', { name: 'Bài viết của tôi' }).waitFor();
+  await page.getByRole('button', { name: 'Viết bài mới', exact: true }).click();
+  assert.equal(
+    await create
+      .getByLabel('Nội dung (bắt buộc)', { exact: true })
+      .inputValue(),
+    ''
+  );
+  assert.equal(
+    calls.filter(call => call.method !== 'GET').length,
+    writesBeforeSwitch
+  );
+  passed.push(
+    'account switch unmounts private editor and discard confirmation; new account gets an empty draft'
+  );
+
+  post.imageUrl = 'https://res.cloudinary.com/demo/original.jpg';
+  detailStatus = 'PendingReview';
+  await go();
+  await openDetail();
+  await page.getByRole('button', { name: 'Sửa bài viết', exact: true }).click();
+  const photoInput = editor.getByLabel('Ảnh bìa (không bắt buộc)', {
+    exact: true,
+  });
+  await photoInput.setInputFiles({
+    name: 'replacement.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8l0AAAAASUVORK5CYII=',
+      'base64'
+    ),
+  });
+  await photoInput.setInputFiles({
+    name: 'bad.gif',
+    mimeType: 'image/gif',
+    buffer: Buffer.from('gif'),
+  });
+  await editor
+    .getByText('Chỉ chọn ảnh JPEG, PNG hoặc WebP.', { exact: true })
+    .waitFor();
+  await editor.getByRole('button', { name: 'Giữ ảnh cũ', exact: true }).click();
+  assert.equal(await photoInput.getAttribute('aria-invalid'), 'false');
+  assert.equal(
+    await editor
+      .getByText('Chỉ chọn ảnh JPEG, PNG hoặc WebP.', { exact: true })
+      .count(),
+    0
+  );
+  assert.equal(
+    await editor.getByText('Ảnh mới: replacement.png', { exact: true }).count(),
+    0
+  );
+  assert.equal(
+    await editor
+      .getByRole('img', {
+        name: 'Ảnh đã chọn: Ảnh bìa (không bắt buộc)',
+        exact: true,
+      })
+      .getAttribute('src'),
+    post.imageUrl
+  );
+  passed.push(
+    'reverting to original image clears rejected-file error and replacement'
+  );
+
+  await go();
+  await openDetail();
+  await page.getByRole('button', { name: 'Xóa bài viết', exact: true }).click();
+  const deletesBeforeRefresh = calls.filter(
+    call => call.method === 'DELETE'
+  ).length;
+  detailStatus = 'Published';
+  // Simulate an external revision refresh while the confirmation overlays the page.
+  await page
+    .getByRole('button', { name: 'Làm mới', exact: true })
+    .dispatchEvent('click');
+  await page
+    .getByRole('dialog', { name: 'Chi tiết bài viết của tôi' })
+    .getByText('Đã đăng', { exact: true })
+    .waitFor();
+  const confirmDelete = page.getByRole('button', {
+    name: 'Xác nhận xóa',
+    exact: true,
+  });
+  assert.equal(await confirmDelete.isDisabled(), true);
+  await confirmDelete.dispatchEvent('click');
+  assert.equal(
+    calls.filter(call => call.method === 'DELETE').length,
+    deletesBeforeRefresh
+  );
+  passed.push(
+    'delete confirmation disables after refreshed status changes and sends no delete'
+  );
+
   assert.deepEqual(pageErrors, []);
   console.log(
     JSON.stringify(
