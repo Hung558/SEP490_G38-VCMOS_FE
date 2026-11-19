@@ -16,13 +16,15 @@ const INVOICE_VIEWER_ROLES = new Set<PetTimelineInvoiceRole>([
   'Receptionist',
   'Admin',
 ]);
+export const canViewTimelineInvoices = (role?: string | null): boolean =>
+  Boolean(role && INVOICE_VIEWER_ROLES.has(role as PetTimelineInvoiceRole));
+
 /** Fail closed: remove every financial payload when role is not on BE's allowlist. */
 export const sanitizeTimelineInvoices = <T extends PetTimelinePage>(
   timeline: T,
   role?: string | null
 ): T => {
-  if (role && INVOICE_VIEWER_ROLES.has(role as PetTimelineInvoiceRole))
-    return timeline;
+  if (canViewTimelineInvoices(role)) return timeline;
   return {
     ...timeline,
     activeInpatient: timeline.activeInpatient

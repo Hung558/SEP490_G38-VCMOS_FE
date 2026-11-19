@@ -38,6 +38,7 @@ export default function PostEditor({ post, onSaved, onClose }: Props) {
   const [petsError, setPetsError] = useState<string>();
   const [retryPets, setRetryPets] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
+  const [modal, contextHolder] = Modal.useModal();
 
   useEffect(() => {
     let active = true;
@@ -103,7 +104,7 @@ export default function PostEditor({ post, onSaved, onClose }: Props) {
       onClose();
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: 'Bỏ nội dung chưa lưu?',
       content: 'Nội dung và ảnh bạn vừa chọn chưa được gửi.',
       okText: 'Bỏ thay đổi',
@@ -172,6 +173,7 @@ export default function PostEditor({ post, onSaved, onClose }: Props) {
       closable={!saving}
       keyboard={!saving}
     >
+      {contextHolder}
       <form
         ref={formRef}
         onSubmit={submit}

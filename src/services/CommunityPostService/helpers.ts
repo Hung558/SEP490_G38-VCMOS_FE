@@ -115,6 +115,8 @@ export const validatePostDraft = (
     )
       errors.timelineItems =
         'Chỉ được tải tối đa 10 ảnh mốc thời gian trong mỗi lần lưu.';
+    const keepableImages =
+      existing?.timelineItems.map(row => row.imageUrl) || [];
     draft.timelineItems.forEach((item, index) => {
       const key = `timelineItems.${index}`;
       if (!isCalendarDate(item.date))
@@ -122,11 +124,7 @@ export const validatePostDraft = (
           'Hãy chọn ngày có thật theo định dạng YYYY-MM-DD.';
       if (!item.title.trim() || item.title.trim().length > 200)
         errors[`${key}.title`] = 'Tiêu đề cần từ 1 đến 200 ký tự.';
-      checkImage(
-        item.image,
-        `${key}.image`,
-        existing?.timelineItems.map(row => row.imageUrl) || []
-      );
+      checkImage(item.image, `${key}.image`, keepableImages);
     });
   }
   return errors;

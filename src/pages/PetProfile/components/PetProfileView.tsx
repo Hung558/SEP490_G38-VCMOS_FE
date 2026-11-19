@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import type { Pet } from '@/types';
+import { getSafeTimelineHttpUrl } from '@/services/PetTimelineService';
 import {
   calculatePetAge,
   getSpeciesEmoji,
@@ -34,6 +35,7 @@ const PetProfileView: React.FC<PetProfileViewProps> = ({
   onBookAppointment,
 }) => {
   const [copied, setCopied] = useState(false);
+  const photoUrl = getSafeTimelineHttpUrl(pet.photoUrl);
   const isDeleted = pet.status === 'Deleted';
   const readOnly = !onEdit && !onDelete && !onBookAppointment;
 
@@ -70,8 +72,8 @@ const PetProfileView: React.FC<PetProfileViewProps> = ({
       )}
 
       <div className="pet-hero">
-        {pet.photoUrl ? (
-          <img src={pet.photoUrl} alt={pet.name} className="hero-photo" />
+        {photoUrl ? (
+          <img src={photoUrl} alt={pet.name} className="hero-photo" />
         ) : (
           <div className="hero-placeholder">{getSpeciesEmoji(pet.species)}</div>
         )}

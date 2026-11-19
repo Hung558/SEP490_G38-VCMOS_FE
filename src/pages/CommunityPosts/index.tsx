@@ -258,7 +258,8 @@ function MyCommunityPosts() {
 export default function CommunityPostsPage() {
   const { user } = useAuth();
   const role = (user?.role || user?.systemRole || '').trim().toLowerCase();
-  if (role !== 'petowner')
+  const accountKey = user?._id || user?.email;
+  if (role !== 'petowner' || !accountKey)
     return (
       <main className="community-posts-page">
         <Alert
@@ -268,5 +269,5 @@ export default function CommunityPostsPage() {
         />
       </main>
     );
-  return <MyCommunityPosts key={user?._id || user?.email} />;
+  return <MyCommunityPosts key={accountKey} />;
 }

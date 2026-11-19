@@ -35,6 +35,8 @@ import PetTimelineService, {
   PET_TIMELINE_TYPE_LABELS,
   getPetTimelineRefName,
   sanitizeTimelineInvoices,
+  canViewTimelineInvoices,
+  type PetTimelineInpatientLog,
   type PetTimelineInvoiceRole,
   type PetTimelineMilestone,
   type PetTimelinePage,
@@ -45,6 +47,9 @@ import PetTimelineService, {
   type PetTimelineType,
   type PetTimelineStatus,
 } from '@/services/PetTimelineService';
+
+import InvoicePdfButton from '@/components/invoice/InvoicePdfButton';
+import { PAY_AT_COUNTER_TEXT } from '@/services/InvoiceService';
 
 const { Text, Paragraph } = Typography;
 
@@ -120,7 +125,11 @@ const InvoiceSummary = ({
 }: {
   invoice: NonNullable<PetTimelineMilestone['invoice']>;
 }) => (
-  <Card size="small" title={`Hóa đơn ${invoice.code}`}>
+  <Card
+    size="small"
+    title={`Hóa đơn ${invoice.code}`}
+    extra={<InvoicePdfButton invoice={invoice} size="small" />}
+  >
     <Descriptions size="small" column={{ xs: 1, sm: 2 }}>
       <Descriptions.Item label="Tổng tiền">
         {invoice.totalAmount.toLocaleString('vi-VN')} ₫
@@ -342,12 +351,39 @@ const ServiceDetails = ({ service }: { service: PetTimelineServiceItem }) => {
   );
 };
 
+const InpatientLogs = ({ logs }: { logs: PetTimelineInpatientLog[] }) => (
+  <>
+    {logs.map(log => (
+      <div className="timeline-nested" key={log._id}>
+        <Text strong>{formatTimelineDate(log.date)}</Text>
+        {log.recordedBy && (
+          <Text type="secondary"> · {refName(log.recordedBy)}</Text>
+        )}
+        {log.observations && (
+          <Paragraph style={{ margin: '4px 0 0' }}>
+            <Text strong>Quan sát: </Text>
+            {log.observations}
+          </Paragraph>
+        )}
+        {log.notes && (
+          <Paragraph style={{ margin: '4px 0 0' }}>
+            <Text strong>Ghi chú: </Text>
+            {log.notes}
+          </Paragraph>
+        )}
+      </div>
+    ))}
+  </>
+);
+
 const Milestone = ({
   item,
   showInvoices,
+  ownerView,
 }: {
   item: PetTimelineMilestone;
   showInvoices: boolean;
+  ownerView: boolean;
 }) => (
   <div className="timeline-content">
     <div className="timeline-card-title">
@@ -367,6 +403,16 @@ const Milestone = ({
         <Tag key={category}>{category}</Tag>
       ))}
     </div>
+    {ownerView &&
+      item.derivedStatus === 'WaitOwner' &&
+      item.inpatientRecord?.status !== 'Admitted' && (
+        <Alert
+          type="success"
+          showIcon
+          message="Bé đã xong dịch vụ, mời bạn tới phòng khám đón bé."
+          description={PAY_AT_COUNTER_TEXT}
+        />
+      )}
     {item.note && (
       <Paragraph style={{ margin: 0 }}>
         <Text strong>Ghi chú: </Text>
@@ -422,32 +468,15 @@ const Milestone = ({
             {item.inpatientRecord.treatmentPlan}
           </Paragraph>
         )}
-        {item.inpatientRecord.dailyLogs.map(log => (
-          <div className="timeline-nested" key={log._id}>
-            <Text strong>{formatTimelineDate(log.date)}</Text>
-            {log.recordedBy && (
-              <Text type="secondary"> · {refName(log.recordedBy)}</Text>
-            )}
-            {log.observations && (
-              <Paragraph style={{ margin: '4px 0 0' }}>
-                <Text strong>Quan sát: </Text>
-                {log.observations}
-              </Paragraph>
-            )}
-            {log.notes && (
-              <Paragraph style={{ margin: '4px 0 0' }}>
-                <Text strong>Ghi chú: </Text>
-                {log.notes}
-              </Paragraph>
-            )}
-          </div>
-        ))}
+        <InpatientLogs logs={item.inpatientRecord.dailyLogs} />
       </Card>
     )}
     {showInvoices && item.invoice && <InvoiceSummary invoice={item.invoice} />}
-    {showInvoices && item.inpatientRecord?.invoice && (
-      <InvoiceSummary invoice={item.inpatientRecord.invoice} />
-    )}
+    {showInvoices &&
+      item.inpatientRecord?.invoice &&
+      item.inpatientRecord.invoice._id !== item.invoice?._id && (
+        <InvoiceSummary invoice={item.inpatientRecord.invoice} />
+      )}
   </div>
 );
 
@@ -464,7 +493,6 @@ const PetTimeline = ({
 }: PetTimelineProps) => {
   const [result, setResult] = useState<PetTimelinePage | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<PetTimelineType>('All');
   const [status, setStatus] = useState<PetTimelineStatus | undefined>();
@@ -487,10 +515,17 @@ const PetTimeline = ({
     if (dates[1]) query.to = dates[1].format('YYYY-MM-DD');
 
     setLoading(true);
-    setRefreshing(true);
     void PetTimelineService.listPetTimeline(petId, query, controller.signal)
       .then(response => {
         if (controller.signal.aborted) return;
+        // The BE echoes the requested page; it does not clamp after deletions
+        // or status changes shrink a filtered result set.
+        const lastPage = Math.max(1, response.pagination.totalPages);
+        if (page > lastPage) {
+          setResult(null);
+          setPage(lastPage);
+          return;
+        }
         setResult(sanitizeTimelineInvoices(response, invoiceRole));
         setError(null);
       })
@@ -502,37 +537,63 @@ const PetTimeline = ({
       .finally(() => {
         if (!controller.signal.aborted) {
           setLoading(false);
-          setRefreshing(false);
         }
       });
     return () => controller.abort();
   }, [petId, type, status, page, dates, attempt, invoiceRole]);
 
-  const updateType = (next: PetTimelineType) => {
+  const resetResults = () => {
     setLoading(true);
     setResult(null);
     setPage(1);
+  };
+  const updateType = (next: PetTimelineType) => {
+    if (next === type) return;
+    resetResults();
     setType(next);
   };
   const updateStatus = (next: PetTimelineStatus | undefined) => {
-    setLoading(true);
-    setResult(null);
-    setPage(1);
+    if (next === status) return;
+    resetResults();
     setStatus(next);
   };
   const updateDates = (next: [Dayjs | null, Dayjs | null]) => {
-    setLoading(true);
-    setResult(null);
-    setPage(1);
+    resetResults();
     setDates(next);
   };
   const updatePage = (next: number) => {
+    if (next === page) return;
     setLoading(true);
+    setResult(null);
     setPage(next);
   };
-  const showInvoices = Boolean(
-    invoiceRole && ['PetOwner', 'Receptionist', 'Admin'].includes(invoiceRole)
+  const refresh = () => {
+    setLoading(true);
+    setAttempt(previous => previous + 1);
+  };
+  const showInvoices = canViewTimelineInvoices(invoiceRole);
+  const hasActiveCare = Boolean(
+    result &&
+      (result.summary.activeVisits > 0 || result.summary.hasActiveInpatient)
   );
+
+  // Preserve live status updates for open visits without overlapping requests
+  // or requesting while the tab is hidden.
+  useEffect(() => {
+    if (!hasActiveCare || loading) return;
+    const refreshVisible = () => {
+      if (document.visibilityState === 'visible') {
+        setLoading(true);
+        setAttempt(previous => previous + 1);
+      }
+    };
+    const timer = window.setInterval(refreshVisible, 30000);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshVisible);
+    };
+  }, [hasActiveCare, loading]);
 
   return (
     <TimelineWrapper
@@ -598,26 +659,7 @@ const PetTimeline = ({
                   {result.activeInpatient.treatmentPlan}
                 </Paragraph>
               )}
-              {result.activeInpatient.dailyLogs.map(log => (
-                <div className="timeline-nested" key={log._id}>
-                  <Text strong>{formatTimelineDate(log.date)}</Text>
-                  {log.recordedBy && (
-                    <Text type="secondary"> · {refName(log.recordedBy)}</Text>
-                  )}
-                  {log.observations && (
-                    <Paragraph style={{ margin: '4px 0 0' }}>
-                      <Text strong>Quan sát: </Text>
-                      {log.observations}
-                    </Paragraph>
-                  )}
-                  {log.notes && (
-                    <Paragraph style={{ margin: '4px 0 0' }}>
-                      <Text strong>Ghi chú: </Text>
-                      {log.notes}
-                    </Paragraph>
-                  )}
-                </div>
-              ))}
+              <InpatientLogs logs={result.activeInpatient.dailyLogs} />
               {showInvoices && result.activeInpatient.invoice && (
                 <InvoiceSummary invoice={result.activeInpatient.invoice} />
               )}
@@ -661,19 +703,18 @@ const PetTimeline = ({
         />
         <Button
           onClick={() => {
-            updateType('All');
-            updateStatus(undefined);
-            updateDates([null, null]);
+            resetResults();
+            setType('All');
+            setStatus(undefined);
+            setDates([null, null]);
           }}
         >
           Xóa bộ lọc
         </Button>
         <Button
-          icon={<ReloadOutlined spin={refreshing} />}
-          onClick={() => {
-            setLoading(true);
-            setAttempt(value => value + 1);
-          }}
+          icon={<ReloadOutlined spin={loading} />}
+          disabled={loading}
+          onClick={refresh}
         >
           Làm mới
         </Button>
@@ -687,13 +728,7 @@ const PetTimeline = ({
           showIcon
           message={error}
           action={
-            <Button
-              size="small"
-              onClick={() => {
-                setLoading(true);
-                setAttempt(value => value + 1);
-              }}
-            >
+            <Button size="small" onClick={refresh}>
               Thử lại
             </Button>
           }
@@ -715,7 +750,16 @@ const PetTimeline = ({
                     : ['Cancelled', 'Overdue'].includes(item.derivedStatus)
                       ? 'gray'
                       : 'blue',
-                children: <Milestone item={item} showInvoices={showInvoices} />,
+                children: (
+                  <Milestone
+                    item={item}
+                    showInvoices={showInvoices}
+                    ownerView={
+                      invoiceRole === 'PetOwner' &&
+                      result.activeInpatient?.status !== 'Admitted'
+                    }
+                  />
+                ),
               }))}
             />
             {result.pagination.total > 0 && (

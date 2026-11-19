@@ -274,7 +274,9 @@ export default function PostDetail({
             <Button
               danger
               type="primary"
-              disabled={deleteLocked}
+              disabled={
+                loading || !post || !canManagePost(post) || deleteLocked
+              }
               loading={deleting}
               onClick={remove}
             >

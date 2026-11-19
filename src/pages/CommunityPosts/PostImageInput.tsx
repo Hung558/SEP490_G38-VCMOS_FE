@@ -35,6 +35,7 @@ export default function PostImageInput({
     return () => URL.revokeObjectURL(url);
   }, [value.file]);
   const image = preview || safePostImageUrl(value.existingUrl);
+  const validationError = fileError || error;
   return (
     <div className="community-image-input">
       <label htmlFor={id}>{label}</label>
@@ -54,7 +55,7 @@ export default function PostImageInput({
         accept={IMAGE_ACCEPT}
         disabled={disabled}
         aria-describedby={`${id}-hint ${id}-error`}
-        aria-invalid={Boolean(fileError || error)}
+        aria-invalid={Boolean(validationError)}
         onChange={event => {
           const file = event.target.files?.[0];
           event.target.value = '';
@@ -83,7 +84,10 @@ export default function PostImageInput({
             <Button
               size="small"
               disabled={disabled}
-              onClick={() => onChange({ existingUrl: value.existingUrl })}
+              onClick={() => {
+                setFileError(undefined);
+                onChange({ existingUrl: value.existingUrl });
+              }}
             >
               Giữ ảnh cũ
             </Button>
@@ -93,9 +97,9 @@ export default function PostImageInput({
       <p
         id={`${id}-error`}
         className="community-field-error"
-        role={fileError || error ? 'alert' : undefined}
+        role={validationError ? 'alert' : undefined}
       >
-        {fileError || error}
+        {validationError}
       </p>
     </div>
   );
