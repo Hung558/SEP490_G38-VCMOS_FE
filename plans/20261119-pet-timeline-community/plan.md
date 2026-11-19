@@ -23,7 +23,8 @@
 - [x] Implement owner post CRUD with uploads and review-state constraints.
 - [x] Integrate route/menu and independently review contracts/privacy.
 - [x] Typecheck, lint, unit tests, build, isolated mocked browser E2E and affected regressions.
-- [ ] Publish PR, inspect CI/reviews, merge without bypass if allowed.
+- [x] Publish PR and inspect CI/review requirements.
+- [ ] Merge PR after the required independent approval (repository-policy blocker).
 
 ## Risks / non-goals
 
@@ -97,3 +98,17 @@ The separate JS harness instructions are in the CommunityPosts README.
 - Independent reviewers covered both app modules and final QA isolation; no
   unresolved blocking findings. Desktop screenshots inspected at 1440 px.
 - Latest remote baselines rechecked before publishing: FE ad5fe27 / BE3d56eaa.
+
+## Publication / handoff
+
+- Pushed `feat/pet-timeline-community-be54`; opened FE PR **#44** against main.
+- GitHub reports `MERGEABLE` (no conflicts) but `REVIEW_REQUIRED` / `BLOCKED`.
+- One approving review is required; reviewer `truzne` is already requested.
+- Ordinary merge was attempted and rejected by base-branch policy; no bypass used.
+- Repository `allow_auto_merge=false`; no setting was changed to enable it.
+- No CI checks were reported for this PR at inspection time; local evidence above
+  is not represented as a successful GitHub CI run.
+- FE main remains `ad5fe27`; new functionality is on the pushed feature branch
+  until approval/merge. Backend remains untouched at `3d56eaa`.
+- Remaining action: independent approval, then normal merge of the reviewed head
+  and pull main; recheck CI/state at that time.
