@@ -149,6 +149,9 @@ const AuthorizedAdminReportsDashboard = () => {
     }
     const controller = new AbortController();
     setLoading({ revenue: true, operations: true, frontDesk: true });
+    setRevenueState(undefined);
+    setOperationsState(undefined);
+    setFrontDeskState(undefined);
     setErrors({});
     const load = <T,>(
       name: ReportName,
