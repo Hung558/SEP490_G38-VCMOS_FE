@@ -80,9 +80,10 @@ const BestSellingCard = () => {
     limit,
     revision,
   });
-  const currentReport = report?.key === queryKey ? report.data : undefined;
   const error =
     requestError?.key === queryKey ? requestError.message : undefined;
+  const currentReport =
+    !error && report?.key === queryKey ? report.data : undefined;
   const currentLoading =
     loading || (isReportRangeValid(range) && !currentReport && !error);
 
@@ -93,6 +94,8 @@ const BestSellingCard = () => {
     }
     const controller = new AbortController();
     setLoading(true);
+    setReport(undefined);
+    setRequestError(undefined);
     InvoiceService.getBestSellingProducts(
       { ...range, category, sortBy, limit },
       { signal: controller.signal }
