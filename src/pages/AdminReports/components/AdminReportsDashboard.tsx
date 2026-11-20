@@ -487,6 +487,13 @@ const AdminReportsDashboard = () => {
             </Col>
           ))}
         </Row>
+        <Text type="secondary">
+          Chuồng tại quầy hiện tại:{' '}
+          {frontDesk?.todayCounters.cages.occupied ?? 0}/
+          {frontDesk?.todayCounters.cages.total ?? 0} đang dùng · còn trống{' '}
+          {frontDesk?.todayCounters.cages.available ?? 0} · lấp đầy{' '}
+          {pct(frontDesk?.todayCounters.cages.occupancyRate)}
+        </Text>
         <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
           <Col xs={12} md={6}>
             <Statistic
@@ -553,6 +560,34 @@ const AdminReportsDashboard = () => {
             ))}
           </Col>
         </Row>
+        <Title level={5}>Ảnh chụp chuồng theo báo cáo quầy</Title>
+        <Text type="secondary">
+          Toàn bộ: {frontDesk?.periodStats.cageOccupancy.occupied ?? 0}/
+          {frontDesk?.periodStats.cageOccupancy.total ?? 0} đang dùng · còn
+          trống {frontDesk?.periodStats.cageOccupancy.available ?? 0} · lấp đầy{' '}
+          {pct(frontDesk?.periodStats.cageOccupancy.occupancyRate)}. Khu lưu
+          giữ:{' '}
+          {frontDesk?.periodStats.cageOccupancy.byZone.Holding.occupied ?? 0}/
+          {frontDesk?.periodStats.cageOccupancy.byZone.Holding.total ?? 0} (
+          {pct(
+            frontDesk?.periodStats.cageOccupancy.byZone.Holding.occupancyRate
+          )}
+          ); khu nội trú:{' '}
+          {frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard.occupied ??
+            0}
+          /
+          {frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard.total ?? 0}{' '}
+          (
+          {pct(
+            frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard
+              .occupancyRate
+          )}
+          ); cách ly:{' '}
+          {frontDesk?.periodStats.cageOccupancy.isolatedCages.occupied ?? 0}/
+          {frontDesk?.periodStats.cageOccupancy.isolatedCages.total ?? 0} đang
+          dùng, còn trống{' '}
+          {frontDesk?.periodStats.cageOccupancy.isolatedCages.available ?? 0}.
+        </Text>
       </Card>
       <BestSellingCard />
     </Space>
