@@ -1,28 +1,14 @@
-"""Desktop Chromium E2E for integrated BE #56 reports/dashboard UI.
-
-Do not run on the pre-integration dcad580 feature tree. Start the integrated FE
-with VITE_API_ROOT=/api on http://127.0.0.2:3000 using Vite --strictPort, then:
-  FE_BASE_URL=http://127.0.0.2:3000 python tests/qa_reports_dashboard.py -v
-All API traffic is fixture-only; unexpected or cross-origin traffic is blocked.
-"""
-import json
-import os
+"""Full-router desktop Chromium QA with intercepted contract-shaped APIs, never live BE."""
 import re
+from copy import deepcopy
 import unittest
-from urllib.parse import parse_qs, urlsplit
-
+from urllib.parse import parse_qs
 from playwright.sync_api import expect
-from qa_web_fixtures import BASE, TOKEN, install_auth, install_network_guard, launch_browser
-from report_dashboard_fixtures import REPORTS, REVENUE, OPERATIONS, FRONT_DESK, empty_front_desk, empty_revenue
+from qa_web_fixtures import BASE, install_auth, install_network_guard, launch_browser
+from report_dashboard_fixtures import REPORTS, REVENUE, OPERATIONS, FRONT_DESK, empty_front_desk, empty_revenue, echo_report_range
 
 if BASE != 'http://127.0.0.2:3000':
-    raise SystemExit('Dashboard E2E requires isolated integrated preview at http://127.0.0.2:3000')
-
-ADMIN = '/admin/reports'
-RECEPTIONIST = '/clinic/dashboard'
-TODAY = '2026-11-20'
-SERVICE_HAZARD = 'Khám QA <img src=x onerror=alert(1)>'
-
+    raise SystemExit('Use the isolated production preview http://127.0.0.2:3000')
 
 class ReportsDashboardE2E(unittest.TestCase):
     @classmethod
@@ -32,166 +18,204 @@ class ReportsDashboardE2E(unittest.TestCase):
         cls.addClassCleanup(cls.browser.close)
 
     def setUp(self):
-        self.role = 'Admin'
-        self.revenue, self.operations, self.front_desk = REVENUE, OPERATIONS, FRONT_DESK
-        self.fail_once = set()
-        self.requests, self.unhandled, self.page_errors = [], [], []
+        self.payloads = {'revenue': REVENUE, 'operations': OPERATIONS, 'front-desk': FRONT_DESK}
+        self.requests, self.unhandled, self.errors = [], [], []
+        self.failures = set()
+        self.best_selling_failure = False
+        self.ctx = None
+
+    def tearDown(self):
+        if self.ctx:
+            self.ctx.close()
+        self.assertEqual(self.unhandled, [], 'Unmatched requests must never reach real APIs')
+        self.assertEqual(self.errors, [], 'Uncaught browser errors')
+
+    def route(self, route, parsed):
+        name = parsed.path.removeprefix(REPORTS + '/')
+        if route.request.method == 'GET' and name in self.payloads:
+            query = parse_qs(parsed.query)
+            self.requests.append((name, query))
+            if name in self.failures:
+                return route.fulfill(status=500, json={'message': 'fixture temporary failure'})
+            return route.fulfill(json=echo_report_range(self.payloads[name], query, revenue=name == 'revenue'))
+        if route.request.method == 'GET' and parsed.path == '/api/invoices/reports/best-selling-products':
+            if self.best_selling_failure:
+                return route.fulfill(status=500, json={'message': 'best-selling fixture failure'})
+            return route.fulfill(json={'period': 'month', 'from': '2026-11-01', 'to': '2026-11-30',
+                                      'sortBy': 'quantity', 'category': None, 'items': [{'rank': 1, 'productId': 'synthetic-product', 'name': 'Thức ăn dinh dưỡng cho mèo', 'category': 'Retail', 'unit': 'Hộp', 'totalQuantity': 2, 'totalRevenue': 123000, 'invoiceCount': 1}], 'total': 1})
+        if route.request.method == 'GET' and parsed.path == '/api/pets':
+            return route.fulfill(json={'items': [], 'total': 0, 'page': 1, 'limit': 100, 'totalPages': 0})
+        if route.request.method == 'GET' and parsed.path == '/api/appointment-orders/me':
+            return route.fulfill(json={'data': [], 'pagination': {'page': 1, 'limit': 10, 'total': 0}})
+        if route.request.method == 'GET' and parsed.path == '/api/appointment-services/my-queue':
+            return route.fulfill(json={'items': [], 'total': 0})
+        self.unhandled.append((route.request.method, parsed.path))
+        route.fulfill(status=501, json={'message': 'Missing isolated fixture'})
+
+    def visit(self, path='/admin/reports', role='Admin'):
+        if self.ctx:
+            self.ctx.close()
         self.ctx = self.browser.new_context(viewport={'width': 1440, 'height': 1000},
-                                            timezone_id='Asia/Ho_Chi_Minh', service_workers='block')
-        self.addCleanup(self.ctx.close)
-        install_auth(self.ctx, self.role)
+                                           timezone_id='Asia/Ho_Chi_Minh', service_workers='block')
+        install_auth(self.ctx, role)
         install_network_guard(self.ctx, self.route, self.unhandled)
         self.page = self.ctx.new_page()
         self.page.set_default_timeout(8000)
-        self.page.on('pageerror', lambda error: self.page_errors.append(str(error)))
+        self.page.on('pageerror', lambda e: self.errors.append(str(e)))
+        self.page.goto(BASE + path)
 
-    def tearDown(self):
-        self.assertEqual(self.unhandled, [], 'Unexpected API and cross-origin requests were blocked, never forwarded')
-        self.assertEqual(self.page_errors, [], 'Uncaught browser exceptions')
+    def card(self, title):
+        return self.page.locator('.ant-card').filter(has=self.page.locator('.ant-card-head-title').get_by_text(title, exact=True)).first
 
-    def route(self, route, parsed):
-        method, path = route.request.method, parsed.path
-        if method == 'GET' and path == f'{REPORTS}/revenue':
-            self.requests.append((path, parse_qs(parsed.query)))
-            if path in self.fail_once:
-                self.fail_once.remove(path)
-                return route.fulfill(status=500, json={'message': 'fixture temporary failure'})
-            return route.fulfill(json=self.revenue)
-        if method == 'GET' and path == f'{REPORTS}/operations':
-            self.requests.append((path, parse_qs(parsed.query)))
-            if path in self.fail_once:
-                self.fail_once.remove(path)
-                return route.fulfill(status=500, json={'message': 'fixture temporary failure'})
-            return route.fulfill(json=self.operations)
-        if method == 'GET' and path == f'{REPORTS}/front-desk':
-            self.requests.append((path, parse_qs(parsed.query)))
-            if path in self.fail_once:
-                self.fail_once.remove(path)
-                return route.fulfill(status=500, json={'message': 'fixture temporary failure'})
-            return route.fulfill(json=self.front_desk)
-        # Keep the existing best-selling widget fully mocked on /admin/reports.
-        if method == 'GET' and path == '/api/invoices/reports/best-selling-products':
-            return route.fulfill(json={'period': 'month', 'from': '2026-11-01', 'to': '2026-11-30',
-                                       'sortBy': 'quantity', 'category': None, 'items': [], 'total': 0})
-        self.unhandled.append((method, path, parsed.query))
-        return route.fulfill(status=501, json={'message': f'Fixture thiếu {method} {path}'})
+    def loaded_admin(self):
+        expect(self.card('Doanh thu').get_by_text('800.000', exact=False).first).to_be_visible()
+        expect(self.card('Hoạt động & lịch hẹn').get_by_text('Khám tổng quát', exact=True)).to_be_visible()
+        expect(self.card('Quầy lễ tân').get_by_text('800.000', exact=False).first).to_be_visible()
 
-    def visit(self, path, role):
-        self.role = role
-        # Init scripts run before each navigation and provide a synthetic local session.
-        install_auth(self.ctx, role)
-        self.page.goto(f'{BASE}{path}')
+    def select_front(self, value):
+        combo = self.page.get_by_role('combobox', name='Chọn kỳ', exact=True)
+        combo.focus()
+        combo.press('ArrowDown')
+        self.page.get_by_title(value, exact=True).last.click()
 
-    def panel(self, title):
-        heading = self.page.get_by_role('heading', name=re.compile(title, re.I)).first
-        expect(heading).to_be_visible()
-        return self.page
+    def test_admin_aggregate_endpoints_and_revenue_only_grouping(self):
+        self.visit()
+        self.loaded_admin()
+        self.assertEqual({name for name, _ in self.requests}, {'revenue', 'operations', 'front-desk'})
+        for name, query in self.requests:
+            self.assertEqual(query['period'], ['month'])
+            self.assertEqual('groupBy' in query, name == 'revenue')
+            self.assertNotIn('from', query)
+        initial = len(self.requests)
+        self.page.locator('[aria-label="Nhóm doanh thu theo"]').get_by_text('Tháng', exact=True).click()
+        expect(self.card('Doanh thu').get_by_text('800.000', exact=False).first).to_be_visible()
+        self.page.wait_for_function('document.querySelectorAll(".ant-spin-spinning").length === 0')
+        self.assertTrue(any(n == 'revenue' and q.get('groupBy') == ['month'] for n, q in self.requests[initial:]))
+        self.assertTrue(all('groupBy' not in q for n, q in self.requests[initial:] if n != 'revenue'))
 
-    def select_period(self, label, option):
-        self.page.get_by_role('combobox', name=re.compile(label, re.I)).click()
-        self.page.get_by_role('option', name=re.compile(option, re.I)).click()
+    def test_admin_presets_omit_custom_date_params(self):
+        self.visit()
+        self.loaded_admin()
+        with self.page.expect_request('**/api/reports/operations?*period=day*'):
+            self.page.locator('[aria-label="Kỳ báo cáo"]').first.get_by_text('Hôm nay', exact=True).click()
+        expect(self.card('Hoạt động & lịch hẹn').get_by_text('Khám tổng quát', exact=True)).to_be_visible()
+        for name, query in self.requests[-3:]:
+            self.assertEqual(query['period'], ['day'])
+            self.assertNotIn('from', query)
+            self.assertNotIn('to', query)
 
-    def test_admin_revenue_displays_kpis_series_breakdowns_and_safely_escapes_names(self):
-        self.visit(ADMIN, 'Admin')
-        self.panel('Doanh thu')
-        for text in ('800.000', '2', '400.000', '100%', '2026-11-11', 'VNPay', 'PayOS',
-                     'Examination', 'Vaccination', 'Grooming', 'Paraclinical', 'Inpatient',
-                     'Service', 'Product', 'InpatientDay', '37,5%', '62,5%'):
-            expect(self.page.get_by_text(text, exact=False).first).to_be_visible()
-        self.assertTrue(any(path.endswith('/revenue') for path, _ in self.requests))
-        self.assertEqual(self.page.locator('img[onerror]').count(), 0)
+    def test_admin_api_failure_does_not_show_old_revenue_and_can_retry(self):
+        self.visit()
+        self.loaded_admin()
+        self.failures.add('revenue')
+        self.page.get_by_role('button', name=re.compile('Làm mới$')).first.click()
+        revenue = self.card('Doanh thu')
+        expect(revenue.get_by_text('fixture temporary failure', exact=True)).to_be_visible()
+        expect(revenue.get_by_text('800.000', exact=False)).to_have_count(0)
+        expect(self.card('Quầy lễ tân').get_by_text('800.000', exact=False).first).to_be_visible()
+        self.failures.clear()
+        revenue.get_by_role('button', name='Thử lại', exact=True).click()
+        expect(revenue.get_by_text('800.000', exact=False).first).to_be_visible()
 
-    def test_admin_operations_displays_every_appointment_service_cage_and_inventory_field(self):
-        self.visit(ADMIN, 'Admin')
-        self.panel('Vận hành')
-        for text in ('4', 'Booked', 'CheckedIn', 'InProgress', 'WaitOwner', 'Done', 'Overdue', 'Cancelled',
-                     'Online', 'Walk-in', '50%', '25%', 'Examination', 'Grooming',
-                     'Khám QA <img src=x onerror=alert(1)>', 'Tắm QA', 'Holding', 'InpatientWard',
-                     'Cách ly', 'Khách hàng đang hoạt động', 'Thú cưng đang hoạt động'):
-            expect(self.page.get_by_text(text, exact=False).first).to_be_visible()
-        expect(self.page.get_by_text(SERVICE_HAZARD, exact=True)).to_be_visible()
-        self.assertEqual(self.page.locator('img[onerror]').count(), 0)
-        self.assertTrue(any(path.endswith('/operations') for path, _ in self.requests))
+    def test_admin_empty_revenue_is_zero_not_missing(self):
+        self.payloads['revenue'] = empty_revenue()
+        self.visit()
+        revenue = self.card('Doanh thu')
+        expect(revenue.get_by_text('Doanh thu đã thu', exact=True)).to_be_visible()
+        expect(revenue.get_by_text('800.000', exact=False)).to_have_count(0)
+        expect(revenue.get_by_text(re.compile('VNPay')).first).to_be_visible()
+        self.assertEqual(self.errors, [])
 
-    def test_admin_revenue_custom_range_validation_and_server_query(self):
-        self.visit(ADMIN, 'Admin')
-        self.select_period('Kỳ', 'Tùy chỉnh')
-        start = self.page.get_by_label(re.compile('Từ ngày|Ngày bắt đầu', re.I))
-        end = self.page.get_by_label(re.compile('Đến ngày|Ngày kết thúc', re.I))
-        start.fill('2026-11-10')
-        end.fill('2026-11-12')
-        self.page.get_by_role('button', name=re.compile('Áp dụng|Lọc|Xem báo cáo', re.I)).click()
-        expect(self.page.get_by_text('2026-11-12', exact=False).first).to_be_visible()
-        query = next(query for path, query in reversed(self.requests) if path.endswith('/revenue'))
-        self.assertEqual(query.get('from'), ['2026-11-10'])
-        self.assertEqual(query.get('to'), ['2026-11-12'])
-        # Invalid calendar dates and spans >366 days must be rejected before API access.
-        count = len([entry for entry in self.requests if entry[0].endswith('/revenue')])
-        start.fill('2026-02-31')
-        end.fill('2026-11-12')
-        self.page.get_by_role('button', name=re.compile('Áp dụng|Lọc|Xem báo cáo', re.I)).click()
-        expect(self.page.get_by_role('alert').filter(has_text=re.compile('ngày|hợp lệ|không', re.I)).first).to_be_visible()
-        self.assertEqual(count, len([entry for entry in self.requests if entry[0].endswith('/revenue')]))
+    def test_receptionist_defaults_today_and_does_not_fetch_admin_apis(self):
+        self.visit('/clinic/dashboard', 'Receptionist')
+        expect(self.page.get_by_role('heading', name='Trực tiếp tại quầy', exact=True)).to_be_visible()
+        expect(self.page.get_by_text('Lịch đặt hôm nay chưa tiếp nhận', exact=True)).to_be_visible()
+        expect(self.page.get_by_text('Tổng tiền đã thu trong kỳ', exact=True)).to_be_visible()
+        self.assertTrue(self.requests)
+        self.assertTrue(all(n == 'front-desk' and q == {'period': ['day']} for n, q in self.requests))
+        self.page.screenshot(path='tests/screenshots/reports-front-desk-desktop.png', full_page=True)
 
-    def test_receptionist_live_counters_are_separate_from_filtered_period_and_wait_is_null(self):
-        self.front_desk = empty_front_desk()
-        self.front_desk['today'] = TODAY
-        self.front_desk['todayCounters'].update({'expectedToday': 7, 'checkedInNow': 8, 'inProgressNow': 9, 'waitingForPickup': 10})
-        self.front_desk['periodStats']['averageWaitMinutes'] = None
-        self.front_desk['periodStats']['totalAppointments'] = 0
-        self.visit(RECEPTIONIST, 'Receptionist')
-        self.panel('Quầy lễ tân|Tổng quan')
-        expect(self.page.get_by_text(TODAY, exact=False).first).to_be_visible()
-        for text in ('7', '8', '9', '10', '0', 'Không có dữ liệu'):
-            expect(self.page.get_by_text(text, exact=False).first).to_be_visible()
-        request = next(query for path, query in reversed(self.requests) if path.endswith('/front-desk'))
-        self.assertEqual(request.get('period'), ['month'])
+    def test_receptionist_custom_filter_validation_then_submit(self):
+        self.visit('/clinic/dashboard', 'Receptionist')
+        expect(self.page.get_by_role('heading', name='Trực tiếp tại quầy', exact=True)).to_be_visible()
+        self.select_front('Khoảng ngày tùy chọn')
+        before = len(self.requests)
+        self.page.get_by_role('button', name='Áp dụng kỳ thống kê', exact=True).click()
+        expect(self.page.get_by_text('Khoảng ngày chưa hợp lệ. Báo cáo chưa được thay đổi.', exact=True)).to_be_visible()
+        self.assertEqual(before, len(self.requests))
+        self.page.locator('#front-desk-from').fill('2026-11-10')
+        self.page.locator('#front-desk-to').fill('2026-11-12')
+        with self.page.expect_request('**/api/reports/front-desk?*period=custom*'):
+            self.page.get_by_role('button', name='Áp dụng kỳ thống kê', exact=True).click()
+        expect(self.page.get_by_role('heading', name='Trực tiếp tại quầy', exact=True)).to_be_visible()
+        self.assertEqual(self.requests[-1][1], {'period': ['custom'], 'from': ['2026-11-10'], 'to': ['2026-11-12']})
+        self.assertTrue(all(n == 'front-desk' for n, _ in self.requests))
 
-    def test_admin_and_receptionist_front_desk_show_period_statistics_and_daily_counts(self):
-        for role, path in [('Admin', ADMIN), ('Receptionist', RECEPTIONIST)]:
-            with self.subTest(role=role):
-                self.visit(path, role)
-                self.panel('Quầy lễ tân|Tổng quan|Doanh thu')
-                for text in (TODAY, 'Expected', 'Checked-in', 'In progress', 'Waiting for pickup',
-                             '20', '800.000', 'Cash', 'VNPay', 'PayOS', 'Online', 'Walk-in'):
-                    expect(self.page.get_by_text(text, exact=False).first).to_be_visible()
+    def test_receptionist_null_wait_and_current_counters_remain_separate(self):
+        payload = empty_front_desk()
+        payload['todayCounters'].update(expectedToday=7, checkedInNow=8, inProgressNow=9, waitingForPickup=10)
+        self.payloads['front-desk'] = payload
+        self.visit('/clinic/dashboard', 'Receptionist')
+        expect(self.page.get_by_role('heading', name='Trực tiếp tại quầy', exact=True)).to_be_visible()
+        expect(self.page.get_by_text('Chưa có dữ liệu', exact=True)).to_be_visible()
+        section = self.page.locator('section[aria-labelledby="front-desk-live-title"]')
+        for value in ('7', '8', '9', '10'):
+            expect(section.locator('.ant-statistic-content').get_by_text(value, exact=True)).to_be_visible()
+        expect(section.get_by_text('Không phụ thuộc kỳ thống kê', exact=True)).to_be_visible()
 
-    def test_report_errors_offer_retry_and_recover_without_calling_live_api(self):
-        self.fail_once = {f'{REPORTS}/revenue'}
-        self.visit(ADMIN, 'Admin')
-        expect(self.page.get_by_role('alert').filter(has_text=re.compile('lỗi|không tải|thử lại', re.I)).first).to_be_visible()
-        with self.page.expect_response(lambda response: response.url.split('?')[0].endswith('/reports/revenue')) as retried:
-            self.page.get_by_role('button', name=re.compile('Thử lại', re.I)).click()
-        self.assertEqual(retried.value.status, 200)
-        expect(self.page.get_by_text('800.000', exact=False).first).to_be_visible()
+    def test_receptionist_error_retry(self):
+        self.failures.add('front-desk')
+        self.visit('/clinic/dashboard', 'Receptionist')
+        expect(self.page.get_by_text('fixture temporary failure', exact=True)).to_be_visible()
+        expect(self.page.get_by_role('heading', name='Trực tiếp tại quầy', exact=True)).to_have_count(0)
+        self.failures.clear()
+        self.page.get_by_role('button', name='Thử lại', exact=True).click()
+        expect(self.page.get_by_role('heading', name='Trực tiếp tại quầy', exact=True)).to_be_visible()
 
-    def test_staff_roles_are_denied_report_routes_without_protected_report_requests(self):
-        for role, path in [('PetOwner', ADMIN), ('Veterinarian', ADMIN), ('Groomer', ADMIN),
-                           ('PetOwner', RECEPTIONIST), ('Veterinarian', RECEPTIONIST), ('Groomer', RECEPTIONIST)]:
-            with self.subTest(role=role, path=path):
-                self.requests.clear()
-                self.visit(path, role)
-                self.page.wait_for_load_state('domcontentloaded')
-                self.assertEqual(self.requests, [], f'{role} unexpectedly requested a reports API at {path}')
-                self.assertNotEqual(urlsplit(self.page.url).path, path, f'{role} was not redirected/denied from {path}')
+    def test_admin_can_open_front_desk_without_receptionist_only_action(self):
+        self.visit('/clinic/dashboard', 'Admin')
+        expect(self.page.get_by_role('heading', name='Trực tiếp tại quầy', exact=True)).to_be_visible()
+        expect(self.page.get_by_role('button', name='Tiếp nhận khách tại quầy', exact=True)).to_have_count(0)
+        expect(self.page.get_by_role('button', name='Xem hóa đơn và chờ đón', exact=True)).to_be_visible()
+        self.assertTrue(all(n == 'front-desk' for n, _ in self.requests))
 
-    def test_owner_vet_and_groomer_landing_routes_remain_unchanged(self):
-        for role, path in [('PetOwner', '/dashboard'), ('Veterinarian', '/clinic/my-queue'), ('Groomer', '/clinic/my-queue')]:
-            with self.subTest(role=role):
-                self.requests.clear()
-                self.visit(path, role)
-                self.assertEqual(self.requests, [])
-                self.assertEqual(urlsplit(self.page.url).path, path)
+    def test_admin_desktop_snapshot(self):
+        self.visit()
+        self.loaded_admin()
+        expect(self.card('Hoạt động & lịch hẹn').locator('img[src="x"]')).to_have_count(0)
+        self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
+        self.page.screenshot(path='tests/screenshots/reports-admin-desktop.png', full_page=True)
 
-    def test_revenue_empty_dataset_renders_zero_state_and_null_growth_without_comparison_copy(self):
-        self.revenue = empty_revenue()
-        self.revenue['kpis']['revenueChangePercent'] = None
-        self.visit(ADMIN, 'Admin')
-        self.panel('Doanh thu')
-        expect(self.page.get_by_text('0', exact=False).first).to_be_visible()
-        expect(self.page.get_by_text(re.compile('không có dữ liệu|chưa có dữ liệu|chưa đủ dữ liệu', re.I)).first).to_be_visible()
+    def test_service_name_is_escaped_not_executed(self):
+        self.payloads['operations'] = deepcopy(OPERATIONS)
+        name = 'Khám tổng quát <img src=x onerror=alert(1)>'
+        self.payloads['operations']['topServices'][0]['name'] = name
+        self.visit()
+        card = self.card('Hoạt động & lịch hẹn')
+        expect(card.get_by_text(name, exact=True)).to_be_visible()
+        expect(card.locator('img[src="x"]')).to_have_count(0)
 
+    def test_old_best_selling_rows_disappear_on_failed_filter_and_retry(self):
+        self.visit()
+        self.loaded_admin()
+        card = self.card('Sản phẩm bán chạy')
+        expect(card.get_by_text('Thức ăn dinh dưỡng cho mèo', exact=True)).to_be_visible()
+        self.best_selling_failure = True
+        card.get_by_text('Theo doanh thu', exact=True).click()
+        expect(card.get_by_text('best-selling fixture failure', exact=True)).to_be_visible()
+        expect(card.get_by_text('Thức ăn dinh dưỡng cho mèo', exact=True)).to_have_count(0)
+        self.best_selling_failure = False
+        card.get_by_role('button', name=re.compile('Làm mới$')).click()
+        expect(card.get_by_text('Thức ăn dinh dưỡng cho mèo', exact=True)).to_be_visible()
+
+    def test_forbidden_roles_redirect_without_report_fetch(self):
+        for role, target in [('PetOwner', '/dashboard'), ('Veterinarian', '/clinic/my-queue'), ('Groomer', '/clinic/my-queue')]:
+            for path in ['/admin/reports', '/clinic/dashboard']:
+                with self.subTest(role=role, path=path):
+                    self.visit(path, role)
+                    expect(self.page).to_have_url(BASE + target)
+                    expect(self.page.locator('.ant-spin-spinning')).to_have_count(0)
+                    self.assertEqual(self.requests, [], 'Unauthorized users must not request reports')
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
-

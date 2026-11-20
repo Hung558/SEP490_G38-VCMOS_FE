@@ -68,6 +68,38 @@ Use bare response JSON through existing axios interceptor, domain service + urls
 
 - [x] Fetch/pull both main branches safely and inspect actual BE report contract.
 - [x] Dispatch disjoint workers; integrate navigation and landing rules.
-- [ ] Integrate dashboard workers and QA.
-- [ ] Verify, review, fix and record evidence.
+- [x] Integrate dashboard workers and QA.
+- [x] Verify, review, fix and record evidence.
 - [ ] Push, PR and normal merge if review requirements are met.
+
+## Verification log (in progress)
+
+- Initial navigation baseline: 287/287 node tests passed.
+- Integration 95ff375: actual `tsc -b` passed; unit suite 305 passed, 1 opt-in browser harness skipped, 0 failed (306 total).
+- Opt-in Chromium harness explicitly enabled on integration: 13/13 passed, including auth remount, cancelled requests, late responses and no fabricated metrics on errors.
+- Independent front-desk review against BE caba3c1: no confirmed P0–P2 findings. Full-app browser suite remains a separate gate.
+- Admin first-pass review found misleading missing-data zeros, missing groupBy control, missing explicit late-response guard and ambiguous null/comparison/live labels. Follow-up implementation is in progress; these are NOT marked resolved before reinspection.
+- Main report service now preserves BE series verbatim, strips stale custom dates from presets, and sends groupBy only to the revenue endpoint.
+- GitHub main ruleset 25630747 is active and requires one approving review. No bypass/self-approval will be used.
+
+### Review resolution and final source gate (49ba962)
+
+- Resolved admin report zero-on-error displays, explicit late-response guards, identity-remount and refresh invalidation. Revenue grouping control and bucket invoice counts are exposed.
+- Resolved misleading live/date/null/cage labels and completed both front-desk zone availability fields. Invoice issued/unpaid counts and paid counts/collections now explicitly identify their different date cohorts.
+- Resolved retained best-selling card stale rows after failed filter changes: complete query/revision keys, request cleanup, clear snapshots before retries and abort checks.
+- Independent reviews covered actual BE contract, route integration, front-desk implementation, AdminReports and ReportService. No required finding remains knowingly unaddressed; final browser verification pending below.
+- Final source gate: `npm test` 305 passed, 1 explicitly opt-in browser case skipped, 0 failed; `npx tsc -b --pretty false`, `npm run lint`, `VITE_API_ROOT=/api npm run build` passed.
+- Build warning remains: generated main JS chunk ~2.28 MB minified. No dependency was added and the warning is not suppressed. Bundle splitting is follow-up scope, not a failed build.
+- Scope remains FE-only: BE working tree is clean on caba3c1. No production API writes were used for testing.
+
+## Final desktop browser verification — 2026-11-20
+
+- Full production-preview/router/service integration: 13/13 Chromium tests passed at isolated http://127.0.0.2:3000, with every API intercepted and unexpected traffic rejected. No live BE or production writes.
+- Coverage: all three report endpoints; revenue-only groupBy query; presets without stale custom query values; receptionist default day/custom validation; Admin and receptionist access; forbidden owner/vet/groomer redirects without report fetches; null wait samples vs zero; independent API failures/retry without old revenue; retained best-selling failed-filter/retry regression; escaped service names and desktop layout.
+- Separate front-desk browser/component harness: 13/13 passed, including auth identity replacement, abort/late response protection and live/period semantics.
+- Unit suite: 305 passed, 1 explicitly opt-in browser test skipped in the default run. That browser test was exercised separately above. TypeScript, lint and production build passed again after final UI text cleanup.
+- Desktop screenshots reviewed: tests/screenshots/reports-admin-desktop.png and tests/screenshots/reports-front-desk-desktop.png (local ignored evidence, synthetic data only).
+- Initial worker E2E failures were not treated as passes: corrected outdated fixtures, accessible selectors and route-denial expectations, then reran the full suite successfully. Product fixes are listed above.
+- Test display data uses realistic Vietnamese names, not E2E/QA labels. Malicious markup is isolated to the explicit escaping test, not the normal preview dataset.
+- Remaining limitation: mocked API integration, not a live database end-to-end acceptance run. Build retains the existing large-chunk warning.
+- GitHub main ruleset 25630747 requires one approving review. Publishing uses a feature branch and PR; no self-approval or admin/protection bypass is permitted.

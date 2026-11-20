@@ -276,6 +276,7 @@ const AuthorizedAdminReportsDashboard = () => {
               disabledDate={(d, info) =>
                 Boolean(info.from && Math.abs(d.diff(info.from, 'day')) > 365)
               }
+              placeholder={['Từ ngày', 'Đến ngày']}
               aria-label="Khoảng ngày báo cáo"
             />
             <Segmented<'day' | 'month'>
@@ -519,10 +520,6 @@ const AuthorizedAdminReportsDashboard = () => {
                 <Text type="secondary">
                   Lượt tính theo ngày hẹn trong kỳ, không gồm dịch vụ đã hủy; số
                   hoàn tất hiển thị riêng.
-                </Text>
-                <Text type="secondary">
-                  Số lượt theo ngày hẹn, loại trừ lịch đã hủy; lượt hoàn tất
-                  được tách riêng.
                 </Text>
                 {operations?.servicesByCategory.map(x => (
                   <div key={x.category}>
