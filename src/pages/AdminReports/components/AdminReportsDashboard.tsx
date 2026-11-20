@@ -298,7 +298,8 @@ const AuthorizedAdminReportsDashboard = () => {
           {shownRange && (
             <Text type="secondary">
               Kỳ báo cáo theo dữ liệu máy chủ: {shownRange}. Tổng quan danh mục
-              và tình trạng chuồng là ảnh chụp hiện tại.
+              và tình trạng chuồng là ảnh chụp hiện tại, không phải dữ liệu lịch
+              sử. Múi giờ UTC+7.
             </Text>
           )}
         </Space>
@@ -583,8 +584,7 @@ const AuthorizedAdminReportsDashboard = () => {
                   {operations?.cageOccupancy.isolatedCages.occupied ?? 0}/
                   {operations?.cageOccupancy.isolatedCages.total ?? 0} đang dùng
                   · còn trống{' '}
-                  {operations?.cageOccupancy.isolatedCages.available ?? 0} · còn
-                  trống {operations?.cageOccupancy.isolatedCages.available ?? 0}
+                  {operations?.cageOccupancy.isolatedCages.available ?? 0}
                 </Text>
               </Col>
             </Row>
@@ -628,8 +628,10 @@ const AuthorizedAdminReportsDashboard = () => {
         {frontDesk ? (
           <>
             <Text type="secondary">
-              Ảnh chụp trực tiếp hôm nay:{' '}
-              {frontDesk ? dateLabel(frontDesk.today, frontDesk.today) : '—'}
+              Tình hình tại lần tải gần nhất, ngày vận hành{' '}
+              {frontDesk ? dateLabel(frontDesk.today, frontDesk.today) : '—'}{' '}
+              (UTC+7). Chỉ lịch đặt chưa tiếp nhận giới hạn trong hôm nay; các
+              ca đã đến, đang thực hiện và chờ đón tính mọi ngày hẹn.
             </Text>
             <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
               {[
@@ -661,7 +663,10 @@ const AuthorizedAdminReportsDashboard = () => {
               <Col xs={12} md={6}>
                 <Statistic
                   title="Thời gian chờ TB trong kỳ"
-                  value={frontDesk?.periodStats.averageWaitMinutes ?? '—'}
+                  value={
+                    frontDesk?.periodStats.averageWaitMinutes ??
+                    'Chưa có dữ liệu'
+                  }
                   suffix={
                     frontDesk?.periodStats.averageWaitMinutes == null
                       ? ''
