@@ -97,7 +97,7 @@ const categoryLabels: Record<string, string> = {
   Inpatient: 'Nội trú',
 };
 
-const AdminReportsDashboard = () => {
+const AuthorizedAdminReportsDashboard = () => {
   const { user } = useAuth();
   const role = normalizeRole(user?.role || user?.systemRole);
   const isAdmin = role === 'Admin';
@@ -127,7 +127,7 @@ const AdminReportsDashboard = () => {
     [kind, dates]
   );
   const validationError = validateReportFilters(filters);
-  const requestKey = `${identity}:${JSON.stringify(filters)}`;
+  const requestKey = `${identity}:${JSON.stringify(filters)}:${refresh}`;
   const revenueKey = `${requestKey}:${groupBy}`;
   const revenue =
     revenueState?.key === revenueKey && !loading.revenue
@@ -399,7 +399,9 @@ const AdminReportsDashboard = () => {
                 ))}
               </Space>
             ) : (
-              !loading && <Empty description="Chưa có doanh thu trong kỳ" />
+              !loading.revenue && (
+                <Empty description="Chưa có doanh thu trong kỳ" />
+              )
             )}
             <Row gutter={[16, 16]} style={{ marginTop: 18 }}>
               <Col xs={24} md={8}>
@@ -416,12 +418,9 @@ const AdminReportsDashboard = () => {
               <Col xs={24} md={8}>
                 <Title level={5}>Theo nhóm dịch vụ</Title>
                 <Text type="secondary">
-                  Tỷ trọng chia trên các hạng mục được phân loại; hạng mục thiếu
-                  phân loại có thể khiến tổng tỷ trọng dưới 100%.
-                </Text>
-                <Text type="secondary">
-                  Tỷ trọng trên các nhóm được phân loại; nhóm thiếu phân loại có
-                  thể khiến tổng tỷ trọng dưới 100%.
+                  Tỷ trọng trên tổng tiền hạng mục dịch vụ, không phải tổng
+                  doanh thu. Nhóm dịch vụ dùng phân loại hiện tại; dịch vụ thiếu
+                  phân loại có thể khiến các nhóm hiển thị cộng lại dưới 100%.
                 </Text>
                 {revenue?.byServiceCategory.map(x => (
                   <div key={x.category}>
@@ -717,10 +716,7 @@ const AdminReportsDashboard = () => {
                   Số hóa đơn phát hành tính theo ngày lập; tiền thu được tính
                   theo ngày thanh toán.
                 </Text>
-                <Text type="secondary">
-                  Hóa đơn phát hành tính theo ngày lập; tiền thu theo ngày thanh
-                  toán.
-                </Text>
+
                 <Text>
                   Đã lập {frontDesk?.periodStats.invoices.issuedCount ?? 0} · đã
                   thanh toán {frontDesk?.periodStats.invoices.paidCount ?? 0} ·
@@ -787,6 +783,25 @@ const AdminReportsDashboard = () => {
       </Card>
       <BestSellingCard key={identity} />
     </Space>
+  );
+};
+// Remount the whole report subtree (including the existing product report) when
+// the authenticated identity changes. Never mount data-fetching widgets for other roles.
+const AdminReportsDashboard = () => {
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role || user?.systemRole);
+  if (!user || role !== 'Admin')
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="Bạn không có quyền xem báo cáo quản trị."
+      />
+    );
+  return (
+    <AuthorizedAdminReportsDashboard
+      key={JSON.stringify([user._id, user.email, role])}
+    />
   );
 };
 export default AdminReportsDashboard;
