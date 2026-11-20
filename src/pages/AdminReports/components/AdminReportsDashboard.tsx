@@ -718,14 +718,17 @@ const AuthorizedAdminReportsDashboard = () => {
               <Col xs={24} md={12}>
                 <Title level={5}>Hóa đơn trong kỳ</Title>
                 <Text type="secondary">
-                  Số hóa đơn phát hành tính theo ngày lập; tiền thu được tính
-                  theo ngày thanh toán.
+                  Số đã lập và chưa thanh toán tính theo ngày lập (issuedAt). Số
+                  hóa đơn đã thanh toán và tiền thu tính theo ngày thanh toán
+                  (paidAt), có thể gồm hóa đơn lập trước kỳ; không phải các nhóm
+                  trạng thái của cùng một tập hóa đơn.
                 </Text>
 
                 <Text>
-                  Đã lập {frontDesk?.periodStats.invoices.issuedCount ?? 0} · đã
-                  thanh toán {frontDesk?.periodStats.invoices.paidCount ?? 0} ·
-                  Chưa thanh toán{' '}
+                  Lập trong kỳ{' '}
+                  {frontDesk?.periodStats.invoices.issuedCount ?? 0} · thanh
+                  toán trong kỳ {frontDesk?.periodStats.invoices.paidCount ?? 0}{' '}
+                  · Chưa thanh toán trong số hóa đơn lập trong kỳ{' '}
                   {frontDesk?.periodStats.invoices.unpaidCount ?? 0}
                 </Text>
                 {frontDesk?.periodStats.invoices.byPaymentMethod.map(x => (
@@ -748,6 +751,9 @@ const AuthorizedAdminReportsDashboard = () => {
               {frontDesk?.periodStats.cageOccupancy.byZone.Holding.occupied ??
                 0}
               /{frontDesk?.periodStats.cageOccupancy.byZone.Holding.total ?? 0}{' '}
+              · còn trống{' '}
+              {frontDesk?.periodStats.cageOccupancy.byZone.Holding.available ??
+                0}{' '}
               (
               {pct(
                 frontDesk?.periodStats.cageOccupancy.byZone.Holding
@@ -759,6 +765,9 @@ const AuthorizedAdminReportsDashboard = () => {
               /
               {frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard
                 .total ?? 0}{' '}
+              · còn trống{' '}
+              {frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard
+                .available ?? 0}{' '}
               (
               {pct(
                 frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard
