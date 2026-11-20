@@ -46,6 +46,9 @@ import { FilterRow } from './styles';
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
+type KeyedReport = { key: string; data: BestSellingResponse };
+type KeyedError = { key: string; message: string };
+
 const LIMIT_OPTIONS = [10, 20, 50];
 const RANK_COLORS = ['gold', 'default', 'orange'];
 const CATEGORY_COLORS: Record<BestSellingCategory, string> = {
@@ -66,36 +69,54 @@ const BestSellingCard = () => {
   const [category, setCategory] = useState<BestSellingCategory>();
   const [sortBy, setSortBy] = useState<BestSellingSortBy>('quantity');
   const [limit, setLimit] = useState(10);
-  const [report, setReport] = useState<BestSellingResponse>();
+  const [report, setReport] = useState<KeyedReport>();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>();
+  const [requestError, setRequestError] = useState<KeyedError>();
   const [revision, setRevision] = useState(0);
+  const queryKey = JSON.stringify({
+    range,
+    category: category ?? null,
+    sortBy,
+    limit,
+    revision,
+  });
+  const currentReport = report?.key === queryKey ? report.data : undefined;
+  const error =
+    requestError?.key === queryKey ? requestError.message : undefined;
+  const currentLoading =
+    loading || (isReportRangeValid(range) && !currentReport && !error);
 
   useEffect(() => {
-    if (!isReportRangeValid(range)) return;
+    if (!isReportRangeValid(range)) {
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
-    setError(undefined);
     InvoiceService.getBestSellingProducts(
       { ...range, category, sortBy, limit },
       { signal: controller.signal }
     )
-      .then(setReport)
+      .then(data => {
+        if (!controller.signal.aborted) setReport({ key: queryKey, data });
+      })
       .catch(err => {
         if (axios.isCancel(err) || controller.signal.aborted) return;
-        setError(
-          readInvoiceError(err, 'Không tải được sản phẩm bán chạy').message
-        );
+        setRequestError({
+          key: queryKey,
+          message: readInvoiceError(err, 'Không tải được sản phẩm bán chạy')
+            .message,
+        });
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [range, category, sortBy, limit, revision]);
+  }, [queryKey, range, category, sortBy, limit, revision]);
 
   const reload = useCallback(() => setRevision(value => value + 1), []);
 
-  const items = report?.items || [];
+  const items = currentReport?.items || [];
   const topValue =
     sortBy === 'revenue'
       ? items[0]?.totalRevenue || 0
@@ -314,7 +335,7 @@ const BestSellingCard = () => {
           rowKey="productId"
           columns={columns}
           dataSource={items}
-          loading={loading}
+          loading={currentLoading}
           pagination={false}
           scroll={{ x: 860 }}
           locale={{
