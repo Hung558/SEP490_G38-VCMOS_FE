@@ -24,6 +24,7 @@ import AdminUsersPage from '@/pages/AdminUsers';
 import AdminServicesPage from '@/pages/AdminServices';
 import AdminProductsPage from '@/pages/AdminProducts';
 import AdminReportsPage from '@/pages/AdminReports';
+import FrontDeskDashboardPage from '@/pages/FrontDeskDashboard';
 import PetProfilePage from '@/pages/PetProfile';
 import CagesPage from '@/pages/Cages';
 import AppointmentReceptionPage from '@/pages/AppointmentReception';
@@ -146,6 +147,14 @@ const AppRouter = () => {
       // Clinic appointments intake: Admin and Receptionist only
       element: <RoleRoute allowRoles={['Admin', 'Receptionist']} />,
       children: [
+        {
+          path: ROUTER.FRONT_DESK_DASHBOARD,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <FrontDeskDashboardPage />
+            </Suspense>
+          ),
+        },
         {
           path: ROUTER.CLINIC_APPOINTMENTS,
           element: (
