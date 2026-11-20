@@ -32,46 +32,15 @@ export const validateReportFilters = (
   return undefined;
 };
 
-export const buildReportQuery = (filters: ReportFilters) => ({
+// Presets must never retain a previous custom range: BE explicit dates override presets.
+export const buildReportQuery = (
+  filters: ReportFilters,
+  allowGroupBy = true
+) => ({
   period: filters.period,
-  ...(filters.from ? { from: filters.from } : {}),
-  ...(filters.to ? { to: filters.to } : {}),
-  ...(filters.groupBy ? { groupBy: filters.groupBy } : {}),
+  ...(filters.period === 'custom' && filters.from
+    ? { from: filters.from }
+    : {}),
+  ...(filters.period === 'custom' && filters.to ? { to: filters.to } : {}),
+  ...(allowGroupBy && filters.groupBy ? { groupBy: filters.groupBy } : {}),
 });
-
-export const fillRevenueSeries = (report: RevenueReportLike) => {
-  const start = Date.parse(`${report.from}T00:00:00Z`);
-  const end = Date.parse(`${report.to}T00:00:00Z`);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end)
-    return report.revenueSeries;
-  const existing = new Map(
-    report.revenueSeries.map(item => [item.period, item])
-  );
-  const buckets: string[] = [];
-  if (report.groupBy === 'month') {
-    const cursor = new Date(
-      Date.UTC(
-        new Date(start).getUTCFullYear(),
-        new Date(start).getUTCMonth(),
-        1
-      )
-    );
-    while (cursor.getTime() <= end) {
-      buckets.push(cursor.toISOString().slice(0, 7));
-      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-    }
-  } else {
-    for (let day = start; day <= end; day += DAY_MS)
-      buckets.push(new Date(day).toISOString().slice(0, 10));
-  }
-  return buckets.map(
-    period => existing.get(period) ?? { period, revenue: 0, invoiceCount: 0 }
-  );
-};
-
-type RevenueReportLike = {
-  from: string;
-  to: string;
-  groupBy: 'day' | 'month';
-  revenueSeries: { period: string; revenue: number; invoiceCount: number }[];
-};

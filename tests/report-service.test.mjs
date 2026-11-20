@@ -1,29 +1,109 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildReportQuery, fillRevenueSeries, isCalendarDate, validateReportFilters } from '../src/services/ReportService/helpers.ts';
+import { readFile } from 'node:fs/promises';
+import {
+  buildReportQuery,
+  isCalendarDate,
+  validateReportFilters,
+} from '../src/services/ReportService/helpers.ts';
+import {
+  apiReportRevenue,
+  apiReportOperations,
+  apiReportFrontDesk,
+} from '../src/services/ReportService/urls.ts';
 
-test('query builder only includes supplied fields and keeps preset period', () => {
-  assert.deepEqual(buildReportQuery({ period: 'custom', from: '2026-01-01', to: '2026-01-02', groupBy: 'day' }), { period: 'custom', from: '2026-01-01', to: '2026-01-02', groupBy: 'day' });
+test('report URLs match BE56 bare JSON endpoints', () => {
+  assert.equal(apiReportRevenue, '/reports/revenue');
+  assert.equal(apiReportOperations, '/reports/operations');
+  assert.equal(apiReportFrontDesk, '/reports/front-desk');
+});
+
+test('query builder sends custom range and revenue grouping', () => {
+  assert.deepEqual(
+    buildReportQuery({
+      period: 'custom',
+      from: '2026-01-01',
+      to: '2026-01-02',
+      groupBy: 'day',
+    }),
+    { period: 'custom', from: '2026-01-01', to: '2026-01-02', groupBy: 'day' }
+  );
   assert.deepEqual(buildReportQuery({ period: 'month' }), { period: 'month' });
 });
 
-test('custom range validates real dates and inclusive 366 day maximum', () => {
+test('presets strip stale dates instead of accidentally overriding server Vietnam periods', () => {
+  for (const period of ['day', 'week', 'month']) {
+    assert.deepEqual(
+      buildReportQuery({ period, from: '2026-11-10', to: '2026-11-12' }),
+      { period }
+    );
+  }
+});
+
+test('operations and front-desk omit revenue-only groupBy', () => {
+  assert.deepEqual(
+    buildReportQuery({ period: 'month', groupBy: 'day' }, false),
+    { period: 'month' }
+  );
+});
+
+test('custom range validates real dates, both boundaries and inclusive 366 day maximum', () => {
   assert.equal(isCalendarDate('2026-02-29'), false);
+  assert.equal(isCalendarDate('2026-02-31'), false);
   assert.equal(isCalendarDate('2024-02-29'), true);
-  assert.match(validateReportFilters({ period: 'custom', from: '2026-01-01', to: '2026-01-01' }) || '', /^$/);
-  assert.match(validateReportFilters({ period: 'custom', from: '2026-01-01', to: '2027-01-02' }) || '', /366 ngày/);
-  assert.match(validateReportFilters({ period: 'custom', from: '2026-02-02', to: '2026-02-01' }) || '', /trước/);
-  assert.ok(validateReportFilters({ period: 'custom', from: '2026-02-30', to: '2026-03-01' }));
+  assert.equal(isCalendarDate('2026-2-01'), false);
+  assert.equal(isCalendarDate('not-a-date'), false);
+  assert.equal(
+    validateReportFilters({
+      period: 'custom',
+      from: '2026-01-01',
+      to: '2026-01-01',
+    }),
+    undefined
+  );
+  assert.equal(
+    validateReportFilters({
+      period: 'custom',
+      from: '2026-01-01',
+      to: '2027-01-01',
+    }),
+    undefined
+  );
+  assert.match(
+    validateReportFilters({
+      period: 'custom',
+      from: '2026-01-01',
+      to: '2027-01-02',
+    }),
+    /366 ngày/
+  );
+  assert.match(
+    validateReportFilters({
+      period: 'custom',
+      from: '2026-02-02',
+      to: '2026-02-01',
+    }),
+    /trước/
+  );
+  for (const filters of [
+    { period: 'custom' },
+    { period: 'custom', from: '2026-11-20' },
+    { period: 'custom', to: '2026-11-20' },
+  ]) {
+    assert.ok(validateReportFilters(filters));
+  }
   assert.equal(validateReportFilters({ period: 'month' }), undefined);
 });
 
-test('revenue series fills missing daily buckets from server-echoed inclusive range', () => {
-  const filled = fillRevenueSeries({ from: '2026-11-10', to: '2026-11-12', groupBy: 'day', revenueSeries: [{ period: '2026-11-10', revenue: 12, invoiceCount: 1 }, { period: '2026-11-12', revenue: 4, invoiceCount: 1 }] });
-  assert.deepEqual(filled, [{ period: '2026-11-10', revenue: 12, invoiceCount: 1 }, { period: '2026-11-11', revenue: 0, invoiceCount: 0 }, { period: '2026-11-12', revenue: 4, invoiceCount: 1 }]);
-});
-
-test('revenue series fills monthly buckets while preserving echoed data', () => {
-  const filled = fillRevenueSeries({ from: '2026-01-15', to: '2026-03-02', groupBy: 'month', revenueSeries: [{ period: '2026-01', revenue: 9, invoiceCount: 2 }, { period: '2026-03', revenue: 1, invoiceCount: 1 }] });
-  assert.deepEqual(filled.map(x => x.period), ['2026-01', '2026-02', '2026-03']);
-  assert.equal(filled[1].revenue, 0);
+test('revenue preserves server-zero-filled buckets without client recomputation', async () => {
+  const service = await readFile(
+    new URL('../src/services/ReportService/index.ts', import.meta.url),
+    'utf8'
+  );
+  assert.doesNotMatch(service, /fillRevenueSeries|\.reduce\(/);
+  assert.equal(
+    (service.match(/signal,/g) || []).length,
+    3,
+    'each endpoint accepts request cancellation'
+  );
 });

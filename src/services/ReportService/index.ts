@@ -1,9 +1,5 @@
 import api from '../01_axios';
-import {
-  buildReportQuery,
-  fillRevenueSeries,
-  validateReportFilters,
-} from './helpers';
+import { buildReportQuery, validateReportFilters } from './helpers';
 import {
   apiReportFrontDesk,
   apiReportOperations,
@@ -20,17 +16,16 @@ const assertValid = (filters: ReportFilters) => {
   const message = validateReportFilters(filters);
   if (message) throw new RangeError(message);
 };
-const getRevenue = async (
+const getRevenue = (
   filters: ReportFilters,
   signal?: AbortSignal
 ): Promise<RevenueReport> => {
   assertValid(filters);
-  const report = await api.get<RevenueReport>(apiReportRevenue, {
+  // The interceptor unwraps the bare JSON. Preserve server buckets and range verbatim.
+  return api.get<RevenueReport>(apiReportRevenue, {
     params: buildReportQuery(filters),
     signal,
-  });
-  const data = report as unknown as RevenueReport;
-  return { ...data, revenueSeries: fillRevenueSeries(data) };
+  }) as unknown as Promise<RevenueReport>;
 };
 const getOperations = (
   filters: ReportFilters,
@@ -38,7 +33,7 @@ const getOperations = (
 ): Promise<OperationsReport> => {
   assertValid(filters);
   return api.get<OperationsReport>(apiReportOperations, {
-    params: buildReportQuery(filters),
+    params: buildReportQuery(filters, false),
     signal,
   }) as unknown as Promise<OperationsReport>;
 };
@@ -48,7 +43,7 @@ const getFrontDesk = (
 ): Promise<FrontDeskReport> => {
   assertValid(filters);
   return api.get<FrontDeskReport>(apiReportFrontDesk, {
-    params: buildReportQuery(filters),
+    params: buildReportQuery(filters, false),
     signal,
   }) as unknown as Promise<FrontDeskReport>;
 };
