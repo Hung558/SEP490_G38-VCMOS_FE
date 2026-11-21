@@ -4,10 +4,6 @@ import PetService from '@/services/PetService';
 import type { Pet } from '@/types';
 import CommunityPostService, {
   createPostDraft,
-  MAX_TIMELINE_ITEMS,
-  newTimelineItem,
-  POST_TYPES,
-  POST_TYPE_LABELS,
   readCommunityPostError,
   validatePostDraft,
 } from '@/services/CommunityPostService';
@@ -15,9 +11,12 @@ import type {
   CommunityPost,
   CommunityPostDraft,
   CommunityPostErrors,
-  TimelineItemDraft,
 } from '@/services/CommunityPostService';
 import PostImageInput from './PostImageInput';
+
+// K4 (21/11): the editor writes discussions only. A timeline share is built by
+// the BE from the pet's finished visits ("Chia sẻ hành trình" on the pet
+// profile), so its milestones are never typed by hand (BR-18).
 
 interface Props {
   post?: CommunityPost;
@@ -92,12 +91,6 @@ export default function PostEditor({ post, onSaved, onClose }: Props) {
     setDraft(value => ({ ...value, ...patch }));
     setErrors({});
   };
-  const changeItem = (key: string, patch: Partial<TimelineItemDraft>) =>
-    change({
-      timelineItems: draft.timelineItems.map(item =>
-        item.key === key ? { ...item, ...patch } : item
-      ),
-    });
   const close = () => {
     if (inFlight.current) return;
     if (!dirty) {
@@ -182,7 +175,8 @@ export default function PostEditor({ post, onSaved, onClose }: Props) {
       >
         <p className="community-help">
           Bài mới cần được duyệt trước khi đăng. Chỉ bài đang chờ duyệt mới có
-          thể sửa hoặc xóa.
+          thể sửa hoặc xóa. Muốn chia sẻ hành trình khám của bé? Mở hồ sơ thú
+          cưng và bấm “Chia sẻ hành trình”.
         </p>
         {error && (
           <Alert
@@ -199,39 +193,12 @@ export default function PostEditor({ post, onSaved, onClose }: Props) {
           />
         )}
         <fieldset disabled={saving}>
+          {fieldError('postType')}
           <div className="community-field">
-            <label htmlFor="post-type">Loại bài viết</label>
-            <select
-              id="post-type"
-              required
-              value={draft.postType}
-              aria-invalid={Boolean(errors.postType)}
-              aria-describedby="post-postType-error"
-              onChange={event =>
-                change({
-                  postType: event.target
-                    .value as CommunityPostDraft['postType'],
-                })
-              }
-            >
-              {POST_TYPES.map(value => (
-                <option key={value} value={value}>
-                  {POST_TYPE_LABELS[value]}
-                </option>
-              ))}
-            </select>
-            {fieldError('postType')}
-          </div>
-          <div className="community-field">
-            <label htmlFor="post-content">
-              Nội dung{' '}
-              {draft.postType === 'Discussion'
-                ? '(bắt buộc)'
-                : '(không bắt buộc)'}
-            </label>
+            <label htmlFor="post-content">Nội dung (bắt buộc)</label>
             <textarea
               id="post-content"
-              required={draft.postType === 'Discussion'}
+              required
               value={draft.content}
               rows={5}
               maxLength={5000}
@@ -251,15 +218,9 @@ export default function PostEditor({ post, onSaved, onClose }: Props) {
             error={errors.image || errors.imageUrl}
           />
           <div className="community-field">
-            <label htmlFor="post-pet">
-              Thú cưng{' '}
-              {draft.postType === 'TimelineShare'
-                ? '(bắt buộc)'
-                : '(không bắt buộc)'}
-            </label>
+            <label htmlFor="post-pet">Thú cưng (không bắt buộc)</label>
             <select
               id="post-pet"
-              required={draft.postType === 'TimelineShare'}
               value={draft.petId}
               disabled={petsLoading}
               aria-invalid={Boolean(errors.petId)}
@@ -300,94 +261,6 @@ export default function PostEditor({ post, onSaved, onClose }: Props) {
               </p>
             )}
           </div>
-          {draft.postType === 'TimelineShare' && (
-            <section aria-labelledby="post-timeline-heading">
-              <h3 id="post-timeline-heading">Các mốc hành trình</h3>
-              <p className="community-help">
-                Bạn tự nhập từ 1–50 mốc, tối đa 10 ảnh mốc mới mỗi lần lưu. Các
-                mốc không tự liên kết với lịch hẹn hoặc hồ sơ khám.
-              </p>
-              {fieldError('timelineItems')}
-              {draft.timelineItems.map((item, index) => {
-                const prefix = `timelineItems.${index}`;
-                return (
-                  <fieldset className="community-timeline-item" key={item.key}>
-                    <legend>Mốc {index + 1}</legend>
-                    <div className="community-field">
-                      <label htmlFor={`post-date-${item.key}`}>
-                        Ngày (bắt buộc)
-                      </label>
-                      <input
-                        id={`post-date-${item.key}`}
-                        type="date"
-                        required
-                        min="0001-01-01"
-                        max="9999-12-31"
-                        value={item.date}
-                        aria-invalid={Boolean(errors[`${prefix}.date`])}
-                        aria-describedby={`post-${prefix}.date-error`}
-                        onChange={event =>
-                          changeItem(item.key, { date: event.target.value })
-                        }
-                      />
-                      {fieldError(`${prefix}.date`)}
-                    </div>
-                    <div className="community-field">
-                      <label htmlFor={`post-title-${item.key}`}>
-                        Tiêu đề (bắt buộc, tối đa 200 ký tự)
-                      </label>
-                      <input
-                        id={`post-title-${item.key}`}
-                        required
-                        value={item.title}
-                        maxLength={200}
-                        aria-invalid={Boolean(errors[`${prefix}.title`])}
-                        aria-describedby={`post-${prefix}.title-error`}
-                        onChange={event =>
-                          changeItem(item.key, { title: event.target.value })
-                        }
-                      />
-                      {fieldError(`${prefix}.title`)}
-                    </div>
-                    <PostImageInput
-                      label={`Ảnh mốc ${index + 1} (không bắt buộc)`}
-                      value={item.image}
-                      onChange={image => changeItem(item.key, { image })}
-                      error={
-                        errors[`${prefix}.image`] ||
-                        errors[`${prefix}.imageIndex`] ||
-                        errors[`${prefix}.imageUrl`]
-                      }
-                    />
-                    <Button
-                      danger
-                      disabled={draft.timelineItems.length === 1}
-                      onClick={() =>
-                        change({
-                          timelineItems: draft.timelineItems.filter(
-                            row => row.key !== item.key
-                          ),
-                        })
-                      }
-                      aria-label={`Xóa mốc ${index + 1}`}
-                    >
-                      Xóa mốc
-                    </Button>
-                  </fieldset>
-                );
-              })}
-              <Button
-                disabled={draft.timelineItems.length >= MAX_TIMELINE_ITEMS}
-                onClick={() =>
-                  change({
-                    timelineItems: [...draft.timelineItems, newTimelineItem()],
-                  })
-                }
-              >
-                Thêm mốc thời gian
-              </Button>
-            </section>
-          )}
         </fieldset>
         <Space wrap className="community-editor-actions">
           <Button onClick={close} disabled={saving}>

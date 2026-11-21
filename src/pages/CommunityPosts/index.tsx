@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import ROUTER from '@/routerMap/ROUTER';
 import {
   Alert,
   Button,
@@ -40,9 +42,26 @@ function MyCommunityPosts() {
   const [error, setError] = useState<string>();
   const [revision, setRevision] = useState(0);
   const [selectedId, setSelectedId] = useState<string>();
-  const [editor, setEditor] = useState<{ post?: CommunityPost }>();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  // "Viết bài trao đổi" on the community page and the home page opens the editor
+  const composeRequested = params.get('compose') === '1';
+  const [editor, setEditor] = useState<{ post?: CommunityPost } | undefined>(
+    composeRequested ? {} : undefined
+  );
   const [success, setSuccess] = useState<string>();
   const reload = () => setRevision(value => value + 1);
+  useEffect(() => {
+    if (!composeRequested) return;
+    setParams(
+      previous => {
+        const next = new URLSearchParams(previous);
+        next.delete('compose');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [composeRequested, setParams]);
   useEffect(() => {
     const abort = new AbortController();
     setLoading(true);
@@ -86,15 +105,20 @@ function MyCommunityPosts() {
               bảng tin cộng đồng công khai.
             </Text>
           </div>
-          <Button
-            type="primary"
-            onClick={() => {
-              setSuccess(undefined);
-              setEditor({});
-            }}
-          >
-            Viết bài mới
-          </Button>
+          <Space wrap>
+            <Button onClick={() => navigate(ROUTER.COMMUNITY)}>
+              Xem cộng đồng
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                setSuccess(undefined);
+                setEditor({});
+              }}
+            >
+              Viết bài mới
+            </Button>
+          </Space>
         </header>
         {success && (
           <Alert

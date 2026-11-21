@@ -14,6 +14,8 @@ import {
   DollarOutlined,
   BarChartOutlined,
   EditOutlined,
+  CommentOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -112,6 +114,11 @@ export const MenuItemCommon = (): MenuItem[] => {
       icon: <DollarOutlined />,
     },
     {
+      key: ROUTER.COMMUNITY,
+      icon: <CommentOutlined />,
+      label: 'Cộng đồng',
+    },
+    {
       key: ROUTER.MY_COMMUNITY_POSTS,
       icon: <EditOutlined />,
       label: 'Bài viết của tôi',
@@ -194,6 +201,11 @@ export const MenuItemAdmin = (): MenuItem[] => {
       key: ROUTER.ADMIN_REPORTS,
       label: 'Tổng quan quản trị',
       icon: <BarChartOutlined />,
+    },
+    {
+      key: ROUTER.ADMIN_COMMUNITY_MODERATION,
+      label: 'Kiểm duyệt cộng đồng',
+      icon: <SafetyCertificateOutlined />,
     },
     {
       key: ROUTER.STAFF_SCHEDULES,

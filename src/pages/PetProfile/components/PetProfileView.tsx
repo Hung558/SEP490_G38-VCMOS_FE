@@ -6,6 +6,7 @@ import {
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
+  ShareAltOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -25,6 +26,8 @@ interface PetProfileViewProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onBookAppointment?: () => void;
+  /** Owner shares the pet's finished visits to the community (nghiệp vụ 3.4) */
+  onShare?: () => void;
 }
 
 /** Pet header, health metrics and allergy notes of the SCR-08 profile page */
@@ -33,6 +36,7 @@ const PetProfileView: React.FC<PetProfileViewProps> = ({
   onEdit,
   onDelete,
   onBookAppointment,
+  onShare,
 }) => {
   const [copied, setCopied] = useState(false);
   const photoUrl = getSafeTimelineHttpUrl(pet.photoUrl);
@@ -114,6 +118,11 @@ const PetProfileView: React.FC<PetProfileViewProps> = ({
             {onDelete && (
               <Button danger icon={<DeleteOutlined />} onClick={onDelete}>
                 Xóa
+              </Button>
+            )}
+            {onShare && (
+              <Button icon={<ShareAltOutlined />} onClick={onShare}>
+                Chia sẻ hành trình
               </Button>
             )}
             {onBookAppointment && (

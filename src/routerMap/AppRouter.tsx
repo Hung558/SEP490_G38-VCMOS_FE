@@ -34,6 +34,9 @@ import ExamRecordPage from '@/pages/ExamRecord';
 import InpatientCarePage from '@/pages/InpatientCare';
 import MyInvoicesPage from '@/pages/MyInvoices';
 import CommunityPostsPage from '@/pages/CommunityPosts';
+import CommunityPage from '@/pages/Community';
+import CommunityPostDetailPage from '@/pages/CommunityPostDetail';
+import AdminCommunityModerationPage from '@/pages/AdminCommunityModeration';
 import ClinicInvoicesPage from '@/pages/ClinicInvoices';
 import VnpayReturnPage from '@/pages/VnpayReturn';
 import { useScrollTopOnNavigate } from '@/hooks/Common/useScrollTopOnNavigate';
@@ -50,6 +53,23 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <HomePage />
+            </Suspense>
+          ),
+        },
+        {
+          // Public feed: guests and every role read Published posts
+          path: ROUTER.COMMUNITY,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <CommunityPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: ROUTER.COMMUNITY_POST,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <CommunityPostDetailPage />
             </Suspense>
           ),
         },
@@ -120,6 +140,14 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <AdminReportsPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: ROUTER.ADMIN_COMMUNITY_MODERATION,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <AdminCommunityModerationPage />
             </Suspense>
           ),
         },

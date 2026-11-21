@@ -26,6 +26,12 @@ const ROUTER = {
   // Hóa đơn: chủ nuôi (SCR-15), Lễ tân và Admin (SCR-20 tra cứu)
   MY_INVOICES: '/invoices',
   MY_COMMUNITY_POSTS: '/community/my-posts',
+  // Cộng đồng công khai (nghiệp vụ 3.4): mọi vai trò và khách đều xem được;
+  // build the post path with generatePath(ROUTER.COMMUNITY_POST, { postId })
+  COMMUNITY: '/community',
+  COMMUNITY_POST: '/community/posts/:postId',
+  // SCR-33 kiểm duyệt bài và báo cáo vi phạm (nghiệp vụ 7.1), chỉ Admin
+  ADMIN_COMMUNITY_MODERATION: '/admin/community-moderation',
   CLINIC_INVOICES: '/clinic/invoices',
   // VNPay đưa người trả tiền về đây (BE VNP_RETURN_URL)
   VNPAY_RETURN: '/payment/vnpay-return',

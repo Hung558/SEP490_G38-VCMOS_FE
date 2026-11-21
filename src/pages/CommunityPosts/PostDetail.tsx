@@ -9,6 +9,8 @@ import {
   Spin,
   Tag,
 } from 'antd';
+import { generatePath, useNavigate } from 'react-router-dom';
+import ROUTER from '@/routerMap/ROUTER';
 import CommunityPostService, {
   canManagePost,
   POST_STATUS_LABELS,
@@ -17,6 +19,10 @@ import CommunityPostService, {
   safePostImageUrl,
 } from '@/services/CommunityPostService';
 import type { CommunityPost } from '@/services/CommunityPostService';
+import CommunityService, {
+  canWithdrawPost,
+  readCommunityError,
+} from '@/services/CommunityService';
 
 export const postStatusColor = (status: string) =>
   ({
@@ -44,6 +50,21 @@ interface Props {
   onChanged: () => void;
 }
 
+// A timeline share is built by the BE from finished visits (BR-18), so it is
+// never edited by hand: delete it while pending and share again (K4, 21/11)
+const canEditPost = (post: CommunityPost) =>
+  canManagePost(post) && post.postType === 'Discussion';
+
+const statusHint = (post: CommunityPost) => {
+  if (canEditPost(post))
+    return 'Bài đang chờ duyệt. Bạn có thể chỉnh sửa hoặc xóa.';
+  if (canManagePost(post))
+    return 'Bài đang chờ duyệt. Bài chia sẻ hành trình không sửa được; bạn có thể xóa rồi chia sẻ lại từ hồ sơ thú cưng.';
+  if (canWithdrawPost(post.status))
+    return 'Bài đang hiện trên cộng đồng. Bạn có thể thu hồi bài; bài đã thu hồi không đăng lại được.';
+  return 'Bài không còn chờ duyệt nên không thể chỉnh sửa hoặc xóa.';
+};
+
 export default function PostDetail({
   id,
   revision,
@@ -60,6 +81,11 @@ export default function PostDetail({
   const deletingRef = useRef(false);
   const [deleteError, setDeleteError] = useState<string>();
   const [deleteLocked, setDeleteLocked] = useState(false);
+  const navigate = useNavigate();
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const withdrawingRef = useRef(false);
+  const [withdrawError, setWithdrawError] = useState<string>();
   useEffect(() => {
     const abort = new AbortController();
     setLoading(true);
@@ -108,6 +134,31 @@ export default function PostDetail({
     }
   };
 
+  // K2: the author takes a Published post off the community (status Removed)
+  const withdraw = async () => {
+    if (withdrawingRef.current || !post || !canWithdrawPost(post.status))
+      return;
+    withdrawingRef.current = true;
+    setWithdrawing(true);
+    setWithdrawError(undefined);
+    try {
+      await CommunityService.withdrawPost(post._id);
+      setConfirmWithdraw(false);
+      onChanged();
+      setVersion(value => value + 1);
+    } catch (failure) {
+      const result = readCommunityError(
+        failure,
+        'Chưa thu hồi được bài viết. Vui lòng thử lại.'
+      );
+      setWithdrawError(result.message);
+      if (result.status === 409 || result.status === 404) onChanged();
+    } finally {
+      withdrawingRef.current = false;
+      setWithdrawing(false);
+    }
+  };
+
   return (
     <>
       <Modal
@@ -115,18 +166,43 @@ export default function PostDetail({
         title="Chi tiết bài viết của tôi"
         width={850}
         onCancel={() => {
-          if (!deletingRef.current) onClose();
+          if (!deletingRef.current && !withdrawingRef.current) onClose();
         }}
         footer={
           <Space wrap>
-            <Button onClick={onClose} disabled={deleting}>
+            <Button onClick={onClose} disabled={deleting || withdrawing}>
               Đóng
             </Button>
+            {post && canWithdrawPost(post.status) && !loading && (
+              <>
+                <Button
+                  onClick={() =>
+                    navigate(
+                      generatePath(ROUTER.COMMUNITY_POST, { postId: post._id })
+                    )
+                  }
+                >
+                  Xem trên cộng đồng
+                </Button>
+                <Button
+                  danger
+                  disabled={withdrawing}
+                  onClick={() => {
+                    setWithdrawError(undefined);
+                    setConfirmWithdraw(true);
+                  }}
+                >
+                  Thu hồi bài viết
+                </Button>
+              </>
+            )}
             {post && canManagePost(post) && !loading && (
               <>
-                <Button onClick={() => onEdit(post)} disabled={deleting}>
-                  Sửa bài viết
-                </Button>
+                {canEditPost(post) && (
+                  <Button onClick={() => onEdit(post)} disabled={deleting}>
+                    Sửa bài viết
+                  </Button>
+                )}
                 <Button
                   danger
                   disabled={deleting || deleteLocked}
@@ -199,13 +275,13 @@ export default function PostDetail({
               ]}
             />
             <Alert
-              type={canManagePost(post) ? 'info' : 'warning'}
-              showIcon
-              message={
-                canManagePost(post)
-                  ? 'Bài đang chờ duyệt. Bạn có thể chỉnh sửa hoặc xóa.'
-                  : 'Bài không còn chờ duyệt nên không thể chỉnh sửa hoặc xóa.'
+              type={
+                canManagePost(post) || canWithdrawPost(post.status)
+                  ? 'info'
+                  : 'warning'
               }
+              showIcon
+              message={statusHint(post)}
             />
             {post.moderationNote && (
               <section>
@@ -229,10 +305,6 @@ export default function PostDetail({
             {post.postType === 'TimelineShare' && (
               <section>
                 <h3>Hành trình được chia sẻ</h3>
-                <p className="community-help">
-                  Các mốc do tác giả nhập, không phải dữ liệu tự đồng bộ từ lịch
-                  hẹn hoặc hồ sơ khám.
-                </p>
                 <ol className="community-timeline">
                   {post.timelineItems.map((item, index) => (
                     <li key={item._id || index}>
@@ -294,6 +366,48 @@ export default function PostDetail({
             type="error"
             showIcon
             message={<span role="alert">{deleteError}</span>}
+          />
+        )}
+      </Modal>
+      <Modal
+        open={confirmWithdraw}
+        title="Thu hồi bài viết khỏi cộng đồng?"
+        onCancel={() => {
+          if (!withdrawingRef.current) setConfirmWithdraw(false);
+        }}
+        maskClosable={false}
+        closable={!withdrawing}
+        keyboard={!withdrawing}
+        footer={
+          <Space>
+            <Button
+              disabled={withdrawing}
+              onClick={() => setConfirmWithdraw(false)}
+            >
+              Giữ bài viết
+            </Button>
+            <Button
+              danger
+              type="primary"
+              disabled={loading || !post || !canWithdrawPost(post.status)}
+              loading={withdrawing}
+              onClick={withdraw}
+            >
+              Xác nhận thu hồi
+            </Button>
+          </Space>
+        }
+      >
+        <p>
+          Bài sẽ không còn hiện trên cộng đồng (lượt thích và bình luận cũng
+          không còn hiện) và không đăng lại được. Bạn vẫn xem lại được bài trong
+          danh sách này.
+        </p>
+        {withdrawError && (
+          <Alert
+            type="error"
+            showIcon
+            message={<span role="alert">{withdrawError}</span>}
           />
         )}
       </Modal>

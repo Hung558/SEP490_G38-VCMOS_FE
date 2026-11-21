@@ -207,7 +207,16 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
     navigate(ROUTER.REGISTER);
   };
 
+  const onHome = location.pathname === ROUTER.HOME;
+  const onCommunity = location.pathname.startsWith(ROUTER.COMMUNITY);
+
+  // The sections live on the home page; from another page (the community
+  // page) open the home page and let it scroll there
   const scrollToSection = (id: string) => {
+    if (!onHome) {
+      navigate(ROUTER.HOME, { state: { scrollTo: id } });
+      return;
+    }
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
@@ -252,7 +261,11 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
       </div>
 
       <div className="nav-section">
-        <Link to={ROUTER.HOME} className="active" onClick={backToHomeTop}>
+        <Link
+          to={ROUTER.HOME}
+          className={onHome ? 'active' : undefined}
+          onClick={backToHomeTop}
+        >
           Trang chủ
         </Link>
         <a
@@ -273,6 +286,12 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
         >
           Đội ngũ bác sĩ
         </a>
+        <Link
+          to={ROUTER.COMMUNITY}
+          className={onCommunity ? 'active' : undefined}
+        >
+          Cộng đồng
+        </Link>
         {isLogin && (
           <Link to={getLandingPath(user?.role || user?.systemRole)}>
             {getLandingLabel(user?.role || user?.systemRole)}
