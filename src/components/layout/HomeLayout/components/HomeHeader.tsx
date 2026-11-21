@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Button, Layout, Popover, Avatar } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { CalendarOutlined, UserOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
@@ -72,12 +72,22 @@ const StyledHeader = styled(Header)`
         border-radius: 9999px;
         border: 1px solid #ccfbf1;
         letter-spacing: 0.2px;
-
-        @media (max-width: 640px) {
-          display: none;
-        }
       }
     }
+  }
+
+  /* Every section keeps its labels on one line; the breakpoints below drop
+     labels instead of letting the row squeeze or overflow (measured with
+     qa/probe-home-header.mjs for every role from 320 to 1920px) */
+  .left-section,
+  .right-section {
+    flex-shrink: 0;
+  }
+
+  .brand-badge,
+  .nav-section a,
+  .right-section .ant-btn {
+    white-space: nowrap;
   }
 
   .nav-section {
@@ -141,6 +151,26 @@ const StyledHeader = styled(Header)`
         border-color: #0f766e !important;
         color: #ffffff !important;
       }
+
+      /* The calendar icon replaces the label on phones only */
+      .ant-btn-icon {
+        display: none;
+      }
+    }
+
+    .user-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      line-height: 1.25;
+      min-width: 0;
+    }
+
+    .user-role {
+      font-size: 11.5px;
+      color: #0d9488;
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     .user-profile {
@@ -169,9 +199,74 @@ const StyledHeader = styled(Header)`
     }
   }
 
+  /* Signed in, the full row (badge, five links, email reminder, booking,
+     name) needs about 1400px: drop the decorative parts first */
+  @media (max-width: 1439px) {
+    .left-section .brand-badge {
+      display: none;
+    }
+    .nav-section {
+      gap: 16px;
+    }
+    .right-section .badge-label {
+      display: none;
+    }
+    .right-section .user-profile .username {
+      max-width: 120px;
+    }
+  }
+
+  /* Links still shown: the name and role give way to the avatar (the
+     account menu on it shows both) */
+  @media (min-width: 1025px) and (max-width: 1199px) {
+    .right-section .user-text {
+      display: none;
+    }
+  }
+
   @media (max-width: 1024px) {
     padding: 0 20px;
     .nav-section {
+      display: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    padding: 0 16px;
+
+    .right-section {
+      gap: 8px;
+    }
+    .right-section .user-text {
+      display: none;
+    }
+    .right-section .user-profile {
+      padding: 4px;
+    }
+    .right-section .btn-login {
+      padding: 0 8px;
+    }
+    /* For a guest it opens the same login page as "Đăng nhập" */
+    .right-section .btn-guest-booking {
+      display: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .right-section .btn-booking {
+      padding: 0 11px;
+    }
+    .right-section .btn-booking .ant-btn-icon {
+      display: inline-flex;
+    }
+    .right-section .btn-booking .booking-label {
+      display: none;
+    }
+  }
+
+  /* Only the narrowest phones: registering is also a tab of the login page */
+  @media (max-width: 339px) {
+    .right-section .btn-register {
       display: none;
     }
   }
@@ -306,9 +401,11 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
             {bookingPath && (
               <Button
                 className="btn-booking"
+                icon={<CalendarOutlined />}
+                aria-label="Đặt lịch khám"
                 onClick={() => navigate(bookingPath)}
               >
-                Đặt lịch khám
+                <span className="booking-label">Đặt lịch khám</span>
               </Button>
             )}
             <Popover
@@ -317,24 +414,11 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
               placement="bottomRight"
             >
               <div className="user-profile">
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    lineHeight: 1.25,
-                  }}
-                >
+                <div className="user-text">
                   <span className="username">
                     {user?.fullName || user?.username}
                   </span>
-                  <span
-                    style={{
-                      fontSize: '11.5px',
-                      color: '#0d9488',
-                      fontWeight: 600,
-                    }}
-                  >
+                  <span className="user-role">
                     {getRoleLabel(user?.role || user?.systemRole)}
                   </span>
                 </div>
@@ -355,13 +439,16 @@ const HomeHeader = ({ hideSearch: _hideSearch }: { hideSearch?: boolean }) => {
               Đăng nhập
             </Button>
             <Button
-              className="btn-login"
+              className="btn-login btn-register"
               onClick={openRegister}
               style={{ color: '#0d9488' }}
             >
               Đăng ký
             </Button>
-            <Button className="btn-booking" onClick={openLogin}>
+            <Button
+              className="btn-booking btn-guest-booking"
+              onClick={openLogin}
+            >
               Đặt lịch khám
             </Button>
           </>
