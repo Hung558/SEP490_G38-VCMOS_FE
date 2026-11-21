@@ -26,11 +26,11 @@ test('getRoleGroup splits Admin, clinic staff and pet owners', () => {
 
 test('each role has its own working page', () => {
   assert.equal(access.getLandingPath('PetOwner'), '/dashboard');
-  assert.equal(access.getLandingPath('Admin'), '/admin/users');
+  assert.equal(access.getLandingPath('Admin'), '/admin/reports');
   // Clinic staff work on reception (SCR-16, SCR-18) and the work queue of
   // vets and groomers (SCR-22, SCR-26)
-  assert.equal(access.getLandingPath('Receptionist'), '/clinic/appointments');
-  assert.equal(access.getLandingPath('receptionist'), '/clinic/appointments');
+  assert.equal(access.getLandingPath('Receptionist'), '/clinic/dashboard');
+  assert.equal(access.getLandingPath('receptionist'), '/clinic/dashboard');
   for (const role of ['Veterinarian', 'Groomer', 'groomer']) {
     assert.equal(access.getLandingPath(role), '/clinic/my-queue', role);
   }
@@ -69,8 +69,8 @@ test('"Đặt dịch vụ này" pre-selects the service in the owner booking for
 });
 
 test('only Admin, Receptionist and Veterinarian start on their working page after login', () => {
-  assert.equal(access.getPostLoginPath('Admin'), '/admin/users');
-  assert.equal(access.getPostLoginPath('receptionist'), '/clinic/appointments');
+  assert.equal(access.getPostLoginPath('Admin'), '/admin/reports');
+  assert.equal(access.getPostLoginPath('receptionist'), '/clinic/dashboard');
   assert.equal(access.getPostLoginPath('Veterinarian'), '/clinic/my-queue');
   // Pet owners, groomers and an unknown role (LoginForm falls back to 'user') start on the home page
   for (const role of ['PetOwner', 'Groomer', 'user', undefined]) {
@@ -80,8 +80,8 @@ test('only Admin, Receptionist and Veterinarian start on their working page afte
 
 test('the landing link is named after the page it opens', () => {
   assert.equal(access.getLandingLabel('PetOwner'), 'Bảng điều khiển');
-  assert.equal(access.getLandingLabel('Admin'), 'Trang quản trị');
-  assert.equal(access.getLandingLabel('Receptionist'), 'Tiếp nhận lịch hẹn');
+  assert.equal(access.getLandingLabel('Admin'), 'Tổng quan quản trị');
+  assert.equal(access.getLandingLabel('Receptionist'), 'Tổng quan lễ tân');
   assert.equal(access.getLandingLabel('Veterinarian'), 'Hàng đợi khám');
   assert.equal(access.getLandingLabel('Groomer'), 'Hàng đợi spa');
 });

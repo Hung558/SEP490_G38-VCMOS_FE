@@ -42,6 +42,11 @@ export const ListTitleRouter = () => {
       label: 'Quản lý chuồng',
     },
     {
+      key: ROUTER.FRONT_DESK_DASHBOARD,
+      label: 'Tổng quan lễ tân',
+      icon: <DashboardOutlined />,
+    },
+    {
       key: ROUTER.CLINIC_APPOINTMENTS,
       label: 'Tiếp nhận lịch hẹn',
     },
@@ -75,7 +80,7 @@ export const MenuItemBreadcrumbs = () => {
       key: ROUTER.ADMIN_PRODUCTS,
     },
     {
-      label: 'Thống kê',
+      label: 'Tổng quan quản trị',
       key: ROUTER.ADMIN_REPORTS,
     },
     {
@@ -140,6 +145,11 @@ export const MenuItemReceptionist = (): MenuItem[] => {
   return [
     ...MenuItemStaff(),
     {
+      key: ROUTER.FRONT_DESK_DASHBOARD,
+      label: 'Tổng quan lễ tân',
+      icon: <DashboardOutlined />,
+    },
+    {
       key: ROUTER.CLINIC_APPOINTMENTS,
       label: 'Tiếp nhận lịch hẹn',
       icon: <ScheduleOutlined />,
@@ -182,13 +192,18 @@ export const MenuItemAdmin = (): MenuItem[] => {
     },
     {
       key: ROUTER.ADMIN_REPORTS,
-      label: 'Thống kê',
+      label: 'Tổng quan quản trị',
       icon: <BarChartOutlined />,
     },
     {
       key: ROUTER.STAFF_SCHEDULES,
       label: 'Ca làm việc',
       icon: <CalendarOutlined />,
+    },
+    {
+      key: ROUTER.FRONT_DESK_DASHBOARD,
+      label: 'Tổng quan lễ tân',
+      icon: <DashboardOutlined />,
     },
     {
       key: ROUTER.CLINIC_APPOINTMENTS,

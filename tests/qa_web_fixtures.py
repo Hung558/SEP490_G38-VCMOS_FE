@@ -15,7 +15,7 @@ if BASE not in _ALLOWED_ORIGINS:
 
 TOKEN = 'be53-54-synthetic-fixture-token'
 OWNER = {
-    '_id': '000000000000000000000053', 'fullName': 'Chủ nuôi E2E QA',
+    '_id': '000000000000000000000053', 'fullName': 'Nguyễn Minh Anh',
     'role': 'PetOwner', 'status': 'Active', 'isEmailVerified': True,
 }
 OTHER_OWNER = '000000000000000000000054'

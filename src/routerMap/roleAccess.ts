@@ -12,11 +12,10 @@ interface Landing {
 }
 
 // Each role's working page: the landing link in the home header and user menu,
-// and where RoleRoute sends a role that opens a page it may not use. Admin works
-// on account management until the analytics dashboard (SCR-28) exists.
+// and where RoleRoute sends a role that opens a page it may not use.
 const LANDING: Record<RoleGroup, Landing> = {
   owner: { path: ROUTER.DASHBOARD, label: 'Bảng điều khiển' },
-  admin: { path: ROUTER.ADMIN_USERS, label: 'Trang quản trị' },
+  admin: { path: ROUTER.ADMIN_REPORTS, label: 'Tổng quan quản trị' },
   staff: { path: ROUTER.PROFILE, label: 'Trang cá nhân' },
 };
 
@@ -25,8 +24,8 @@ const LANDING: Record<RoleGroup, Landing> = {
 // (SCR-22, SCR-26)
 const ROLE_LANDING: Record<string, Landing> = {
   Receptionist: {
-    path: ROUTER.CLINIC_APPOINTMENTS,
-    label: 'Tiếp nhận lịch hẹn',
+    path: ROUTER.FRONT_DESK_DASHBOARD,
+    label: 'Tổng quan lễ tân',
   },
   Veterinarian: { path: ROUTER.STAFF_QUEUE, label: 'Hàng đợi khám' },
   Groomer: { path: ROUTER.STAFF_QUEUE, label: 'Hàng đợi spa' },
