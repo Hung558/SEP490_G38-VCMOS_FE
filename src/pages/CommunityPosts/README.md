@@ -72,3 +72,17 @@ real BE/Cloudinary. No persistent harness files or product routes are created.
 - Existing BE image removal unlinks the URL but does not delete Cloudinary assets.
 - `ak` CLI is not available on this host. No journal is written outside the
   explicitly owned paths; this document records module delivery evidence.
+
+## Update 2026-11-21 (branch `trung/community`, BE PR #55–#57)
+
+- The public feed, likes, comments, reports and Admin moderation now exist:
+  `/community`, `/community/posts/:postId`, `/admin/community-moderation`
+  (`services/CommunityService`, `services/CommunityModerationService`).
+- TimelineShare is no longer authored manually (K4). The editor writes
+  discussions only; a share is built by the BE from the pet's Done visits via
+  "Chia sẻ hành trình" on the pet profile (`POST /community-posts/timeline-share`,
+  BR-18). A pending TimelineShare can be deleted but not edited.
+- A Published post can be withdrawn from its detail ("Thu hồi bài viết",
+  `PATCH /community-posts/:id/withdraw`) and opened on the community.
+- `?compose=1` opens the editor on arrival ("Viết bài trao đổi" on the feed and
+  the home page).

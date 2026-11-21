@@ -22,4 +22,5 @@ export const breadcrumbMap: Record<string, string> = {
   invoices: 'Hóa đơn',
   community: 'Cộng đồng',
   'my-posts': 'Bài viết của tôi',
+  'community-moderation': 'Kiểm duyệt cộng đồng',
 };

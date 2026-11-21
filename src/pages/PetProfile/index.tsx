@@ -12,6 +12,7 @@ import DeletePetModal from '@/pages/Dashboard/components/DeletePetModal';
 import PetProfileView from './components/PetProfileView';
 import PetInpatientLogs from './components/PetInpatientLogs';
 import PetTimeline from './components/PetTimeline';
+import ShareTimelineModal from './components/ShareTimelineModal';
 import { getBookingLink } from '@/pages/Dashboard/dashboardTabs';
 import { PetProfileWrapper } from './components/styles';
 
@@ -33,6 +34,9 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [petToDelete, setPetToDelete] = useState<Pet | null>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  // Bumped after a share so the timeline reloads its "shared posts" list
+  const [timelineVersion, setTimelineVersion] = useState(0);
   const requestVersion = useRef(0);
 
   const fetchPet = useCallback(async () => {
@@ -134,6 +138,9 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
           onEdit={() => setIsFormOpen(true)}
           onDelete={() => setPetToDelete(pet)}
           onBookAppointment={() => navigate(getBookingLink(pet._id))}
+          onShare={
+            pet.status === 'Active' ? () => setIsShareOpen(true) : undefined
+          }
         />
       ) : (
         <PetProfileView pet={pet} />
@@ -144,7 +151,12 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
       )}
 
       <PetTimeline
-        key={JSON.stringify([user?._id, effectiveRole, pet._id])}
+        key={JSON.stringify([
+          user?._id,
+          effectiveRole,
+          pet._id,
+          timelineVersion,
+        ])}
         petId={pet._id}
         invoiceRole={effectiveRole}
         sharedPostsVisible={isOwner}
@@ -164,6 +176,16 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
             onCancel={() => setPetToDelete(null)}
             onConfirm={handleDeletePet}
           />
+
+          {pet.status === 'Active' && (
+            <ShareTimelineModal
+              open={isShareOpen}
+              petId={pet._id}
+              petName={pet.name}
+              onClose={() => setIsShareOpen(false)}
+              onShared={() => setTimelineVersion(value => value + 1)}
+            />
+          )}
         </>
       )}
     </PetProfileWrapper>
