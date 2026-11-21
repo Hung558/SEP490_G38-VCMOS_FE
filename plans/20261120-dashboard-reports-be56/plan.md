@@ -103,3 +103,10 @@ Use bare response JSON through existing axios interceptor, domain service + urls
 - Test display data uses realistic Vietnamese names, not E2E/QA labels. Malicious markup is isolated to the explicit escaping test, not the normal preview dataset.
 - Remaining limitation: mocked API integration, not a live database end-to-end acceptance run. Build retains the existing large-chunk warning.
 - GitHub main ruleset 25630747 requires one approving review. Publishing uses a feature branch and PR; no self-approval or admin/protection bypass is permitted.
+
+## Publication receipt
+
+- Pushed feature branch feat/role-dashboards-be56 and opened PR #45: https://github.com/Hung558/SEP490_G38-VCMOS_FE/pull/45.
+- Verified application/test commit da331ea3598cac647ee47bc18e4b7bf9541319fd. Subsequent publication-receipt commit changes documentation only.
+- GitHub reports OPEN / BLOCKED / REVIEW_REQUIRED; normal merge attempt was rejected by main protection. No remote CI checks were configured/reported in this PR snapshot; local checks above are the verification evidence.
+- Remaining shipping step: one external approving review, then normal merge. Auto-merge is disabled for this repository. No branch-protection changes or admin bypass performed.
