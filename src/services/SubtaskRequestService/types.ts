@@ -22,6 +22,8 @@ export interface SubtaskRequest {
   }>;
   assignedStaffId: StaffRef;
   requestedById: StaffRef;
+  /** Dịch vụ trong danh mục (nếu có); BE tính phí sub-task theo dịch vụ này */
+  serviceId?: Ref<{ code?: string; name?: string; category?: string }>;
   taskType: string;
   instructions?: string;
   status: SubtaskStatus;

@@ -4,6 +4,7 @@ import {
   addProductLine,
   buildCreateInvoicePayload,
   buildInvoiceListQuery,
+  collectBillableSubtasks,
   collectPrescribedProducts,
   filterInvoicesByPet,
   formatCountdown,
@@ -140,6 +141,64 @@ test('H3: prescriptions are listed once per product with name and unit', () => {
     { productId: 'm1', name: 'Amoxicillin (viên)', lines: 2 },
     { productId: 'm2', name: 'Men tiêu hóa', lines: 1 },
   ]);
+});
+
+test('BE PR #58: only completed sub-tasks linked to a catalog service are billed', () => {
+  const catalog = {
+    s1: { name: 'Xét nghiệm máu', basePrice: 200000 },
+    s2: { name: 'Chụp X-quang', basePrice: 0 },
+  };
+  const lines = collectBillableSubtasks(
+    [
+      {
+        _id: 't1',
+        status: 'Completed',
+        taskType: 'xét nghiệm máu',
+        serviceId: { _id: 's1', name: 'Xét nghiệm máu' },
+      },
+      // Not done yet: not billed
+      { _id: 't2', status: 'InProgress', serviceId: { _id: 's1' } },
+      { _id: 't3', status: 'Pending', serviceId: 's2' },
+      // Typed by hand or picked from the common list: no service, not billed
+      { _id: 't4', status: 'Completed', taskType: 'Siêu âm', serviceId: null },
+      { _id: 't5', status: 'Completed', taskType: 'Cạo lông' },
+      // Unpopulated ref: name from the catalog; a 0 price is still a price
+      { _id: 't6', status: 'Completed', taskType: 'X-quang', serviceId: 's2' },
+      // The same service ordered twice is two lines, like on the bill
+      { _id: 't7', status: 'Completed', serviceId: { _id: 's1' } },
+      // Listed twice (two fetches): counted once
+      { _id: 't1', status: 'Completed', serviceId: { _id: 's1' } },
+    ],
+    catalog
+  );
+  assert.deepEqual(lines, [
+    { id: 't1', serviceId: 's1', name: 'Xét nghiệm máu', price: 200000 },
+    { id: 't6', serviceId: 's2', name: 'Chụp X-quang', price: 0 },
+    { id: 't7', serviceId: 's1', name: 'Xét nghiệm máu', price: 200000 },
+  ]);
+});
+
+test('BE PR #58: without the catalog the sub-task line has no price', () => {
+  assert.deepEqual(
+    collectBillableSubtasks([
+      {
+        _id: 't1',
+        status: 'Completed',
+        taskType: 'Siêu âm',
+        serviceId: 'gone',
+      },
+      {
+        _id: 't2',
+        status: 'Completed',
+        serviceId: { _id: 's9', name: 'Siêu âm bụng' },
+      },
+    ]),
+    [
+      { id: 't1', serviceId: 'gone', name: 'Siêu âm' },
+      { id: 't2', serviceId: 's9', name: 'Siêu âm bụng' },
+    ]
+  );
+  assert.deepEqual(collectBillableSubtasks([]), []);
 });
 
 test('H3: the create body merges lines and drops empty arrays', () => {
