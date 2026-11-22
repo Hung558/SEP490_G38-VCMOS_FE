@@ -25,6 +25,7 @@ import MedicalRecordService, {
 import InvoiceService, {
   addProductLine,
   buildCreateInvoicePayload,
+  collectBillableSubtasks,
   collectPrescribedProducts,
   formatVnd,
   isStillAdmittedError,
@@ -32,9 +33,20 @@ import InvoiceService, {
   readInvoiceError,
   RETAIL_QUANTITY_MAX,
 } from '@/services/InvoiceService';
-import type { PrescribedProduct } from '@/services/InvoiceService';
+import type {
+  BillableSubtask,
+  PrescribedProduct,
+} from '@/services/InvoiceService';
 import type { Product } from '@/services/ProductService';
+import ServiceService from '@/services/ServiceService';
+import SubtaskRequestService from '@/services/SubtaskRequestService';
 import ProductPicker from './ProductPicker';
+
+const isLoadFailure = (result: PromiseSettledResult<unknown>) =>
+  result.status === 'rejected' &&
+  !axios.isCancel(result.reason) &&
+  (result.reason as { response?: { status?: number } })?.response?.status !==
+    404;
 
 const { Text, Title } = Typography;
 
@@ -52,8 +64,10 @@ interface CreateInvoicePanelProps {
 }
 
 /**
- * H3 (UC-45): dịch vụ đã xong và thuốc đã kê do BE tự gom. Bệnh án không lưu số
- * lượng thuốc, nên lễ tân nhập ở đây; BE chỉ nhận số lượng này lúc lập hóa đơn.
+ * H3 (UC-45): dịch vụ đã xong, chỉ định (sub-task) đã xong có gắn dịch vụ trong
+ * danh mục và thuốc đã kê do BE tự gom; ở đây chỉ hiện trước cho lễ tân xem.
+ * Bệnh án không lưu số lượng thuốc, nên lễ tân nhập ở đây; BE chỉ nhận số lượng
+ * này lúc lập hóa đơn.
  */
 const CreateInvoicePanel = ({
   orderId,
@@ -64,6 +78,7 @@ const CreateInvoicePanel = ({
   const [doneServices, setDoneServices] = useState<OnlineAppointmentService[]>(
     []
   );
+  const [subtasks, setSubtasks] = useState<BillableSubtask[]>([]);
   const [prescribed, setPrescribed] = useState<PrescribedProduct[]>([]);
   const [rxQuantities, setRxQuantities] = useState<Record<string, number>>({});
   const [retail, setRetail] = useState<InvoiceProductLine[]>([]);
@@ -89,30 +104,55 @@ const CreateInvoicePanel = ({
         const medical = done.filter(s =>
           isMedicalServiceCategory(getServiceRefCategory(s.serviceId))
         );
-        const records = await Promise.allSettled(
-          medical.map(s => MedicalRecordService.getByService(s._id, { signal }))
-        );
+        const [records, subtaskLists] = await Promise.all([
+          Promise.allSettled(
+            medical.map(s =>
+              MedicalRecordService.getByService(s._id, { signal })
+            )
+          ),
+          // The BE only bills sub-tasks of Done services
+          Promise.allSettled(
+            done.map(s => SubtaskRequestService.listForService(s._id, signal))
+          ),
+        ]);
         if (signal.aborted) return;
         const found = records.flatMap(r =>
           r.status === 'fulfilled' ? [r.value] : []
         );
-        const failed = records.some(
-          r =>
-            r.status === 'rejected' &&
-            !axios.isCancel(r.reason) &&
-            (r.reason as { response?: { status?: number } })?.response
-              ?.status !== 404
+        const allSubtasks = subtaskLists.flatMap(r =>
+          r.status === 'fulfilled' ? r.value.data || [] : []
         );
+        let billable = collectBillableSubtasks(allSubtasks);
+        if (billable.length) {
+          // The sub-task list leaves out prices: read them from the catalog.
+          // Without it the lines still show, priced "theo danh mục".
+          try {
+            const { services } = await ServiceService.listServices(undefined, {
+              signal,
+            });
+            billable = collectBillableSubtasks(
+              allSubtasks,
+              Object.fromEntries((services || []).map(s => [s._id, s]))
+            );
+          } catch (err) {
+            if (axios.isCancel(err) || signal.aborted) return;
+          }
+        }
+        if (signal.aborted) return;
         setDoneServices(done);
+        setSubtasks(billable);
         const products = collectPrescribedProducts(found);
         setPrescribed(products);
         setRxQuantities(
           Object.fromEntries(products.map(p => [p.productId, 1]))
         );
-        if (failed)
-          setLoadWarning(
-            'Không tải được một phần đơn thuốc. Hệ thống vẫn tính thuốc đã kê, số lượng mặc định là 1.'
-          );
+        const warnings = [
+          records.some(isLoadFailure) &&
+            'Không tải được một phần đơn thuốc. Hệ thống vẫn tính thuốc đã kê, số lượng mặc định là 1.',
+          subtaskLists.some(isLoadFailure) &&
+            'Không tải được một phần chỉ định đã làm. Hệ thống vẫn tự tính các chỉ định đã hoàn thành có trong danh mục dịch vụ.',
+        ].filter(Boolean);
+        if (warnings.length) setLoadWarning(warnings.join(' '));
       } catch (err) {
         if (axios.isCancel(err) || signal.aborted) return;
         setLoadWarning(
@@ -191,6 +231,38 @@ const CreateInvoicePanel = ({
           viện, hệ thống tự tính thêm tiền nội trú theo ngày.
         </Text>
       </div>
+
+      {subtasks.length > 0 && (
+        <div>
+          <Title level={5}>Chỉ định đã hoàn thành</Title>
+          <List
+            size="small"
+            bordered
+            rowKey="id"
+            dataSource={subtasks}
+            renderItem={subtask => (
+              <List.Item
+                extra={
+                  <Text type="secondary">
+                    {subtask.price !== undefined
+                      ? formatVnd(subtask.price)
+                      : 'Giá theo danh mục'}
+                  </Text>
+                }
+              >
+                {subtask.name}
+              </List.Item>
+            )}
+          />
+          <Text
+            type="secondary"
+            style={{ display: 'block', marginTop: 6, fontSize: 12 }}
+          >
+            Bác sĩ giao thêm trong lúc khám, đã làm xong và có trong danh mục
+            dịch vụ nên được tính như một dịch vụ.
+          </Text>
+        </div>
+      )}
 
       <div>
         <Title level={5}>Thuốc đã kê</Title>

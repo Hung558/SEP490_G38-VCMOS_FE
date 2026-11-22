@@ -450,6 +450,57 @@ export const collectPrescribedProducts = (
   return [...byId.values()];
 };
 
+export interface BillableSubtask {
+  /** Sub-task id */
+  id: string;
+  serviceId: string;
+  /** Name on the bill: the catalog service's name */
+  name: string;
+  /** Catalog price, which the BE takes when the bill is made */
+  price?: number;
+}
+
+/**
+ * The sub-tasks the BE puts on the bill (`createInvoice`, BE PR #58): those
+ * `Completed` and linked to a catalog service, one Service line each at that
+ * service's `basePrice`. A sub-task with no service is not billed. Pass only
+ * the sub-tasks of Done services: the BE does not look at the others.
+ */
+export const collectBillableSubtasks = (
+  subtasks: readonly {
+    _id: string;
+    status?: string;
+    taskType?: string;
+    serviceId?: string | { _id: string; name?: string } | null;
+  }[],
+  catalog: Readonly<
+    Record<string, { name?: string; basePrice?: number } | undefined>
+  > = {}
+): BillableSubtask[] => {
+  const seen = new Set<string>();
+  const lines: BillableSubtask[] = [];
+  for (const subtask of subtasks) {
+    if (subtask.status !== 'Completed' || seen.has(subtask._id)) continue;
+    const ref = subtask.serviceId;
+    const serviceId = typeof ref === 'string' ? ref : ref?._id;
+    if (!serviceId) continue;
+    seen.add(subtask._id);
+    const listed = catalog[serviceId];
+    const price = listed?.basePrice;
+    lines.push({
+      id: subtask._id,
+      serviceId,
+      name:
+        (typeof ref === 'object' ? ref?.name : undefined) ||
+        listed?.name ||
+        subtask.taskType ||
+        'Chỉ định',
+      ...(typeof price === 'number' ? { price } : {}),
+    });
+  }
+  return lines;
+};
+
 /** Body of POST /api/invoices: merged lines, BE limits, no empty arrays */
 export const buildCreateInvoicePayload = (input: {
   orderId: string;
