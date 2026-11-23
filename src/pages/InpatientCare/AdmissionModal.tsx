@@ -7,7 +7,7 @@ import {
   admitInpatient,
   type InpatientRecord,
 } from '@/services/InpatientRecordService';
-import { canUseInpatientCage } from '@/services/InpatientRecordService/helpers';
+import { getInpatientCageAvailability } from '@/services/InpatientRecordService/helpers';
 import type { Cage } from '@/types';
 
 interface AdmissionValues {
@@ -71,7 +71,8 @@ const AdmissionModal = ({
     return () => abort.abort();
   }, [refresh]);
 
-  const choices = cages.filter(cage => canUseInpatientCage(cage, petWeight));
+  const availability = getInpatientCageAvailability(cages, petWeight);
+  const { choices } = availability;
   const save = async ({
     cageId,
     initialDiagnosis,
@@ -161,7 +162,8 @@ const AdmissionModal = ({
           <Alert
             type="warning"
             showIcon
-            message="Không còn chuồng nội trú trống phù hợp."
+            message={availability.emptyMessage}
+            description={availability.description}
             action={
               <Button
                 size="small"
@@ -176,6 +178,11 @@ const AdmissionModal = ({
           <Form.Item
             name="cageId"
             label="Chuồng nội trú"
+            extra={
+              !loading && !loadError && choices.length
+                ? availability.description
+                : undefined
+            }
             rules={[{ required: true, message: 'Chọn một chuồng nội trú' }]}
           >
             <Select

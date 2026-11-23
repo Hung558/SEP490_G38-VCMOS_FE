@@ -46,7 +46,6 @@ import StaffService, {
 import { serviceCategoryLabels } from '@/services/ServiceService';
 import type { ServiceCategory } from '@/services/ServiceService';
 import { getRoleLabel } from '@/constants/roles';
-import { isReceptionIntakeEnabled } from './receptionIntakeFeature';
 import { receptionCageLabel } from './receptionCages';
 import {
   buildCheckInAssignments,
@@ -134,6 +133,7 @@ const CheckInConfirmModal = ({
       cancelButtonProps={{ disabled: submitting }}
       destroyOnHidden
       width={640}
+      styles={{ body: { maxHeight: '65vh', overflowY: 'auto' } }}
     >
       <Space
         direction="vertical"
@@ -346,28 +346,7 @@ const CheckInForm = ({
   const submit = async (values: CheckInFormValues) => {
     if (submitting) return;
 
-    const intake = isReceptionIntakeEnabled
-      ? readReceptionIntake(values.intake)
-      : undefined;
-
-    const rawSymptoms = values.intake?.symptoms?.trim();
-    const rawCondition = values.intake?.initialCondition?.trim();
-    if (
-      isReceptionIntakeEnabled &&
-      ((rawSymptoms && !rawCondition) || (!rawSymptoms && rawCondition))
-    ) {
-      form.setFields([
-        {
-          name: ['intake', 'symptoms'],
-          errors: !rawSymptoms ? ['Vui lòng nhập triệu chứng ban đầu.'] : [],
-        },
-        {
-          name: ['intake', 'initialCondition'],
-          errors: !rawCondition ? ['Vui lòng nhập tình trạng ban đầu.'] : [],
-        },
-      ]);
-      return;
-    }
+    const intake = readReceptionIntake(values.intake);
 
     if (
       values.cageId &&
@@ -485,74 +464,64 @@ const CheckInForm = ({
       layout="vertical"
       disabled={submitting}
       onFinish={submit}
+      scrollToFirstError
     >
-      {isReceptionIntakeEnabled && (
-        <>
-          <Text strong>Phiếu tiếp nhận ban đầu</Text>
-          <Form.Item<CheckInFormValues>
-            label="Triệu chứng ban đầu"
-            style={{ marginBottom: 12 }}
-            name={['intake', 'symptoms']}
-            dependencies={[['intake', 'initialCondition']]}
-            rules={[
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  const initialCondition = getFieldValue([
-                    'intake',
-                    'initialCondition',
-                  ]);
-                  const hasInitial =
-                    typeof initialCondition === 'string' &&
-                    initialCondition.trim().length > 0;
-                  const hasSymptoms =
-                    typeof value === 'string' && value.trim().length > 0;
-                  if (hasInitial && !hasSymptoms) {
-                    return Promise.reject(
-                      new Error('Vui lòng nhập triệu chứng ban đầu.')
-                    );
-                  }
-                  return Promise.resolve();
-                },
-              }),
-            ]}
-          >
-            <Input.TextArea
-              rows={2}
-              maxLength={RECEPTION_INTAKE_FIELD_LIMIT}
-              showCount
-            />
-          </Form.Item>
-          <Form.Item<CheckInFormValues>
-            label="Tình trạng ban đầu"
-            style={{ marginBottom: 12 }}
-            name={['intake', 'initialCondition']}
-            dependencies={[['intake', 'symptoms']]}
-            rules={[
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  const symptoms = getFieldValue(['intake', 'symptoms']);
-                  const hasSymptoms =
-                    typeof symptoms === 'string' && symptoms.trim().length > 0;
-                  const hasInitial =
-                    typeof value === 'string' && value.trim().length > 0;
-                  if (hasSymptoms && !hasInitial) {
-                    return Promise.reject(
-                      new Error('Vui lòng nhập tình trạng ban đầu.')
-                    );
-                  }
-                  return Promise.resolve();
-                },
-              }),
-            ]}
-          >
-            <Input.TextArea
-              rows={2}
-              maxLength={RECEPTION_INTAKE_FIELD_LIMIT}
-              showCount
-            />
-          </Form.Item>
-        </>
-      )}
+      <Divider orientation="left" plain style={{ margin: '4px 0 8px' }}>
+        Phiếu tiếp nhận ban đầu
+      </Divider>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+        Không bắt buộc. Có thể bỏ trống cả hai ô để tiếp nhận. Nếu ghi nhận
+        phiếu, vui lòng nhập cả triệu chứng và tình trạng ban đầu.
+      </Text>
+      {(
+        [
+          {
+            name: 'symptoms',
+            label: 'Triệu chứng ban đầu',
+            other: 'initialCondition',
+            placeholder: 'Ví dụ: Bỏ ăn từ hôm qua, ho nhẹ vào buổi sáng',
+            missingMessage: 'Vui lòng nhập triệu chứng ban đầu.',
+          },
+          {
+            name: 'initialCondition',
+            label: 'Tình trạng ban đầu',
+            other: 'symptoms',
+            placeholder: 'Ví dụ: Tỉnh táo, đi lại được, vẫn uống nước',
+            missingMessage: 'Vui lòng nhập tình trạng ban đầu.',
+          },
+        ] as const
+      ).map(field => (
+        <Form.Item<CheckInFormValues>
+          key={field.name}
+          label={field.label}
+          style={{ marginBottom: 12 }}
+          name={['intake', field.name]}
+          dependencies={[['intake', field.other]]}
+          rules={[
+            ({ getFieldValue }) => ({
+              validator(_, value: string | undefined) {
+                const otherValue = getFieldValue(['intake', field.other]);
+                if (otherValue?.trim() && !value?.trim()) {
+                  return Promise.reject(new Error(field.missingMessage));
+                }
+                return Promise.resolve();
+              },
+            }),
+            {
+              max: RECEPTION_INTAKE_FIELD_LIMIT,
+              transform: (value: string | undefined) => value?.trim(),
+              message: `${field.label} tối đa ${RECEPTION_INTAKE_FIELD_LIMIT} ký tự.`,
+            },
+          ]}
+        >
+          <Input.TextArea
+            rows={2}
+            maxLength={RECEPTION_INTAKE_FIELD_LIMIT}
+            showCount
+            placeholder={field.placeholder}
+          />
+        </Form.Item>
+      ))}
 
       <Divider orientation="left" plain style={{ margin: '4px 0 12px' }}>
         Chuồng

@@ -1,3 +1,4 @@
+// Rollout gate for walk-in intake; appointment check-in always shows optional intake.
 export const isReceptionIntakeEnabled =
   import.meta.env.VITE_ENABLE_RECEPTION_INTAKE === 'true';
 

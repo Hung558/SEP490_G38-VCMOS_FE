@@ -210,3 +210,56 @@ test('routing does not substitute a different specialty or an unscheduled vet wh
     []
   );
 });
+
+test('each intake field accepts 500 trimmed characters and rejects 501', () => {
+  for (const field of ['symptoms', 'initialCondition']) {
+    const complete = { symptoms: 'Ho nhẹ', initialCondition: 'Tỉnh táo' };
+    const boundary = { ...complete, [field]: ` ${'a'.repeat(500)} ` };
+    assert.equal(buildCheckInPayload(boundary).intake[field].length, 500);
+    assert.throws(
+      () => buildCheckInPayload({ ...complete, [field]: 'a'.repeat(501) }),
+      /500 ký tự/
+    );
+  }
+});
+
+test('blank optional intake keeps staff and cage selection without leaking metadata or notes', () => {
+  const serviceAssignments = [
+    { appointmentServiceId: ' service-1 ', assignedStaffId: ' staff-1 ' },
+  ];
+  const selection = {
+    cageId: ' cage-1 ',
+    requiresIsolation: true,
+    serviceAssignments,
+  };
+  const expected = {
+    cageId: 'cage-1',
+    requiresIsolation: true,
+    serviceAssignments: [
+      { appointmentServiceId: 'service-1', assignedStaffId: 'staff-1' },
+    ],
+  };
+  assert.deepEqual(
+    buildCheckInRequest({
+      ...selection,
+      intake: { symptoms: '  ', initialCondition: '\n ' },
+    }),
+    expected
+  );
+  assert.deepEqual(
+    buildCheckInRequest({
+      ...selection,
+      intake: {
+        symptoms: ' Ho nhẹ ',
+        initialCondition: ' Tỉnh táo ',
+        recordedBy: 'forged-user',
+        recordedAt: 'forged-time',
+      },
+      note: 'Do not overwrite owner notes',
+    }),
+    {
+      ...expected,
+      intake: { symptoms: 'Ho nhẹ', initialCondition: 'Tỉnh táo' },
+    }
+  );
+});

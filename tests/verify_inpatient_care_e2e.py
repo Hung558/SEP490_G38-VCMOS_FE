@@ -1,6 +1,6 @@
 """Desktop Chromium E2E for FE inpatient care, using BE #46 (b9d476a) fixtures.
 
-Run against the integrated FE, not the pre-feature QA checkout. Start Vite
+Run against the integrated FE, not the pre-feature checkout. Start Vite
 with VITE_API_ROOT=/api on a dedicated loopback listener at port 3000
 (--strictPort) and set FE_BASE_URL to that origin. No request writes live data.
 Run: python tests/verify_inpatient_care_e2e.py -v
@@ -32,18 +32,18 @@ LOGS = f'{DETAIL}/daily-logs'
 DISCHARGE = f'{DETAIL}/discharge'
 PET_LOGS = f'{STAYS}/pets/{PET}/daily-logs'
 TOKEN = 'inpatient-qa-synthetic-token'
-PET_NAME, EXAM_PET_NAME = 'Milo Nội trú QA', 'Bông Nhập viện QA'
-INITIAL_DIAGNOSIS, TREATMENT = 'Chẩn đoán ban đầu QA', 'Kế hoạch điều trị QA'
-LOG_TEXT, LOG_NOTES = 'Tỉnh táo, đã ăn sáng (QA)', 'Theo dõi thêm vào chiều (QA)'
-OWNER_LOG_NOTES, OLD_LOG_NOTES = 'Nhật ký riêng của Milo (QA)', 'Nhật ký đợt trước của Milo (QA)'
+PET_NAME, EXAM_PET_NAME = 'Milo', 'Bông'
+INITIAL_DIAGNOSIS, TREATMENT = 'Mất nước nhẹ, cần theo dõi', 'Bù dịch và theo dõi thể trạng'
+LOG_TEXT, LOG_NOTES = 'Tỉnh táo, đã ăn sáng', 'Theo dõi thêm vào chiều'
+OWNER_LOG_NOTES, OLD_LOG_NOTES = 'Nhật ký riêng của Milo', 'Nhật ký đợt trước của Milo'
 CAGE_CONFLICT = 'Lồng đã có thú cưng khác'
-VETERINARIAN = {'_id': VET, 'code': 'VET-INPATIENT-QA', 'fullName': 'Bác sĩ Nội trú QA'}
-SOAP = {'subjectiveNote': 'Triệu chứng SOAP QA', 'objectiveNote': 'Khám SOAP QA',
-        'assessment': 'Đánh giá SOAP QA', 'plan': 'Kế hoạch SOAP QA'}
+VETERINARIAN = {'_id': VET, 'code': 'VET-DQ01', 'fullName': 'Bác sĩ Đặng Quang'}
+SOAP = {'subjectiveNote': 'Triệu chứng SOAP', 'objectiveNote': 'Khám SOAP',
+        'assessment': 'Đánh giá SOAP', 'plan': 'Kế hoạch SOAP'}
 
 
 def make_pet(pet_id, name, *, owner=OWNER, status='Active', weight=8):
-    return {'_id': pet_id, 'ownerId': owner, 'name': name, 'code': f'PET-{pet_id[-4:]}-QA',
+    return {'_id': pet_id, 'ownerId': owner, 'name': name, 'code': f'PET-{pet_id[-4:]}',
             'species': 'Chó', 'weight': weight, 'status': status, 'createdAt': ADMITTED_AT, 'updatedAt': NOW}
 
 
@@ -83,27 +83,28 @@ class InpatientCareE2E(unittest.TestCase):
         self.reads, self.writes, self.unhandled, self.page_errors = [], [], [], []
         self.admission_conflict = False
         self.owner_log_failures = 0
+        self.cage_failures = 0
         self.exam_status, self.exam_order_status = 'Done', 'WaitOwner'
         self.pets = {
             PET: make_pet(PET, PET_NAME),
             EXAM_PET: make_pet(EXAM_PET, EXAM_PET_NAME),
-            DELETED: make_pet(DELETED, 'Pet đã xóa QA', status='Deleted'),
-            FOREIGN: make_pet(FOREIGN, 'Pet người khác QA', owner=OTHER),
+            DELETED: make_pet(DELETED, 'Pet đã xóa', status='Deleted'),
+            FOREIGN: make_pet(FOREIGN, 'Pet người khác', owner=OTHER),
         }
         self.cages = {c['_id']: c for c in (
-            make_cage(WARD, 'QA-46-WARD-ASSIGNED', status='Occupied'),
-            make_cage(WARD_FIRST, 'QA-46-WARD-FIRST'),
-            make_cage(WARD_BACKUP, 'QA-46-WARD-BACKUP', weight=8),
-            make_cage(WARD_SMALL, 'QA-46-WARD-SMALL', weight=7),
-            make_cage(WARD_BUSY, 'QA-46-WARD-BUSY', status='Occupied'),
-            make_cage(HOLD, 'QA-46-HOLD', zone='Holding'),
+            make_cage(WARD, 'Nội trú A-01', status='Occupied'),
+            make_cage(WARD_FIRST, 'Nội trú A-02'),
+            make_cage(WARD_BACKUP, 'Nội trú A-03', weight=8),
+            make_cage(WARD_SMALL, 'Nội trú B-01', weight=7),
+            make_cage(WARD_BUSY, 'Nội trú B-02', status='Occupied'),
+            make_cage(HOLD, 'Khu chờ A-01', zone='Holding'),
         )}
         seed = self.make_record(RECORD, PET, ORDER, WARD)
         seed['dailyLogs'] = [self.make_log(LOG, '2026-11-15', observations=OWNER_LOG_NOTES)]
         self.records = {RECORD: seed}
         # An earlier stay of the same pet: owner logs span stays, vet default list does not.
         old = self.make_record(OLD_RECORD, PET, ORDER, WARD)
-        old.update(status='Discharged', dischargedAt=ADMITTED_AT, initialDiagnosis='Hồ sơ cũ QA')
+        old.update(status='Discharged', dischargedAt=ADMITTED_AT, initialDiagnosis='Hồ sơ cũ')
         old['dailyLogs'] = [self.make_log(OLD_LOG, '2026-11-14', notes=OLD_LOG_NOTES)]
         self.records[OLD_RECORD] = old
         self.context = self.browser.new_context(viewport={'width': 1440, 'height': 900},
@@ -127,13 +128,13 @@ class InpatientCareE2E(unittest.TestCase):
                 'dischargedAt': None, 'initialDiagnosis': diagnosis, 'treatmentPlan': plan, 'dailyLogs': []}
 
     def order(self, order_id, pet_id):
-        code = 'APT-EXAM-46-QA' if order_id == EXAM_ORDER else 'APT-WARD-46-QA'
+        code = 'APT-ABW23Q' if order_id == EXAM_ORDER else 'APT-KLM67P'
         return {'_id': order_id, 'code': code, 'date': DAY, 'petId': pet_id, 'ownerId': OWNER,
                 'derivedStatus': self.exam_order_status if order_id == EXAM_ORDER else 'WaitOwner', 'isOnline': True}
 
     def exam(self):
         return {'_id': EXAM, 'orderId': self.order(EXAM_ORDER, EXAM_PET),
-                'serviceId': {'_id': SERVICE, 'name': 'Khám tổng quát QA', 'category': 'Examination'},
+                'serviceId': {'_id': SERVICE, 'name': 'Khám tổng quát', 'category': 'Examination'},
                 'assignedStaffId': {**VETERINARIAN, 'role': 'Veterinarian'},
                 'status': self.exam_status, 'sequenceNo': 1, 'queueNo': 1}
 
@@ -154,7 +155,7 @@ class InpatientCareE2E(unittest.TestCase):
             return route.abort()
         if req.header_value('authorization') != f'Bearer {TOKEN}':
             self.unhandled.append((method, path, 'missing fixture token'))
-            return route.fulfill(status=401, json={'message': 'Thiếu phiên QA'})
+            return route.fulfill(status=401, json={'message': 'Thiếu phiên'})
         query = parse_qs(url.query)
         try:
             body = None
@@ -207,6 +208,9 @@ class InpatientCareE2E(unittest.TestCase):
             if pet_id in self.pets:
                 return 200, {'pet': self.pets[pet_id], 'records': []}
         if method == 'GET' and path == '/api/cages' and self.role == 'Veterinarian':
+            if self.cage_failures:
+                self.cage_failures -= 1
+                return 503, {'message': 'Không tải được chuồng'}
             items = [c for c in self.cages.values() if query.get('status', [c['status']]) == [c['status']]]
             return 200, {'success': True, 'data': paginate(items, query)}
         if method == 'GET' and path == '/api/products':
@@ -251,7 +255,7 @@ class InpatientCareE2E(unittest.TestCase):
         if method == 'POST' and path == STAYS:
             cage = self.cages.get(body['cageId'])
             if body['petId'] != EXAM_PET or body['orderId'] != EXAM_ORDER or not cage:
-                return 400, {'message': 'Thông tin nhập viện QA không khớp'}
+                return 400, {'message': 'Thông tin nhập viện không khớp'}
             if cage['zone'] != 'InpatientWard' or cage['maxWeightKg'] < self.pets[EXAM_PET]['weight']:
                 return 400, {'message': 'Lồng không phù hợp'}
             if self.admission_conflict and cage['_id'] == WARD_FIRST:
@@ -290,7 +294,7 @@ class InpatientCareE2E(unittest.TestCase):
 
     def login(self, role='Veterinarian'):
         self.role = role
-        profile = VETERINARIAN if role == 'Veterinarian' else {'_id': OWNER, 'fullName': 'Chủ nuôi QA'}
+        profile = VETERINARIAN if role == 'Veterinarian' else {'_id': OWNER, 'fullName': 'Nguyễn Minh Anh'}
         user = {**profile, 'email': 'inpatient@example.test', 'role': role, 'status': 'Active', 'isEmailVerified': True}
         self.context.add_init_script(f"localStorage.setItem('user-info', {json.dumps(json.dumps(user))});"
                                      f"localStorage.setItem('token', {json.dumps(TOKEN)});"
@@ -369,8 +373,8 @@ class InpatientCareE2E(unittest.TestCase):
         combo = modal.get_by_role('combobox', name=re.compile('Chuồng nội trú', re.I))
         diagnosis = field(modal, 'Chẩn đoán ban đầu')
         plan = field(modal, 'Kế hoạch điều trị')
-        diagnosis.fill('Theo dõi mất nước QA')
-        plan.fill('Bù dịch và theo dõi QA')
+        diagnosis.fill('Theo dõi mất nước')
+        plan.fill('Bù dịch và theo dõi')
         expect(combo).to_be_enabled()
         combo.press('ArrowDown')
         options = self.page.locator('.ant-select-dropdown:visible .ant-select-item-option')
@@ -383,8 +387,8 @@ class InpatientCareE2E(unittest.TestCase):
         with self.response('POST', STAYS) as first:
             action(modal, 'Nhập viện').click()
         self.assertEqual(first.value.status, 409)
-        expected = {'petId': EXAM_PET, 'orderId': EXAM_ORDER, 'initialDiagnosis': 'Theo dõi mất nước QA',
-                    'treatmentPlan': 'Bù dịch và theo dõi QA'}
+        expected = {'petId': EXAM_PET, 'orderId': EXAM_ORDER, 'initialDiagnosis': 'Theo dõi mất nước',
+                    'treatmentPlan': 'Bù dịch và theo dõi'}
         self.assertEqual(self.writes, [('POST', STAYS, {**expected, 'cageId': WARD_FIRST})])
         expect(modal.get_by_text(CAGE_CONFLICT, exact=True).first).to_be_visible()
         expect(diagnosis).to_have_value(expected['initialDiagnosis'])
@@ -403,6 +407,102 @@ class InpatientCareE2E(unittest.TestCase):
         expect(action(self.page, 'Xem hồ sơ nội trú')).to_be_visible()
         self.assertEqual(self.writes, [('POST', STAYS, {**expected, 'cageId': WARD_FIRST}),
                                        ('POST', STAYS, {**expected, 'cageId': WARD_BACKUP})])
+
+    def open_admission(self):
+        self.open_exam()
+        action(self.page, 'Nhập viện nội trú').click()
+        return self.page.get_by_role('dialog', name=re.compile('Nhập viện nội trú', re.I))
+
+    def test_admission_explains_holding_and_unclassified_then_refreshes(self):
+        legacy = make_cage(WARD_FIRST, 'Nội trú A-02')
+        legacy.pop('zone')
+        self.cages = {HOLD: make_cage(HOLD, 'Khu chờ A-01', zone='Holding'), WARD_FIRST: legacy}
+        modal = self.open_admission()
+        expect(modal.get_by_text('Chưa tìm thấy chuồng trống được xác nhận thuộc khu nội trú.', exact=True)).to_be_visible()
+        expect(modal.get_by_text(re.compile('1 chuồng khu chờ, 1 chuồng chưa xác định khu vực'))).to_be_visible()
+        expect(action(modal, 'Nhập viện')).to_be_disabled()
+        self.assertEqual(self.writes, [])
+        self.page.screenshot(path='tests/screenshots/inpatient-cage-classification.png', full_page=True)
+        self.cages[WARD_FIRST]['zone'] = 'InpatientWard'
+        action(modal, 'Làm mới').click()
+        expect(modal.get_by_text(re.compile('1 chuồng phù hợp để chọn'))).to_be_visible()
+        combo = modal.get_by_role('combobox', name=re.compile('Chuồng nội trú', re.I))
+        combo.press('ArrowDown')
+        self.page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter(has_text='Nội trú A-02').click()
+        expect(action(modal, 'Nhập viện')).to_be_enabled()
+
+    def test_admission_explains_weight_limit(self):
+        self.cages = {WARD_SMALL: make_cage(WARD_SMALL, 'Nội trú B-01', weight=7)}
+        modal = self.open_admission()
+        expect(modal.get_by_text('Chưa có chuồng nội trú trống đủ tải trọng cho thú cưng.', exact=True)).to_be_visible()
+        expect(modal.get_by_text(re.compile('cân nặng 8 kg'))).to_be_visible()
+        expect(action(modal, 'Nhập viện')).to_be_disabled()
+        self.assertEqual(self.writes, [])
+
+    def test_admission_loads_valid_ward_on_second_page(self):
+        self.cages = {f'{900 + i:024x}': make_cage(f'{900 + i:024x}', f'Khu chờ A-{i+1:03}', zone='Holding') for i in range(100)}
+        self.cages[WARD_FIRST] = make_cage(WARD_FIRST, 'Nội trú A-02')
+        modal = self.open_admission()
+        expect(modal.get_by_text(re.compile('101 chuồng trống, trong đó 1 chuồng nội trú'))).to_be_visible()
+        self.assertTrue(any(path == '/api/cages' and q.get('page') == ['2'] for path, q in self.reads))
+        modal.get_by_role('combobox', name=re.compile('Chuồng nội trú', re.I)).press('ArrowDown')
+        self.page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter(has_text='Nội trú A-02').click()
+        with self.response('POST', STAYS) as saved:
+            action(modal, 'Nhập viện').click()
+        self.assertEqual(saved.value.status, 201)
+        expect(modal).to_have_count(0)
+
+    def test_admission_load_failure_is_not_empty_inventory(self):
+        self.cage_failures = 1
+        modal = self.open_admission()
+        expect(modal.get_by_text('Không tải được chuồng', exact=True)).to_be_visible()
+        expect(modal.get_by_text(re.compile('Chưa tìm thấy chuồng trống'))).to_have_count(0)
+        expect(action(modal, 'Nhập viện')).to_be_disabled()
+        diagnosis, plan = self.assert_admission_fields_editable(modal)
+        action(modal, 'Thử lại').click()
+        expect(modal.get_by_text(re.compile('chuồng phù hợp để chọn'))).to_be_visible()
+        expect(diagnosis).to_have_value('Theo dõi mất nước')
+        expect(plan).to_have_value('Bù dịch và theo dõi')
+        self.assertEqual(self.writes, [])
+
+    def assert_admission_fields_editable(self, modal):
+        expect(modal.get_by_role('combobox', name=re.compile('Chuồng nội trú', re.I))).to_be_visible()
+        diagnosis = field(modal, 'Chẩn đoán ban đầu')
+        plan = field(modal, 'Kế hoạch điều trị')
+        expect(diagnosis).to_be_visible()
+        expect(diagnosis).to_be_editable()
+        expect(plan).to_be_visible()
+        expect(plan).to_be_editable()
+        diagnosis.fill('Theo dõi mất nước')
+        plan.fill('Bù dịch và theo dõi')
+        return diagnosis, plan
+
+    def test_admission_all_fields_remain_editable_with_no_cages(self):
+        self.cages = {}
+        modal = self.open_admission()
+        expect(modal.get_by_text('Chưa có chuồng trống trong dữ liệu trả về.', exact=True)).to_be_visible()
+        diagnosis, plan = self.assert_admission_fields_editable(modal)
+        expect(action(modal, 'Nhập viện')).to_be_disabled()
+        action(modal, 'Làm mới').click()
+        expect(diagnosis).to_have_value('Theo dõi mất nước')
+        expect(plan).to_have_value('Bù dịch và theo dõi')
+        self.assertEqual(self.writes, [])
+
+    def test_admission_refresh_invalidates_selected_cage_without_losing_clinical_inputs(self):
+        modal = self.open_admission()
+        diagnosis, plan = self.assert_admission_fields_editable(modal)
+        combo = modal.get_by_role('combobox', name=re.compile('Chuồng nội trú', re.I))
+        combo.press('ArrowDown')
+        self.page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter(has_text='Nội trú A-02').click()
+        self.cages[WARD_FIRST]['status'] = 'Occupied'
+        action(modal, 'Làm mới').click()
+        expect(modal.get_by_text(re.compile('1 chuồng phù hợp để chọn'))).to_be_visible()
+        expect(modal.locator('.ant-select-selection-item')).to_have_count(0)
+        expect(diagnosis).to_have_value('Theo dõi mất nước')
+        expect(plan).to_have_value('Bù dịch và theo dõi')
+        action(modal, 'Nhập viện').click()
+        expect(modal.get_by_text('Chọn một chuồng nội trú', exact=True)).to_be_visible()
+        self.assertEqual(self.writes, [])
 
     def test_admission_cta_absent_while_order_still_in_progress(self):
         self.exam_order_status = 'InProgress'  # Exam itself is Done, but another service remains.
@@ -426,7 +526,7 @@ class InpatientCareE2E(unittest.TestCase):
     def test_owner_log_failure_retry_and_pagination(self):
         self.owner_log_failures = 1
         self.records[RECORD]['dailyLogs'].extend(
-            self.make_log(f'{600 + i:024x}', DAY, observations=f'Ghi nhận trang đầu QA {i}')
+            self.make_log(f'{600 + i:024x}', DAY, observations=f'Ghi nhận trang đầu {i}')
             for i in range(10)
         )
         self.login('PetOwner')
@@ -436,13 +536,13 @@ class InpatientCareE2E(unittest.TestCase):
         with self.response('GET', PET_LOGS) as retried:
             action(panel, 'Thử lại').click()
         self.assertEqual(retried.value.status, 200)
-        expect(panel.get_by_text('Ghi nhận trang đầu QA 0', exact=False)).to_be_visible()
+        expect(panel.get_by_text('Ghi nhận trang đầu 0', exact=False)).to_be_visible()
         expect(panel.get_by_text(OLD_LOG_NOTES, exact=False)).to_have_count(0)
         with self.response('GET', PET_LOGS) as next_page:
             panel.locator('.ant-pagination-item-2').click()
         self.assertEqual(parse_qs(urlsplit(next_page.value.url).query)['page'], ['2'])
         expect(panel.get_by_text(OLD_LOG_NOTES, exact=False)).to_be_visible()
-        expect(panel.get_by_text('Ghi nhận trang đầu QA 0', exact=False)).to_have_count(0)
+        expect(panel.get_by_text('Ghi nhận trang đầu 0', exact=False)).to_have_count(0)
         self.assertEqual(self.writes, [])
 
     def test_owner_inactive_or_foreign_pet_does_not_fetch_inpatient_logs(self):
