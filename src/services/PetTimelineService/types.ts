@@ -1,3 +1,5 @@
+import type { AiAssessment } from '../AiAssessmentService/types.ts';
+
 export const PET_TIMELINE_TYPES = [
   'All',
   'Examination',
@@ -204,11 +206,21 @@ export interface PetTimelineSharedPost {
   createdAt: string;
   updatedAt?: string;
 }
+/**
+ * AI checks of the pet (BE PR #59): only the owner gets them, every other
+ * role gets []. Not paged, newest first, without pet/owner/context fields.
+ */
+export type PetTimelineAiAssessment = Omit<
+  AiAssessment,
+  'petId' | 'ownerId' | 'petSnapshot' | 'clinicalContextSummary'
+>;
 export interface PetTimelinePage {
   pet: PetTimelinePet;
   summary: PetTimelineSummary;
   activeInpatient: PetTimelineInpatientRecord | null;
   sharedPosts: PetTimelineSharedPost[];
+  /** Missing on a BE older than PR #59 */
+  aiAssessments?: PetTimelineAiAssessment[];
   timeline: PetTimelineMilestone[];
   pagination: {
     page: number;

@@ -348,6 +348,9 @@ const DashboardPage: React.FC = () => {
   const [pets, setPets] = useState<Pet[]>([]);
   const [petsTotal, setPetsTotal] = useState(0);
   const [petsLoading, setPetsLoading] = useState(false);
+  // Bumped when the pet form saves (the AI tab can open it), so the AI tab
+  // re-reads its own Active pet list; the tab remounts on every switch
+  const [petsVersion, setPetsVersion] = useState(0);
   const [statusFilter, setStatusFilter] = useState<PetStatusFilter>('Active');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -1461,22 +1464,17 @@ const DashboardPage: React.FC = () => {
         </SectionCard>
       )}
 
-      {/* Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu (Đang phát triển) */}
+      {/* SCR-10: AI health check (BE /ai-assessments) */}
       {activeTab === 'ai' && (
         <AiAssessmentSection
-          isUnderDevelopment={true}
-          userPets={pets}
+          petsVersion={petsVersion}
           onAddNewPet={() => {
             setEditingPet(null);
             setIsPetFormModalOpen(true);
           }}
-          onBookAppointment={notes => {
-            openBooking(undefined, notes || undefined);
-            if (notes) {
-              toast.info(
-                'Đã chuyển tiếp thông tin triệu chứng sang luồng đặt lịch khám!'
-              );
-            }
+          onBookAppointment={({ petId, note, serviceId }) => {
+            openBooking(petId, note || undefined, serviceId);
+            toast.info('Đã chuyển kết quả đánh giá AI sang form đặt lịch khám');
           }}
         />
       )}
@@ -1488,7 +1486,10 @@ const DashboardPage: React.FC = () => {
           setIsPetFormModalOpen(false);
           setEditingPet(null);
         }}
-        onSuccess={() => fetchPets()}
+        onSuccess={() => {
+          fetchPets();
+          setPetsVersion(version => version + 1);
+        }}
         editingPet={editingPet}
       />
 

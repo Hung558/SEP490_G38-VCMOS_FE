@@ -1,21 +1,51 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { Button, Input, Select, Tag, Card } from 'antd';
 import {
-  FileTextOutlined,
+  Alert,
+  Button,
+  Card,
+  Empty,
+  Input,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Upload,
+} from 'antd';
+import type { UploadFile } from 'antd';
+import {
   AlertOutlined,
-  CalendarOutlined,
-  ExclamationCircleOutlined,
+  CheckOutlined,
+  FileTextOutlined,
+  InfoCircleOutlined,
+  PlusOutlined,
   SafetyCertificateOutlined,
-  CheckCircleOutlined,
   SendOutlined,
   UploadOutlined,
-  HistoryOutlined,
-  InfoCircleOutlined,
-  CheckOutlined,
-  ToolOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { toast } from 'sonner';
+import AiAssessmentService, {
+  AI_DESCRIPTION_MAX_LENGTH,
+  AI_MAX_PHOTOS,
+  AI_MAX_SYMPTOM_LENGTH,
+  AI_PHOTO_ACCEPT,
+  AI_SYMPTOM_OPTIONS,
+  addCustomSymptom,
+  assessmentPetId,
+  mergeSymptoms,
+  readAiAssessmentError,
+  validateAiAssessmentInput,
+  validateAiPhoto,
+  type AiAssessment,
+  type AiAssessmentApiError,
+  type AiAssessmentFieldErrors,
+} from '@/services/AiAssessmentService';
+import PetService from '@/services/PetService';
+import type { Pet } from '@/types';
+import AiAssessmentResult from '@/components/aiAssessment/AiAssessmentResult';
+import AiAssessmentDetailModal from '@/components/aiAssessment/AiAssessmentDetailModal';
+import AiAssessmentHistory from './AiAssessmentHistory';
 
 const TriageCard = styled(Card)`
   border-radius: 12px;
@@ -24,64 +54,34 @@ const TriageCard = styled(Card)`
   margin-bottom: 24px;
   overflow: hidden;
 
-  .ant-card-head {
-    border-bottom: 1px solid #f1f5f9;
-    padding: 16px 24px;
-    background: #ffffff;
-  }
-
   .ant-card-body {
     padding: 24px;
+  }
+
+  @media (max-width: 576px) {
+    .ant-card-body {
+      padding: 16px;
+    }
   }
 `;
 
 const HeaderRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
+  margin-bottom: 16px;
 
-  .header-left {
-    .main-title {
-      font-size: 18px;
-      font-weight: 800;
-      color: #0f172a;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 0 0 4px 0;
-    }
-
-    .main-desc {
-      font-size: 13.5px;
-      color: #64748b;
-      margin: 0;
-    }
-  }
-`;
-
-const DevNoticeAlert = styled.div`
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-left: 4px solid #f59e0b;
-  border-radius: 8px;
-  padding: 12px 18px;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13.5px;
-  color: #92400e;
-
-  .icon {
+  .main-title {
     font-size: 18px;
-    color: #f59e0b;
-    flex-shrink: 0;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 4px 0;
   }
 
-  strong {
-    color: #78350f;
+  .main-desc {
+    font-size: 13.5px;
+    color: #64748b;
+    margin: 0;
   }
 `;
 
@@ -115,11 +115,11 @@ const AssessmentContainer = styled.div`
   border: 1px solid #e2e8f0;
   padding: 24px;
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: 28px;
 
   @media (max-width: 960px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 16px;
   }
 `;
@@ -127,6 +127,7 @@ const AssessmentContainer = styled.div`
 const FormPane = styled.div`
   display: flex;
   flex-direction: column;
+  min-width: 0;
 
   .field-label {
     font-size: 13px;
@@ -135,6 +136,7 @@ const FormPane = styled.div`
     margin-bottom: 8px;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
 
     .sub {
@@ -144,81 +146,45 @@ const FormPane = styled.div`
     }
   }
 
-  .pet-selector-row {
-    margin-bottom: 18px;
-    .ant-select {
+  .field {
+    margin-bottom: 20px;
+
+    > .ant-select {
       width: 100%;
     }
+  }
+
+  .field-error {
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
   }
 
   .symptom-grid {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
   }
 
-  .photo-upload-box {
-    border: 1.5px dashed #cbd5e1;
-    border-radius: 8px;
-    padding: 14px;
-    text-align: center;
-    background: #f8fafc;
-    margin-bottom: 18px;
-    transition: all 0.15s;
-
-    &:hover {
-      border-color: #0d9488;
-      background: #f0fdfa;
-    }
-
-    .upload-hint {
-      font-size: 12.5px;
-      color: #475569;
-      margin-top: 6px;
-    }
-    .upload-spec {
-      font-size: 11.5px;
-      color: #94a3b8;
-      margin-top: 2px;
-    }
+  .custom-symptoms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 0;
+    margin-top: 8px;
   }
 
-  .notes-box {
-    margin-bottom: 20px;
-    .ant-input {
-      border-radius: 8px;
-      border: 1px solid #cbd5e1;
-      font-size: 13.5px;
-      &:focus {
-        border-color: #0d9488;
-      }
-    }
-    .char-count {
-      text-align: right;
-      font-size: 11.5px;
-      color: #94a3b8;
-      margin-top: 4px;
-    }
+  .upload-spec {
+    font-size: 11.5px;
+    color: #94a3b8;
+    margin-top: 4px;
   }
 
   .btn-submit-assessment {
-    background: #0d9488;
-    border-color: #0d9488;
-    color: #ffffff;
     height: 42px;
     border-radius: 8px;
     font-weight: 600;
     font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-
-    &:hover {
-      background: #0f766e !important;
-      border-color: #0f766e !important;
-    }
   }
 `;
 
@@ -239,6 +205,11 @@ const SymptomButton = styled.button<{ $active: boolean }>`
   &:hover {
     border-color: #0d9488;
   }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 `;
 
 const ResultPane = styled.div`
@@ -248,11 +219,14 @@ const ResultPane = styled.div`
   padding: 20px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 
   .result-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
     padding-bottom: 12px;
     border-bottom: 1px solid #e2e8f0;
     margin-bottom: 16px;
@@ -271,363 +245,451 @@ const ResultPane = styled.div`
     }
   }
 
-  .urgency-badge-box {
-    border-radius: 8px;
-    padding: 14px;
-    margin-bottom: 16px;
-
-    &.urgent {
-      background: #fef2f2;
-      border: 1px solid #fee2e2;
-      color: #991b1b;
-    }
-    &.monitor {
-      background: #fffbeb;
-      border: 1px solid #fef3c7;
-      color: #92400e;
-    }
-    &.routine {
-      background: #f0fdfa;
-      border: 1px solid #ccfbf1;
-      color: #0f766e;
-    }
-
-    .level-title {
-      font-size: 13.5px;
-      font-weight: 800;
-      letter-spacing: 0.3px;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .level-desc {
-      font-size: 12.5px;
-      line-height: 1.5;
-      opacity: 0.95;
-    }
+  .result-placeholder {
+    font-size: 13px;
+    color: #64748b;
+    text-align: center;
+    padding: 24px 8px;
   }
 
-  .clinical-insights {
-    margin-bottom: 18px;
-    flex: 1;
-
-    h4 {
-      font-size: 12.5px;
-      font-weight: 700;
-      color: #1e293b;
-      margin-bottom: 6px;
-    }
-
-    .causes-list,
-    .advice-list {
-      list-style: none;
-      padding: 0;
-      margin: 0 0 12px 0;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-
-      li {
-        font-size: 12px;
-        color: #475569;
-        display: flex;
-        align-items: flex-start;
-        gap: 7px;
-        line-height: 1.5;
-
-        .bullet {
-          color: #0d9488;
-          font-weight: 700;
-        }
-      }
-    }
-  }
-
-  .btn-book-from-assessment {
-    background: #0d9488;
-    color: #ffffff;
-    border: none;
-    height: 40px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 13.5px;
-    width: 100%;
-    display: inline-flex;
+  .analyzing {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    transition: all 0.15s;
-    margin-bottom: 14px;
+    gap: 12px;
+    text-align: center;
+    padding: 32px 8px;
+    font-size: 13px;
+    color: #334155;
 
-    &:hover {
-      background: #0f766e;
+    .elapsed {
+      font-size: 12px;
+      color: #64748b;
     }
   }
 
-  .history-box {
-    border-top: 1px solid #e2e8f0;
-    padding-top: 12px;
-
-    .history-title {
-      font-size: 11.5px;
-      font-weight: 700;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .history-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11.5px;
-      color: #334155;
-      padding: 4px 0;
-    }
+  @media (max-width: 576px) {
+    padding: 14px;
   }
 `;
 
-const officialSymptomList = [
-  { id: 'lethargy', label: 'Ủ rũ / Mệt mỏi (Lethargy)' },
-  { id: 'vomiting', label: 'Nôn mửa (Vomiting)' },
-  { id: 'diarrhoea', label: 'Tiêu chảy (Diarrhoea)' },
-  { id: 'loss_of_appetite', label: 'Chán ăn / Bỏ ăn (Loss of appetite)' },
-  { id: 'scratching', label: 'Gãi nhiều / Ngứa da (Scratching)' },
-  { id: 'coughing', label: 'Ho / Khò khè (Coughing)' },
-  { id: 'limping', label: 'Đi khập khiễng (Limping)' },
-];
+const NEW_PET = '__new__';
 
-import type { Pet } from '@/types';
-
-interface AiAssessmentSectionProps {
-  onBookAppointment: (notes: string) => void;
-  onAddNewPet?: () => void;
-  userPets?: Pet[];
-  isUnderDevelopment?: boolean;
+export interface AiBookingRequest {
+  petId?: string;
+  note: string;
+  serviceId?: string;
 }
 
+interface AiAssessmentSectionProps {
+  /** Bumped by the dashboard after a pet is added, edited or deleted */
+  petsVersion?: number;
+  onAddNewPet?: () => void;
+  /** Opens the booking form with the pet, the AI note and maybe a service */
+  onBookAppointment: (booking: AiBookingRequest) => void;
+}
+
+/**
+ * SCR-10 / UC-14: the owner sends a pet's symptoms, a description and up to 3
+ * photos; the BE adds the pet's records and asks the AI. The result is for
+ * reference only (BR-20, MSG33) and is saved apart from the medical records.
+ */
 const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
-  onBookAppointment,
+  petsVersion = 0,
   onAddNewPet,
-  userPets = [],
-  isUnderDevelopment = true,
+  onBookAppointment,
 }) => {
-  const petOptions = React.useMemo(() => {
-    if (userPets && userPets.length > 0) {
-      return [
-        ...userPets.map(p => ({
-          value: p._id,
-          label: `Bé ${p.name} · ${p.species || 'Thú cưng'}${p.breed ? ` (${p.breed})` : ''}${p.weight ? ` · ${p.weight} kg` : ''}`,
-        })),
-        { value: 'new', label: '+ Thêm thú cưng mới vào hồ sơ' },
-      ];
-    }
-    return [
-      { value: 'none', label: 'Chưa có hồ sơ thú cưng' },
-      { value: 'new', label: '+ Thêm thú cưng mới vào hồ sơ' },
-    ];
-  }, [userPets]);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [petsLoading, setPetsLoading] = useState(true);
+  const [petsError, setPetsError] = useState<string | null>(null);
+  const [petsAttempt, setPetsAttempt] = useState(0);
+  const [selectedPetId, setSelectedPetId] = useState<string | undefined>();
 
-  const [selectedPet, setSelectedPet] = useState<string>(() => {
-    return userPets && userPets.length > 0 ? userPets[0]._id : 'none';
-  });
+  const [codes, setCodes] = useState<string[]>([]);
+  const [custom, setCustom] = useState<string[]>([]);
+  const [customDraft, setCustomDraft] = useState('');
+  const [photoList, setPhotoList] = useState<UploadFile[]>([]);
+  const [description, setDescription] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<AiAssessmentFieldErrors>({});
 
-  React.useEffect(() => {
-    if (userPets && userPets.length > 0 && selectedPet === 'none') {
-      setSelectedPet(userPets[0]._id);
-    }
-  }, [userPets, selectedPet]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [result, setResult] = useState<AiAssessment | null>(null);
+  const [failure, setFailure] = useState<AiAssessmentApiError | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
 
-  const currentPetObj = userPets?.find(p => p._id === selectedPet);
+  // Only Active pets can be checked; the dashboard list may show another
+  // status or page, so the section reads its own list
+  useEffect(() => {
+    const controller = new AbortController();
+    setPetsLoading(true);
+    setPetsError(null);
+    PetService.listPets({ status: 'Active', page: 1, limit: 100 })
+      .then(response => {
+        if (controller.signal.aborted) return;
+        const items = response.items || [];
+        setPets(items);
+        setSelectedPetId(current =>
+          current && items.some(pet => pet._id === current)
+            ? current
+            : items[0]?._id
+        );
+      })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        setPetsError(
+          error?.response?.data?.message ||
+            'Không thể tải danh sách thú cưng của bạn'
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPetsLoading(false);
+      });
+    return () => controller.abort();
+  }, [petsVersion, petsAttempt]);
 
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
-  const [description, setDescription] = useState<string>('');
-  const [analyzing, setAnalyzing] = useState<boolean>(false);
-  const [urgencyLevel, setUrgencyLevel] = useState<
-    'Routine' | 'Monitor' | 'Urgent'
-  >('Routine');
+  // A running check is dropped when the owner leaves the tab
+  useEffect(() => () => requestRef.current?.abort(), []);
 
-  const toggleSymptom = (id: string) => {
-    setSelectedSymptoms(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+  useEffect(() => {
+    if (!analyzing) return undefined;
+    setElapsed(0);
+    const timer = window.setInterval(() => setElapsed(s => s + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [analyzing]);
+
+  const selectedPet = pets.find(pet => pet._id === selectedPetId);
+  const symptoms = mergeSymptoms(codes, custom);
+
+  const clearFieldError = (field: keyof AiAssessmentFieldErrors) =>
+    setFieldErrors(prev =>
+      prev[field] ? { ...prev, [field]: undefined } : prev
     );
+
+  const choosePet = (value: string) => {
+    if (value === NEW_PET) {
+      onAddNewPet?.();
+      return;
+    }
+    if (value === selectedPetId) return;
+    setSelectedPetId(value);
+    // A result belongs to one pet; the history below keeps it
+    setResult(null);
+    setFailure(null);
+    clearFieldError('petId');
   };
 
-  const handleAnalyze = () => {
-    if (description.trim().length < 10) {
-      toast.error('Vui lòng nhập mô tả triệu chứng ít nhất 10 ký tự');
+  const toggleCode = (code: string) => {
+    setCodes(prev =>
+      prev.includes(code) ? prev.filter(item => item !== code) : [...prev, code]
+    );
+    clearFieldError('symptoms');
+  };
+
+  const addTypedSymptom = () => {
+    const added = addCustomSymptom(custom, codes, customDraft);
+    if (!added.ok) {
+      setFieldErrors(prev => ({ ...prev, symptoms: added.error }));
+      return;
+    }
+    setCustom(added.custom);
+    setCustomDraft('');
+    clearFieldError('symptoms');
+  };
+
+  const book = useCallback(
+    (assessment: AiAssessment, serviceId?: string) => {
+      onBookAppointment({
+        petId: assessmentPetId(assessment) || selectedPetId,
+        note: assessment.bookingNoteDraft,
+        serviceId,
+      });
+    },
+    [onBookAppointment, selectedPetId]
+  );
+
+  const handleAnalyze = async () => {
+    if (analyzing) return;
+    const photos = photoList
+      .map(item => item.originFileObj)
+      .filter((file): file is NonNullable<typeof file> => !!file);
+    const errors = validateAiAssessmentInput({
+      petId: selectedPetId,
+      description,
+      symptoms,
+      photos,
+    });
+    setFieldErrors(errors);
+    const firstError = Object.values(errors).find(Boolean);
+    if (firstError || !selectedPetId) {
+      toast.error(firstError || 'Vui lòng chọn thú cưng cần đánh giá');
       return;
     }
 
+    const controller = new AbortController();
+    requestRef.current = controller;
     setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      if (
-        selectedSymptoms.includes('vomiting') &&
-        selectedSymptoms.includes('diarrhoea')
-      ) {
-        setUrgencyLevel('Urgent');
-      } else if (selectedSymptoms.length >= 2) {
-        setUrgencyLevel('Monitor');
-      } else {
-        setUrgencyLevel('Routine');
-      }
-      toast.info(
-        'Đã hoàn tất phân tích tham khảo sơ bộ (Giao diện xem trước mô phỏng)'
+    setResult(null);
+    setFailure(null);
+    try {
+      const response = await AiAssessmentService.createAssessment(
+        { petId: selectedPetId, description, symptoms, photos },
+        { signal: controller.signal }
       );
-    }, 600);
+      if (controller.signal.aborted) return;
+      setResult(response.assessment);
+      setHistoryKey(key => key + 1);
+      toast.success('Đã có kết quả đánh giá tham khảo');
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      const info = readAiAssessmentError(
+        error,
+        'Không thể đánh giá lúc này. Vui lòng thử lại.'
+      );
+      setFieldErrors(info.fields);
+      if (info.retryable) {
+        // MSG34: nothing was saved, the form stays for another try
+        setFailure(info);
+      } else {
+        toast.error(info.message);
+        // The pet may have been deleted meanwhile
+        if (info.status === 403 || info.status === 404) {
+          setPetsAttempt(n => n + 1);
+        }
+      }
+    } finally {
+      if (!controller.signal.aborted) setAnalyzing(false);
+      if (requestRef.current === controller) requestRef.current = null;
+    }
   };
 
-  const handleBookFromAssessment = () => {
-    const summaryNotes = `[Sàng lọc tham khảo - Mức độ: ${urgencyLevel}] Triệu chứng: ${selectedSymptoms.join(', ')}. Ghi chú: ${description}`;
-    toast.success('Đã chuyển thông tin sàng lọc sang luồng đặt lịch hẹn!');
-    onBookAppointment(summaryNotes);
-  };
+  const petOptions = [
+    ...pets.map(pet => ({
+      value: pet._id,
+      label: `Bé ${pet.name} · ${pet.species || 'Thú cưng'}${
+        pet.breed ? ` (${pet.breed})` : ''
+      }${pet.weight ? ` · ${pet.weight} kg` : ''}`,
+    })),
+    { value: NEW_PET, label: '+ Thêm thú cưng mới vào hồ sơ' },
+  ];
+
+  const noPets = !petsLoading && !petsError && pets.length === 0;
 
   return (
     <TriageCard id="triage">
       <HeaderRow>
-        <div className="header-left">
-          <h3 className="main-title">
-            <SafetyCertificateOutlined style={{ color: '#0d9488' }} />
-            Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu
-          </h3>
-          <p className="main-desc">
-            Tiếp nhận thông tin lâm sàng và đối chiếu dữ liệu hỗ trợ chủ nuôi
-            nhận biết mức độ khẩn cấp, đưa ra hướng dẫn sơ cứu đúng phác đồ.
-          </p>
-        </div>
-
-        {isUnderDevelopment && (
-          <Tag
-            color="orange"
-            icon={<ToolOutlined />}
-            style={{
-              fontWeight: 700,
-              borderRadius: 6,
-              padding: '4px 12px',
-              fontSize: 12.5,
-              margin: 0,
-            }}
-          >
-            TÍNH NĂNG ĐANG PHÁT TRIỂN
-          </Tag>
-        )}
+        <h3 className="main-title">
+          <SafetyCertificateOutlined style={{ color: '#0d9488' }} />
+          Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu
+        </h3>
+        <p className="main-desc">
+          AI đối chiếu hồ sơ, bệnh án cũ ở phòng khám, triệu chứng và ảnh của bé
+          để gợi ý mức độ khẩn cấp và cách chăm sóc an toàn trong lúc chờ khám.
+        </p>
       </HeaderRow>
 
-      {/* Development Phase Notice */}
-      {isUnderDevelopment && (
-        <DevNoticeAlert style={{ marginTop: 16 }}>
-          <ToolOutlined className="icon" />
-          <div>
-            <strong>Thông báo lộ trình phát triển:</strong> Tính năng Sàng lọc &
-            Đánh giá triệu chứng trực tuyến đang trong giai đoạn phát triển và
-            sẽ được kích hoạt chính thức sau khi hệ thống hoàn tất toàn bộ các
-            chức năng cốt lõi. Quý khách hiện có thể xem trước giao diện và trải
-            nghiệm mô phỏng quy trình bên dưới.
-          </div>
-        </DevNoticeAlert>
-      )}
-
-      {/* Medical Disclaimer Banner */}
       <DisclaimerBanner>
         <InfoCircleOutlined className="banner-icon" />
         <div>
-          <strong>Khuyến cáo pháp lý & y khoa:</strong> Kết quả đánh giá tham
-          khảo sơ bộ không thay thế chẩn đoán lâm sàng của bác sĩ thú y. Khi
-          nhận thấy thú cưng có dấu hiệu suy kiệt cấp tính, vui lòng đưa bé đến
-          cơ sở y tế thú y gần nhất hoặc gọi hotline phòng khám{' '}
+          <strong>Khuyến cáo y khoa:</strong> Kết quả AI chỉ mang tính tham khảo
+          và không thay thế chẩn đoán của bác sĩ thú y. Khi bé có dấu hiệu suy
+          kiệt cấp tính, vui lòng đưa bé đến phòng khám ngay hoặc gọi hotline{' '}
           <strong>(024) 7300 8888</strong>.
         </div>
       </DisclaimerBanner>
 
       <AssessmentContainer>
-        {/* Form Pane */}
         <FormPane>
           <div className="field-label">
             <SafetyCertificateOutlined style={{ color: '#0d9488' }} />
             1. Chọn thú cưng <span className="sub">(từ hồ sơ của bạn)</span>
           </div>
-          <div className="pet-selector-row">
-            <Select
-              value={selectedPet}
-              onChange={val => {
-                if (val === 'new') {
-                  onAddNewPet?.();
-                } else {
-                  setSelectedPet(val);
+          <div className="field">
+            {petsError ? (
+              <Alert
+                type="error"
+                showIcon
+                message={petsError}
+                action={
+                  <Button
+                    size="small"
+                    onClick={() => setPetsAttempt(n => n + 1)}
+                  >
+                    Thử lại
+                  </Button>
                 }
-              }}
-              options={petOptions}
-              size="middle"
-            />
+              />
+            ) : noPets ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Bạn chưa có thú cưng nào. Thêm hồ sơ thú cưng để dùng tính năng AI."
+              >
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={onAddNewPet}
+                >
+                  Thêm thú cưng
+                </Button>
+              </Empty>
+            ) : (
+              <Select
+                aria-label="Thú cưng cần đánh giá"
+                value={selectedPetId}
+                loading={petsLoading}
+                disabled={analyzing}
+                placeholder="Chọn thú cưng"
+                onChange={choosePet}
+                options={petOptions}
+                status={fieldErrors.petId ? 'error' : undefined}
+              />
+            )}
+            {fieldErrors.petId && (
+              <div className="field-error">{fieldErrors.petId}</div>
+            )}
           </div>
 
           <div className="field-label">
             <AlertOutlined style={{ color: '#0d9488' }} />
-            2. Danh mục dấu hiệu nhận biết{' '}
-            <span className="sub">(Dấu hiệu phổ biến)</span>
+            2. Dấu hiệu nhận biết{' '}
+            <span className="sub">(chọn dấu hiệu phổ biến hoặc tự nhập)</span>
           </div>
-          <div className="symptom-grid">
-            {officialSymptomList.map(sym => {
-              const active = selectedSymptoms.includes(sym.id);
-              return (
-                <SymptomButton
-                  key={sym.id}
-                  type="button"
-                  $active={active}
-                  onClick={() => toggleSymptom(sym.id)}
-                >
-                  {active && <CheckOutlined style={{ fontSize: 11 }} />}
-                  {sym.label}
-                </SymptomButton>
-              );
-            })}
+          <div className="field">
+            <div className="symptom-grid">
+              {AI_SYMPTOM_OPTIONS.map(option => {
+                const active = codes.includes(option.code);
+                return (
+                  <SymptomButton
+                    key={option.code}
+                    type="button"
+                    $active={active}
+                    aria-pressed={active}
+                    disabled={analyzing}
+                    onClick={() => toggleCode(option.code)}
+                  >
+                    {active && <CheckOutlined style={{ fontSize: 11 }} />}
+                    {option.label}
+                  </SymptomButton>
+                );
+              })}
+            </div>
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                aria-label="Triệu chứng khác"
+                placeholder="Triệu chứng khác, ví dụ: Chảy nước dãi nhiều"
+                value={customDraft}
+                maxLength={AI_MAX_SYMPTOM_LENGTH}
+                disabled={analyzing}
+                onChange={event => setCustomDraft(event.target.value)}
+                onPressEnter={addTypedSymptom}
+              />
+              <Button
+                icon={<PlusOutlined />}
+                disabled={analyzing}
+                onClick={addTypedSymptom}
+              >
+                Thêm
+              </Button>
+            </Space.Compact>
+            {custom.length > 0 && (
+              <div className="custom-symptoms">
+                {custom.map(item => (
+                  <Tag
+                    key={item}
+                    color="cyan"
+                    closable={!analyzing}
+                    onClose={() =>
+                      setCustom(prev => prev.filter(value => value !== item))
+                    }
+                  >
+                    {item}
+                  </Tag>
+                ))}
+              </div>
+            )}
+            {fieldErrors.symptoms && (
+              <div className="field-error">{fieldErrors.symptoms}</div>
+            )}
           </div>
 
           <div className="field-label">
             <UploadOutlined style={{ color: '#0d9488' }} />
-            3. Ảnh chụp vùng bệnh / Biểu hiện{' '}
-            <span className="sub">(Tối đa 3 ảnh, dung lượng dưới 5MB)</span>
+            3. Ảnh chụp vùng bệnh / biểu hiện{' '}
+            <span className="sub">(không bắt buộc, tối đa 3 ảnh)</span>
           </div>
-          <div className="photo-upload-box">
-            <Button
-              icon={<UploadOutlined />}
-              size="middle"
-              onClick={() => toast.info('Chức năng tải ảnh đang được chuẩn bị')}
+          <div className="field">
+            <Upload
+              listType="picture-card"
+              accept={AI_PHOTO_ACCEPT}
+              multiple
+              fileList={photoList}
+              disabled={analyzing}
+              showUploadList={{ showPreviewIcon: false }}
+              beforeUpload={(file, batch) => {
+                const problem = validateAiPhoto(file);
+                if (problem) {
+                  toast.error(`${file.name}: ${problem}`);
+                  return Upload.LIST_IGNORE;
+                }
+                const validBefore = batch
+                  .slice(0, batch.indexOf(file))
+                  .filter(item => !validateAiPhoto(item)).length;
+                if (photoList.length + validBefore >= AI_MAX_PHOTOS) {
+                  toast.error(
+                    `Chỉ được tải lên tối đa ${AI_MAX_PHOTOS} ảnh (MSG35)`,
+                    { id: 'ai-photo-limit' }
+                  );
+                  return Upload.LIST_IGNORE;
+                }
+                // Kept in the form, sent with the check
+                return false;
+              }}
+              onChange={({ fileList }) => {
+                setPhotoList(fileList.slice(0, AI_MAX_PHOTOS));
+                clearFieldError('photos');
+              }}
             >
-              Tải ảnh lên (Tối đa 3 ảnh JPG / PNG)
-            </Button>
-            <div className="upload-hint">
-              Chụp rõ vùng da, niêm mạc mắt hoặc chất bài tiết nghi ngờ bất
-              thường
-            </div>
+              {photoList.length < AI_MAX_PHOTOS && (
+                <div>
+                  <PlusOutlined />
+                  <div style={{ marginTop: 6, fontSize: 12 }}>Thêm ảnh</div>
+                </div>
+              )}
+            </Upload>
             <div className="upload-spec">
-              Dung lượng tối đa 5MB mỗi ảnh theo quy chuẩn y tế
+              JPG hoặc PNG, tối đa 5MB mỗi ảnh. Chụp rõ vùng da, mắt hoặc chất
+              bài tiết nghi ngờ bất thường.
             </div>
+            {fieldErrors.photos && (
+              <div className="field-error">{fieldErrors.photos}</div>
+            )}
           </div>
 
           <div className="field-label">
             <FileTextOutlined style={{ color: '#0d9488' }} />
             4. Mô tả chi tiết triệu chứng{' '}
-            <span className="sub">(Từ 10 - 1000 ký tự)</span>
+            <span className="sub">(từ 10 đến 1000 ký tự)</span>
           </div>
-          <div className="notes-box">
+          <div className="field">
             <Input.TextArea
-              rows={3}
+              aria-label="Mô tả chi tiết triệu chứng"
+              rows={4}
               value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Nhập thời gian xuất hiện triệu chứng, biểu hiện ăn uống, đi lại của bé..."
+              maxLength={AI_DESCRIPTION_MAX_LENGTH}
+              showCount
+              disabled={analyzing}
+              status={fieldErrors.description ? 'error' : undefined}
+              onChange={event => {
+                setDescription(event.target.value);
+                clearFieldError('description');
+              }}
+              placeholder="Triệu chứng xuất hiện từ khi nào, bé ăn uống, đi lại, đi vệ sinh ra sao..."
             />
-            <div className="char-count">{description.length}/1000 ký tự</div>
+            {fieldErrors.description && (
+              <div className="field-error">{fieldErrors.description}</div>
+            )}
           </div>
 
           <Button
@@ -635,136 +697,80 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
             className="btn-submit-assessment"
             icon={<SendOutlined />}
             loading={analyzing}
+            disabled={noPets || !!petsError}
             onClick={handleAnalyze}
           >
-            {analyzing
-              ? 'Đang đối chiếu dữ liệu y khoa...'
-              : 'Phân tích tham khảo sơ bộ'}
+            {analyzing ? 'AI đang phân tích...' : 'Phân tích tham khảo sơ bộ'}
           </Button>
         </FormPane>
 
-        {/* Result Pane */}
-        <ResultPane>
+        <ResultPane aria-live="polite">
           <div className="result-header">
             <div className="title">
-              <FileTextOutlined /> Kết Quả Phân Tầng Lâm Sàng
+              <FileTextOutlined /> Kết quả đánh giá tham khảo
+              {result && selectedPet ? ` · bé ${selectedPet.name}` : ''}
             </div>
-            <div className="timestamp">Thời điểm: Hôm nay, 14:15</div>
+            {result && (
+              <div className="timestamp">
+                {dayjs(result.createdAt).format('DD/MM/YYYY HH:mm')}
+              </div>
+            )}
           </div>
 
-          {/* Urgency Level Box */}
-          {urgencyLevel === 'Urgent' && (
-            <div className="urgency-badge-box urgent">
-              <div className="level-title">
-                <ExclamationCircleOutlined /> MỨC ĐỘ: URGENT (KHẨN CẤP)
+          {analyzing ? (
+            <div className="analyzing">
+              <Spin size="large" />
+              <div>
+                AI đang đối chiếu hồ sơ, triệu chứng
+                {photoList.length > 0 ? ' và ảnh' : ''} của bé{' '}
+                {selectedPet?.name || ''}...
               </div>
-              <div className="level-desc">
-                Phát hiện dấu hiệu cảnh báo tiêu hoá hoặc bài tiết cấp. Cần đưa
-                bé đến cơ sở thú y trong thời gian sớm nhất để kiểm tra sinh
-                hiệu.
+              <div className="elapsed">
+                {elapsed} giây · thường mất không quá 30 giây
               </div>
+            </div>
+          ) : failure ? (
+            <Alert
+              type="warning"
+              showIcon
+              message={failure.message}
+              description="Kết quả chưa được lưu. Thông tin bạn nhập vẫn được giữ nguyên để thử lại."
+              action={
+                <Button size="small" onClick={handleAnalyze}>
+                  Thử lại
+                </Button>
+              }
+            />
+          ) : result ? (
+            <AiAssessmentResult
+              assessment={result}
+              onBook={serviceId => book(result, serviceId)}
+            />
+          ) : (
+            <div className="result-placeholder">
+              Chọn thú cưng, mô tả triệu chứng rồi bấm{' '}
+              <strong>Phân tích tham khảo sơ bộ</strong>. Kết quả sẽ hiện ở đây
+              và được lưu vào lịch sử bên dưới.
             </div>
           )}
-
-          {urgencyLevel === 'Monitor' && (
-            <div className="urgency-badge-box monitor">
-              <div className="level-title">
-                <AlertOutlined /> MỨC ĐỘ: MONITOR (CẦN THEO DÕI)
-              </div>
-              <div className="level-desc">
-                Triệu chứng có thể là phản ứng tiêu hoá thức ăn hoặc khởi phát
-                nhiễm khuẩn. Khuyến cáo đặt hẹn khám chuyên khoa trong vòng 24 -
-                48 giờ.
-              </div>
-            </div>
-          )}
-
-          {urgencyLevel === 'Routine' && (
-            <div className="urgency-badge-box routine">
-              <div className="level-title">
-                <CheckCircleOutlined /> MỨC ĐỘ: ROUTINE (THÔNG THƯỜNG)
-              </div>
-              <div className="level-desc">
-                Chưa ghi nhận dấu hiệu nguy hiểm tức thời. Giữ ấm, theo dõi
-                lượng nước uống và đặt hẹn kiểm tra sức khoẻ định kỳ.
-              </div>
-            </div>
-          )}
-
-          {/* Clinical Insights */}
-          <div className="clinical-insights">
-            <h4>Nguyên nhân khả dĩ cần lưu ý:</h4>
-            <ul className="causes-list">
-              <li>
-                <span className="bullet">•</span>
-                <span>
-                  Rối loạn tiêu hoá do thức ăn lạ, viêm dạ dày ruột cấp tính
-                  nhẹ.
-                </span>
-              </li>
-              <li>
-                <span className="bullet">•</span>
-                <span>
-                  Nghi nhiễm ký sinh trùng đường ruột hoặc thay đổi môi trường
-                  gây stress.
-                </span>
-              </li>
-            </ul>
-
-            <h4>Hướng dẫn chăm sóc tại nhà & sơ cứu an toàn:</h4>
-            <ul className="advice-list">
-              <li>
-                <span className="bullet">•</span>
-                <span>
-                  Tạm ngưng cho ăn thức ăn hạt trong 4 - 6 giờ, chỉ cung cấp
-                  nước sạch từng lượng nhỏ.
-                </span>
-              </li>
-              <li>
-                <span className="bullet">•</span>
-                <span>
-                  Tuyệt đối không tự ý cho uống thuốc giảm đau hạ sốt của người
-                  (như Paracetamol).
-                </span>
-              </li>
-              <li>
-                <span className="bullet">•</span>
-                <span>
-                  Cách ly bé ở khu vực yên tĩnh, thoáng khí và chụp ảnh theo dõi
-                  chất nôn nếu có.
-                </span>
-              </li>
-            </ul>
-          </div>
-
-          <button
-            type="button"
-            className="btn-book-from-assessment"
-            onClick={handleBookFromAssessment}
-          >
-            <CalendarOutlined /> Đặt lịch khám với thông tin này
-          </button>
-
-          <div className="history-box">
-            <div className="history-title">
-              <HistoryOutlined />{' '}
-              {currentPetObj
-                ? `Lịch sử đánh giá của bé ${currentPetObj.name}`
-                : 'Lịch sử đánh giá triệu chứng'}
-            </div>
-            <div
-              style={{
-                fontSize: 12.5,
-                color: '#94a3b8',
-                fontStyle: 'italic',
-                marginTop: 4,
-              }}
-            >
-              Chưa có lịch sử đánh giá triệu chứng nào được lưu trữ.
-            </div>
-          </div>
         </ResultPane>
       </AssessmentContainer>
+
+      <AiAssessmentHistory
+        petId={selectedPetId}
+        petName={selectedPet?.name}
+        refreshKey={historyKey}
+        onOpen={setDetailId}
+      />
+
+      <AiAssessmentDetailModal
+        assessmentId={detailId}
+        onClose={() => setDetailId(null)}
+        onBook={(assessment, serviceId) => {
+          setDetailId(null);
+          book(assessment, serviceId);
+        }}
+      />
     </TriageCard>
   );
 };

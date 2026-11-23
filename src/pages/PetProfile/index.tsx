@@ -160,6 +160,7 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
         petId={pet._id}
         invoiceRole={effectiveRole}
         sharedPostsVisible={isOwner}
+        aiAssessmentsVisible={isOwner}
       />
 
       {isOwner && (
