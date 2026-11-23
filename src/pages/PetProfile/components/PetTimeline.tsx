@@ -50,6 +50,7 @@ import PetTimelineService, {
 
 import InvoicePdfButton from '@/components/invoice/InvoicePdfButton';
 import { PAY_AT_COUNTER_TEXT } from '@/services/InvoiceService';
+import PetAiAssessments from './PetAiAssessments';
 
 const { Text, Paragraph } = Typography;
 
@@ -484,12 +485,15 @@ interface PetTimelineProps {
   petId: string;
   invoiceRole?: PetTimelineInvoiceRole | string | null;
   sharedPostsVisible?: boolean;
+  /** The owner's AI checks (the BE sends [] to every other role) */
+  aiAssessmentsVisible?: boolean;
 }
 
 const PetTimeline = ({
   petId,
   invoiceRole,
   sharedPostsVisible = true,
+  aiAssessmentsVisible = false,
 }: PetTimelineProps) => {
   const [result, setResult] = useState<PetTimelinePage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -776,6 +780,10 @@ const PetTimeline = ({
           </>
         )
       )}
+
+      {aiAssessmentsVisible && result?.aiAssessments?.length ? (
+        <PetAiAssessments items={result.aiAssessments} />
+      ) : null}
 
       {sharedPostsVisible && result?.sharedPosts.length ? (
         <section
