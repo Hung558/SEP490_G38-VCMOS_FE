@@ -3,7 +3,22 @@
 **Repository:** `SEP490_G38-VCMOS_FE`
 **BE baseline:** `55422c4`
 **FE baseline:** `9125951`
-**Status:** Planned only; source implementation has not started.
+**Status:** Implemented and verified on 2026-11-23.
+
+## Completion — tester feedback follow-up
+
+- Check-in always displays both intake fields, including when the existing flag is unset or false. This supersedes the original rollout-gate assumption below: the tester explicitly reported the missing fields. Walk-in/specialty gating is unchanged.
+- Blank/whitespace-only fields remain optional and omit `intake`; partial input requires the missing field because the current BE validator requires both values when `intake` is sent.
+- The existing normalizer/request builder already handled optional intake correctly; no BE, endpoint, cage, isolation or assignment changes were needed.
+- Added Vietnamese helper text/placeholders, trimmed 500-character form validation, a scrollable modal body and first-error scrolling.
+- Verified: `npm test` (331 passed, 1 existing skip), `npm run check-types`, `npm run lint`, `npm run build`. Build retains the existing bundle-size warning.
+- Browser evidence: `tests/verify_optional_checkin_intake_e2e.py` — 7 cases with mocked API, run with flag false and unset. Covers blank/whitespace omission, partial/cleared input, trim, API-error retry, cage/staff payload, missing saved intake warning, mobile counter and cancel/reopen reset.
+- Live BE persistence was not tested; API requests were isolated fixtures.
+- Preserved the pre-existing edits in `tests/verify_inpatient_care_e2e.py`. No commit/push/PR.
+
+## Original implementation plan (historical)
+
+The completed implementation supersedes the flag-gating points in Phases 1/6 and the final non-goal below; the remaining contract and scope are unchanged.
 
 ## Phase 1 — Lock the contract and current behavior
 

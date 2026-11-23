@@ -1,5 +1,7 @@
 # FE Specification — Optional Reception Check-in Intake
 
+> **Implementation update — 2026-11-23:** Check-in intake is now always visible, even when `VITE_ENABLE_RECEPTION_INTAKE` is unset/false. The tester feedback explicitly requires visible fields; this supersedes the historical flag-gating clauses below. The flag still governs walk-in rollout. Both fields can remain blank; if either is entered, both are needed to match the current BE validator. See `plan.md` for completion and verification evidence. The original baseline analysis below is retained as history.
+
 **BE baseline:** `55422c4` (`main`)
 **FE baseline:** `9125951` (`main`)
 **Scope:** FE planning only; do not modify BE, commit, push, merge, or overwrite user changes.
