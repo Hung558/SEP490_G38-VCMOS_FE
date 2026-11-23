@@ -72,6 +72,18 @@ const CageTable = ({
       ),
     },
     {
+      title: 'Khu vực',
+      dataIndex: 'zone',
+      key: 'zone',
+      width: 160,
+      render: zone =>
+        zone === 'InpatientWard'
+          ? 'Khu nội trú'
+          : zone === 'Holding'
+            ? 'Khu chờ'
+            : 'Chưa xác định',
+    },
+    {
       title: 'Kích thước',
       dataIndex: 'size',
       key: 'size',

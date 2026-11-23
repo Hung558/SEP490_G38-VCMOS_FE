@@ -58,6 +58,18 @@ const CageDetailModal = ({
           <Descriptions.Item label="Nhãn chuồng">
             <strong>{cage.label}</strong>
           </Descriptions.Item>
+          <Descriptions.Item label="Khu vực">
+            {cage.zone === 'InpatientWard'
+              ? 'Khu nội trú'
+              : cage.zone === 'Holding'
+                ? 'Khu chờ'
+                : 'Chưa xác định'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Giới hạn cân nặng riêng">
+            {cage.maxWeightKg == null
+              ? 'Chưa cấu hình'
+              : `${cage.maxWeightKg} kg`}
+          </Descriptions.Item>
           <Descriptions.Item label="Kích thước">
             <Tag color="blue">{cageSizeLabels[cage.size] || cage.size}</Tag>
           </Descriptions.Item>
