@@ -458,8 +458,50 @@ class InpatientCareE2E(unittest.TestCase):
         expect(modal.get_by_text('Không tải được chuồng', exact=True)).to_be_visible()
         expect(modal.get_by_text(re.compile('Chưa tìm thấy chuồng trống'))).to_have_count(0)
         expect(action(modal, 'Nhập viện')).to_be_disabled()
+        diagnosis, plan = self.assert_admission_fields_editable(modal)
         action(modal, 'Thử lại').click()
         expect(modal.get_by_text(re.compile('chuồng phù hợp để chọn'))).to_be_visible()
+        expect(diagnosis).to_have_value('Theo dõi mất nước')
+        expect(plan).to_have_value('Bù dịch và theo dõi')
+        self.assertEqual(self.writes, [])
+
+    def assert_admission_fields_editable(self, modal):
+        expect(modal.get_by_role('combobox', name=re.compile('Chuồng nội trú', re.I))).to_be_visible()
+        diagnosis = field(modal, 'Chẩn đoán ban đầu')
+        plan = field(modal, 'Kế hoạch điều trị')
+        expect(diagnosis).to_be_visible()
+        expect(diagnosis).to_be_editable()
+        expect(plan).to_be_visible()
+        expect(plan).to_be_editable()
+        diagnosis.fill('Theo dõi mất nước')
+        plan.fill('Bù dịch và theo dõi')
+        return diagnosis, plan
+
+    def test_admission_all_fields_remain_editable_with_no_cages(self):
+        self.cages = {}
+        modal = self.open_admission()
+        expect(modal.get_by_text('Chưa có chuồng trống trong dữ liệu trả về.', exact=True)).to_be_visible()
+        diagnosis, plan = self.assert_admission_fields_editable(modal)
+        expect(action(modal, 'Nhập viện')).to_be_disabled()
+        action(modal, 'Làm mới').click()
+        expect(diagnosis).to_have_value('Theo dõi mất nước')
+        expect(plan).to_have_value('Bù dịch và theo dõi')
+        self.assertEqual(self.writes, [])
+
+    def test_admission_refresh_invalidates_selected_cage_without_losing_clinical_inputs(self):
+        modal = self.open_admission()
+        diagnosis, plan = self.assert_admission_fields_editable(modal)
+        combo = modal.get_by_role('combobox', name=re.compile('Chuồng nội trú', re.I))
+        combo.press('ArrowDown')
+        self.page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter(has_text='Nội trú A-02').click()
+        self.cages[WARD_FIRST]['status'] = 'Occupied'
+        action(modal, 'Làm mới').click()
+        expect(modal.get_by_text(re.compile('1 chuồng phù hợp để chọn'))).to_be_visible()
+        expect(modal.locator('.ant-select-selection-item')).to_have_count(0)
+        expect(diagnosis).to_have_value('Theo dõi mất nước')
+        expect(plan).to_have_value('Bù dịch và theo dõi')
+        action(modal, 'Nhập viện').click()
+        expect(modal.get_by_text('Chọn một chuồng nội trú', exact=True)).to_be_visible()
         self.assertEqual(self.writes, [])
 
     def test_admission_cta_absent_while_order_still_in_progress(self):
