@@ -363,7 +363,9 @@ const AppointmentServicesPanel = ({
             <Select
               autoFocus={!specialtyRouting}
               aria-label={
-                role === 'Groomer' ? 'Groomer phụ trách' : 'Bác sĩ phụ trách'
+                role === 'Groomer'
+                  ? 'Nhân viên spa phụ trách'
+                  : 'Bác sĩ phụ trách'
               }
               showSearch
               optionFilterProp="label"
@@ -378,7 +380,7 @@ const AppointmentServicesPanel = ({
               }
               onChange={setSelectedStaffId}
               placeholder={
-                role === 'Groomer' ? 'Chọn groomer' : 'Chọn bác sĩ thú y'
+                role === 'Groomer' ? 'Chọn nhân viên spa' : 'Chọn bác sĩ thú y'
               }
               notFoundContent={
                 staffLoading ? 'Đang tải...' : (specialtyStatus ?? MSG23)

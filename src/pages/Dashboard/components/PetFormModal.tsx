@@ -46,13 +46,6 @@ interface PetFormModalProps {
 const ModalContentWrapper = styled.div`
   padding: 8px 0;
 
-  .modal-subtitle {
-    font-size: 13.5px;
-    color: #64748b;
-    margin-bottom: 24px;
-    line-height: 1.5;
-  }
-
   .photo-upload-section {
     display: flex;
     align-items: center;
@@ -337,12 +330,6 @@ const PetFormModal: React.FC<PetFormModalProps> = ({
       ]}
     >
       <ModalContentWrapper>
-        <p className="modal-subtitle">
-          {isEdit
-            ? 'Chỉnh sửa thông tin nhân trắc học, thể trọng và tiền sử bệnh lý của thú cưng.'
-            : 'Tạo hồ sơ bệnh án điện tử SOAP/EMR và mã số định danh thú cưng tại hệ thống bệnh viện VCMOS.'}
-        </p>
-
         {/* Photo Upload Section */}
         <div className="photo-upload-section">
           {previewUrl ? (

@@ -2,7 +2,8 @@ export const USER_ROLE_LABELS: Record<string, string> = {
   Admin: 'Quản trị viên',
   Veterinarian: 'Bác sĩ thú y',
   Receptionist: 'Lễ tân',
-  Groomer: 'Groomer',
+  // 24/11: shown as "Nhân viên spa"; the role key stays 'Groomer' for the BE
+  Groomer: 'Nhân viên spa',
   PetOwner: 'Khách hàng',
 };
 

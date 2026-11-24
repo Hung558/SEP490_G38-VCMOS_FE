@@ -2,6 +2,8 @@ import { theme as antdTheme } from 'antd';
 const { defaultAlgorithm, darkAlgorithm } = antdTheme;
 const ColorPrimary = '#0d9488'; // Medical Clinical Teal (OpenVPM style)
 const ColorDefault = '#ffffff';
+/** The app font; text drawn outside antd (page titles) uses it too */
+export const APP_FONT_FAMILY = `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
 const ThemeConfigAntd = (theme: string) => ({
   algorithm: theme === 'dark' ? darkAlgorithm : defaultAlgorithm,
   token: {
@@ -13,7 +15,7 @@ const ThemeConfigAntd = (theme: string) => ({
     colorLink: '#0d9488',
     colorLinkHover: '#0f766e',
     fontSize: 14,
-    fontFamily: `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`,
+    fontFamily: APP_FONT_FAMILY,
     colorBgBase: theme === 'dark' ? '#1e293b' : ColorDefault,
     colorIcon: theme === 'dark' ? ColorDefault : '#334155',
     colorTextBase: theme === 'dark' ? '#f1f5f9' : '#0f172a',

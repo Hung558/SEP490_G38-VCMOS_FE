@@ -195,12 +195,6 @@ export const PetProfileWrapper = styled.div`
       color: #0f172a;
       margin-bottom: 4px;
     }
-
-    .timeline-subtitle {
-      font-size: 13px;
-      color: #64748b;
-      margin-bottom: 8px;
-    }
   }
 
   .inpatient-logs-title {

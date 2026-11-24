@@ -13,6 +13,7 @@ import {
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import type { Pet } from '@/types';
+import { DialogActions } from './actionButtons';
 
 const { Text } = Typography;
 
@@ -243,62 +244,66 @@ const PetDetailModal: React.FC<PetDetailModalProps> = ({
         </div>
       }
       width={640}
-      footer={[
-        <Button key="close" onClick={onCancel}>
-          Đóng
-        </Button>,
-        onOpenProfile && (
-          <Button
-            key="profile"
-            icon={<IdcardOutlined />}
-            onClick={() => {
-              onCancel();
-              onOpenProfile(pet);
-            }}
-          >
-            Xem hồ sơ đầy đủ
-          </Button>
-        ),
-        !isDeleted && onDelete && (
-          <Button
-            key="delete"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => {
-              onCancel();
-              onDelete(pet);
-            }}
-          >
-            Xóa
-          </Button>
-        ),
-        !isDeleted && onEdit && (
-          <Button
-            key="edit"
-            icon={<EditOutlined />}
-            onClick={() => {
-              onCancel();
-              onEdit(pet);
-            }}
-          >
-            Chỉnh sửa
-          </Button>
-        ),
-        !isDeleted && onBookAppointment && (
-          <Button
-            key="book"
-            type="primary"
-            style={{ background: '#0d9488', borderColor: '#0d9488' }}
-            icon={<CalendarOutlined />}
-            onClick={() => {
-              onCancel();
-              onBookAppointment(pet);
-            }}
-          >
-            Đặt lịch khám
-          </Button>
-        ),
-      ]}
+      // 24/11: like the pet table: main actions on one row, edit and delete
+      // below; no "Đóng", the dialog closes from its X, Esc or outside
+      footer={
+        <DialogActions>
+          <div className="action-row">
+            {onOpenProfile && (
+              <Button
+                className="act-view"
+                icon={<IdcardOutlined />}
+                onClick={() => {
+                  onCancel();
+                  onOpenProfile(pet);
+                }}
+              >
+                Xem hồ sơ đầy đủ
+              </Button>
+            )}
+            {!isDeleted && onBookAppointment && (
+              <Button
+                className="act-book"
+                icon={<CalendarOutlined />}
+                onClick={() => {
+                  onCancel();
+                  onBookAppointment(pet);
+                }}
+              >
+                Đặt lịch khám
+              </Button>
+            )}
+          </div>
+          {!isDeleted && (onEdit || onDelete) && (
+            <div className="action-row">
+              {onEdit && (
+                <Button
+                  className="act-edit"
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    onCancel();
+                    onEdit(pet);
+                  }}
+                >
+                  Sửa
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  className="act-cancel"
+                  icon={<DeleteOutlined />}
+                  onClick={() => {
+                    onCancel();
+                    onDelete(pet);
+                  }}
+                >
+                  Xóa
+                </Button>
+              )}
+            </div>
+          )}
+        </DialogActions>
+      }
     >
       <DetailWrapper>
         {/* Hero Section */}

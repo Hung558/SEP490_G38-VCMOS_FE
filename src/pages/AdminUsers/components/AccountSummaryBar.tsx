@@ -33,7 +33,7 @@ const ROLE_TILES: {
   },
   {
     role: 'Groomer',
-    label: 'Groomer',
+    label: 'Nhân viên spa',
     icon: <ScissorOutlined />,
     tone: 'amber',
   },

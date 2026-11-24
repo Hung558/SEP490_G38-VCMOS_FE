@@ -39,12 +39,14 @@ export const getLandingPath = (role?: string): string => getLanding(role).path;
 export const getLandingLabel = (role?: string): string =>
   getLanding(role).label;
 
-// Only Admin, Receptionist and Veterinarian go straight to their working page
-// after login; pet owners, groomers and any other role start on the home page
+// Admin and the clinic staff go straight to their working page after login
+// (24/11: the spa staff too, to "Hàng đợi spa"); pet owners and any other
+// role start on the home page
 const WORK_PAGE_AFTER_LOGIN = new Set([
   'Admin',
   'Receptionist',
   'Veterinarian',
+  'Groomer',
 ]);
 
 export const getPostLoginPath = (role?: string): string =>

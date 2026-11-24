@@ -111,10 +111,6 @@ const PetInpatientLogs = ({ petId }: { petId: string }) => {
         <ReadOutlined aria-hidden="true" style={{ color: '#0d9488' }} />
         Nhật ký nội trú
       </h2>
-      <div className="timeline-subtitle">
-        Các ghi nhận theo ngày của bác sĩ qua những đợt điều trị nội trú, mới
-        nhất trước. Nhật ký không cho biết bé có đang nằm viện hay không.
-      </div>
 
       <div aria-busy={logs.status === 'loading'}>
         {logs.status === 'loading' ? (

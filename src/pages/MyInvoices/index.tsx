@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Button,
-  Card,
-  DatePicker,
-  Modal,
-  Select,
-  Typography,
-} from 'antd';
+import { Alert, Button, Card, DatePicker, Modal, Select } from 'antd';
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import type { Invoice, InvoicePaymentStatus, Pet } from '@/types';
@@ -35,8 +27,8 @@ import {
   ResponsiveFilterRow,
 } from '../AppointmentReception/components/styles';
 import AwaitingPickupCard from './components/AwaitingPickupCard';
+import PageTitle from '@/components/common/PageTitle';
 
-const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const PAGE_SIZE = 10;
 
@@ -121,14 +113,7 @@ const MyInvoicesPage = () => {
       <Card>
         <PageHeader>
           <div>
-            <Title level={3} style={{ margin: 0 }}>
-              Hóa đơn của tôi
-            </Title>
-            <Text type="secondary">
-              Hóa đơn các lần khám và dịch vụ của các bé. Lễ tân lập hóa đơn khi
-              bạn đến đón bé; bạn thanh toán tại quầy bằng tiền mặt hoặc quét mã
-              QR (VNPay hoặc chuyển khoản VietQR).
-            </Text>
+            <PageTitle>Hóa đơn của tôi</PageTitle>
           </div>
         </PageHeader>
 

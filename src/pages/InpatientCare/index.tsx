@@ -25,8 +25,9 @@ import {
   PageWrapper,
 } from '../AppointmentReception/components/styles';
 import InpatientDetail from './InpatientDetail';
+import PageTitle from '@/components/common/PageTitle';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const limit = 15;
 
 const name = <T extends object>(ref: T | string | null, key: keyof T) =>
@@ -84,13 +85,7 @@ const InpatientCare = () => {
       <Card>
         <PageHeader>
           <div>
-            <Title level={2} style={{ margin: '0 0 4px' }}>
-              Nội trú
-            </Title>
-            <Text type="secondary">
-              Theo dõi thú cưng đang điều trị, ghi nhật ký và xác nhận xuất
-              viện.
-            </Text>
+            <PageTitle>Nội trú</PageTitle>
           </div>
           <Button onClick={reload} loading={loading}>
             Làm mới

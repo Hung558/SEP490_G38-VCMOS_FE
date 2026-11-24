@@ -1,5 +1,6 @@
-import { Button, Card, Space, Typography } from 'antd';
+import { Button, Card, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import PageTitle from '@/components/common/PageTitle';
 import ProductFilters from './components/ProductFilters';
 import ProductTable from './components/ProductTable';
 import ProductFormModal from './components/ProductFormModal';
@@ -8,7 +9,6 @@ import ProductSummaryBar from './components/ProductSummaryBar';
 import { useProductManagement } from './components/useProductManagement';
 import { PageWrapper } from './components/styles';
 
-const { Title, Text } = Typography;
 const PAGE_SIZE = 10;
 
 const AdminProductsPage = () => {
@@ -22,15 +22,7 @@ const AdminProductsPage = () => {
             style={{ justifyContent: 'space-between', width: '100%' }}
             wrap
           >
-            <div>
-              <Title level={3} style={{ margin: 0 }}>
-                Quản lý sản phẩm
-              </Title>
-              <Text type="secondary">
-                Quản lý thuốc điều trị, vắc xin và sản phẩm bán lẻ trong hệ
-                thống
-              </Text>
-            </div>
+            <PageTitle>Quản lý sản phẩm</PageTitle>
             <Button
               type="primary"
               icon={<PlusOutlined />}

@@ -632,7 +632,6 @@ const PetTimeline = ({
       <h2 className="timeline-title" id={`pet-timeline-${petId}`}>
         <FieldTimeOutlined style={{ color: '#115e59' }} /> Các mốc hành trình
       </h2>
-      <Text style={{ color: '#475569' }}>Chọn một mốc để xem chi tiết.</Text>
 
       {result && (
         <>

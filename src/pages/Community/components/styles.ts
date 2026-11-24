@@ -44,18 +44,11 @@ export const IntroWrapper = styled.header`
   }
 
   h1 {
-    margin: 0 0 6px;
+    margin: 0;
     font-size: 30px;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: #0f172a;
-  }
-
-  p {
-    margin: 0;
-    max-width: 560px;
-    color: #64748b;
-    line-height: 1.6;
   }
 
   .intro-actions {

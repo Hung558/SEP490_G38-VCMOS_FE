@@ -28,8 +28,9 @@ import type {
 import PostDetail, { formatPostDate, postStatusColor } from './PostDetail';
 import PostEditor from './PostEditor';
 import './styles.css';
+import PageTitle from '@/components/common/PageTitle';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const PAGE_SIZE = 10;
 
 function MyCommunityPosts() {
@@ -97,13 +98,7 @@ function MyCommunityPosts() {
       <Card>
         <header className="community-page-header">
           <div>
-            <Title level={2} style={{ margin: '0 0 8px' }}>
-              Bài viết của tôi
-            </Title>
-            <Text type="secondary">
-              Quản lý các bài thảo luận và hành trình bạn đã gửi. Đây không phải
-              bảng tin cộng đồng công khai.
-            </Text>
+            <PageTitle>Bài viết của tôi</PageTitle>
           </div>
           <Space wrap>
             <Button onClick={() => navigate(ROUTER.COMMUNITY)}>

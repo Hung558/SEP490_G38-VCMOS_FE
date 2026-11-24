@@ -646,10 +646,6 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
                 <LockOutlined />
               </ShieldIconBox>
               <Title>Thiết lập mật khẩu mới</Title>
-              <Subtitle>
-                Mật khẩu mới của bạn phải khác với các mật khẩu đã sử dụng trước
-                đó.
-              </Subtitle>
             </HeaderWrapper>
 
             <Form form={formStep3} layout="vertical" onFinish={onResetPassword}>

@@ -119,7 +119,6 @@ function AuthorizedFrontDesk({ role }: { role: string }) {
     <Page>
       <PageHeader
         title="Tổng quan quầy lễ tân"
-        subtitle="Nắm tình hình tiếp nhận, chờ đón, chuồng và thu ngân trước khi xử lý công việc."
         extra={
           <>
             {display.receivedAt && (

@@ -1,5 +1,6 @@
-import { Button, Card, Space, Typography } from 'antd';
+import { Button, Card, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import PageTitle from '@/components/common/PageTitle';
 import ServiceFilters from './components/ServiceFilters';
 import ServiceTable from './components/ServiceTable';
 import ServiceFormModal from './components/ServiceFormModal';
@@ -8,7 +9,6 @@ import ServiceSummaryBar from './components/ServiceSummaryBar';
 import { useServiceManagement } from './components/useServiceManagement';
 import { PageWrapper } from './components/styles';
 
-const { Title, Text } = Typography;
 const PAGE_SIZE = 10;
 
 const AdminServicesPage = () => {
@@ -22,14 +22,7 @@ const AdminServicesPage = () => {
             style={{ justifyContent: 'space-between', width: '100%' }}
             wrap
           >
-            <div>
-              <Title level={3} style={{ margin: 0 }}>
-                Quản lý dịch vụ
-              </Title>
-              <Text type="secondary">
-                Quản lý danh mục, giá niêm yết và trạng thái cung cấp dịch vụ
-              </Text>
-            </div>
+            <PageTitle>Quản lý dịch vụ</PageTitle>
             <Button
               type="primary"
               icon={<PlusOutlined />}

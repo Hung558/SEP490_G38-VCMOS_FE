@@ -8,23 +8,30 @@ import {
 import type { RevenueReport } from '@/services/ReportService';
 import {
   BarList,
-  ColumnChart,
   Delta,
+  DonutChart,
+  orderedBy,
   Panel,
   PanelGrid,
+  PartsBar,
   PointTable,
   Stack,
   StatGrid,
   StatTile,
+  TrendChart,
+  upToToday,
   useChartView,
 } from '@/components/dashboard';
+import { getVietnamTodayString } from '@/services/AppointmentOrderService';
 import {
   categoryLabels,
   count,
   dateLabel,
   formatSeriesPeriod,
+  ITEM_TYPE_ORDER,
   itemTypeLabels,
   money,
+  PAYMENT_ORDER,
   paymentLabels,
   pct,
 } from './labels';
@@ -33,20 +40,48 @@ export default function RevenueTab({ revenue }: { revenue: RevenueReport }) {
   const { kpis } = revenue;
   const { view, toggle } = useChartView();
   const byMonth = revenue.groupBy === 'month';
-  const points = revenue.revenueSeries.map(point => {
-    const { label, tick } = formatSeriesPeriod(point.period);
-    return {
-      key: point.period,
-      label,
-      tick,
-      value: point.revenue,
-      display: money(point.revenue),
-      sub: `${count(point.invoiceCount)} hóa đơn`,
-      subValue: count(point.invoiceCount),
-    };
-  });
+  // 24/11: the days (or months) after today are not data yet; drawn as 0
+  // they read as a drop in revenue
+  const points = upToToday(revenue.revenueSeries, getVietnamTodayString()).map(
+    point => {
+      const { label, tick } = formatSeriesPeriod(point.period);
+      return {
+        key: point.period,
+        label,
+        tick,
+        value: point.revenue,
+        display: money(point.revenue),
+        sub: `${count(point.invoiceCount)} hóa đơn`,
+        subValue: count(point.invoiceCount),
+      };
+    }
+  );
   // The BE sends a bucket for every day; all zero means nothing to draw
   const hasRevenue = points.some(point => point.value > 0);
+  const paymentParts = orderedBy(
+    revenue.byPaymentMethod,
+    item => item.paymentMethod,
+    PAYMENT_ORDER
+  ).map(item => ({
+    key: item.paymentMethod,
+    label: paymentLabels[item.paymentMethod] || item.paymentMethod,
+    value: item.revenue,
+    display: money(item.revenue),
+    sub: `${count(item.invoiceCount)} hóa đơn`,
+  }));
+  const itemTypeParts = orderedBy(
+    revenue.byItemType,
+    item => item.type,
+    ITEM_TYPE_ORDER
+  ).map(item => ({
+    key: item.type,
+    label: itemTypeLabels[item.type] || item.type,
+    value: item.revenue,
+    display: money(item.revenue),
+    sub: `${count(item.itemCount)} mục`,
+  }));
+  const sum = (parts: { value: number }[]) =>
+    parts.reduce((total, part) => total + Math.max(0, part.value), 0);
   const previous = `Kỳ trước (${dateLabel(
     kpis.previousPeriod.from,
     kpis.previousPeriod.to
@@ -96,13 +131,13 @@ export default function RevenueTab({ revenue }: { revenue: RevenueReport }) {
 
       <Panel
         title={`Diễn biến doanh thu (${byMonth ? 'theo tháng' : 'theo ngày'})`}
-        info="Chỉ tính hóa đơn đã thanh toán theo ngày thu. Di chuột hoặc dùng phím Tab trên từng cột để xem số tiền và số hóa đơn."
+        info="Chỉ tính hóa đơn đã thanh toán theo ngày thu. Kỳ có tới 14 mốc vẽ dạng cột, dài hơn vẽ dạng đường. Di chuột hoặc dùng phím Tab trên từng mốc để xem số tiền và số hóa đơn."
         extra={hasRevenue ? toggle : undefined}
       >
         {!hasRevenue ? (
           <Empty description="Chưa có doanh thu trong kỳ" />
         ) : view === 'chart' ? (
-          <ColumnChart
+          <TrendChart
             points={points}
             ariaLabel={`Doanh thu ${byMonth ? 'theo tháng' : 'theo ngày'}`}
           />
@@ -116,18 +151,26 @@ export default function RevenueTab({ revenue }: { revenue: RevenueReport }) {
         )}
       </Panel>
 
-      <PanelGrid $min={280}>
+      <PanelGrid $min={320}>
         <Panel title="Theo phương thức thanh toán">
-          <BarList
-            whole={100}
+          <DonutChart
+            ariaLabel="Doanh thu theo phương thức thanh toán"
+            parts={paymentParts}
+            centerValue={money(sum(paymentParts))}
+            centerLabel="Tổng đã thu"
+            format={money}
             emptyText="Chưa có khoản thu trong kỳ."
-            items={revenue.byPaymentMethod.map(item => ({
-              key: item.paymentMethod,
-              label: paymentLabels[item.paymentMethod] || item.paymentMethod,
-              value: item.percentage,
-              display: money(item.revenue),
-              sub: `${count(item.invoiceCount)} HĐ · ${pct(item.percentage)}`,
-            }))}
+          />
+        </Panel>
+        {/* 24/11: a bar, not a second donut, so the two splits read apart */}
+        <Panel title="Theo loại hạng mục">
+          <PartsBar
+            ariaLabel="Doanh thu theo loại hạng mục"
+            parts={itemTypeParts}
+            totalValue={money(sum(itemTypeParts))}
+            totalLabel="Tổng tiền các hạng mục"
+            format={money}
+            emptyText="Chưa có hạng mục được thu tiền trong kỳ."
           />
         </Panel>
         <Panel
@@ -143,19 +186,6 @@ export default function RevenueTab({ revenue }: { revenue: RevenueReport }) {
               value: item.percentage,
               display: money(item.revenue),
               sub: `${count(item.itemCount)} lượt · ${pct(item.percentage)}`,
-            }))}
-          />
-        </Panel>
-        <Panel title="Theo loại hạng mục">
-          <BarList
-            whole={100}
-            emptyText="Chưa có hạng mục được thu tiền trong kỳ."
-            items={revenue.byItemType.map(item => ({
-              key: item.type,
-              label: itemTypeLabels[item.type] || item.type,
-              value: item.percentage,
-              display: money(item.revenue),
-              sub: `${count(item.itemCount)} mục · ${pct(item.percentage)}`,
             }))}
           />
         </Panel>

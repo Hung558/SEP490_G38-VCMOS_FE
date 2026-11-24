@@ -1,4 +1,3 @@
-import { Table, Tag } from 'antd';
 import {
   CalendarOutlined,
   CheckCircleOutlined,
@@ -31,49 +30,26 @@ import {
   statusLabels,
 } from './labels';
 
-const Rank = styled.span<{ $top: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 13px;
-  background: ${p => (p.$top ? VIZ.accentWash : '#f1f5f9')};
-  color: ${p => (p.$top ? VIZ.accentStrong : VIZ.textSecondary)};
-`;
+const ServiceName = styled.span`
+  display: block;
 
-const ServiceName = styled.div`
   .name {
+    display: block;
     font-weight: 600;
     color: ${VIZ.text};
   }
   .code {
+    display: block;
     font-size: 12px;
     color: ${VIZ.textMuted};
   }
 `;
 
-const UseCount = styled.div`
-  display: grid;
-  gap: 4px;
-  min-width: 90px;
-  font-variant-numeric: tabular-nums;
-
-  .bar {
-    height: 6px;
-    border-radius: 9999px;
-    background: ${VIZ.accentWash};
-    overflow: hidden;
-  }
-
-  .fill {
-    height: 100%;
-    border-radius: 9999px;
-    background: ${VIZ.accent};
-  }
-`;
+// 24/11: the states that need attention stand out (icon + status colour)
+const STATUS_TONES: Record<string, 'warning' | 'critical' | undefined> = {
+  Overdue: 'warning',
+  Cancelled: 'critical',
+};
 
 const Gap = styled.div`
   height: 1px;
@@ -93,7 +69,6 @@ export default function OperationsTab({
       key => !(STATUS_ORDER as readonly string[]).includes(key)
     ),
   ];
-  const topCount = Math.max(1, ...operations.topServices.map(s => s.count));
   const zoneCaption = (available: number, rate?: number) =>
     `Còn trống ${count(available)}${rate === undefined ? '' : ` · ${pct(rate)} đang dùng`}`;
 
@@ -140,6 +115,7 @@ export default function OperationsTab({
               display: count(
                 appointments.byStatus[key as keyof typeof appointments.byStatus]
               ),
+              tone: STATUS_TONES[key],
             }))}
           />
           <Gap />
@@ -182,62 +158,33 @@ export default function OperationsTab({
         </Panel>
       </PanelGrid>
 
+      {/* 24/11: ranked horizontal bars, long Vietnamese names read in full */}
       <Panel title="Dịch vụ được sử dụng nhiều">
-        <Table
-          size="small"
-          rowKey="serviceId"
-          pagination={false}
-          dataSource={operations.topServices}
-          columns={[
-            {
-              title: 'Hạng',
-              dataIndex: 'rank',
-              width: 70,
-              render: (rank: number) => <Rank $top={rank <= 3}>{rank}</Rank>,
-            },
-            {
-              title: 'Dịch vụ',
-              dataIndex: 'name',
-              render: (_: string, row) => (
-                <ServiceName>
-                  <div className="name">{row.name}</div>
-                  <div className="code">{row.code || '—'}</div>
-                </ServiceName>
-              ),
-            },
-            {
-              title: 'Nhóm',
-              dataIndex: 'category',
-              width: 150,
-              render: (value: string | null) =>
-                value ? <Tag>{categoryLabels[value] || value}</Tag> : '—',
-            },
-            {
-              title: 'Lượt',
-              dataIndex: 'count',
-              width: 150,
-              render: (value: number) => (
-                <UseCount>
-                  <span>{count(value)}</span>
-                  <div className="bar" aria-hidden>
-                    <div
-                      className="fill"
-                      style={{ width: `${(value / topCount) * 100}%` }}
-                    />
-                  </div>
-                </UseCount>
-              ),
-            },
-            {
-              title: 'Hoàn tất',
-              dataIndex: 'doneCount',
-              width: 100,
-              align: 'right',
-              render: (value: number) => count(value),
-            },
-          ]}
-          locale={{ emptyText: 'Chưa có lượt sử dụng dịch vụ trong kỳ' }}
-          scroll={{ x: 600 }}
+        <BarList
+          emptyText="Chưa có lượt sử dụng dịch vụ trong kỳ."
+          items={operations.topServices.map(service => ({
+            key: service.serviceId,
+            label: (
+              <ServiceName>
+                <span className="name">
+                  {service.rank}. {service.name}
+                </span>
+                <span className="code">
+                  {[
+                    service.code,
+                    service.category
+                      ? categoryLabels[service.category] || service.category
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || '—'}
+                </span>
+              </ServiceName>
+            ),
+            value: service.count,
+            display: `${count(service.count)} lượt`,
+            sub: `hoàn tất ${count(service.doneCount)}`,
+          }))}
         />
       </Panel>
 

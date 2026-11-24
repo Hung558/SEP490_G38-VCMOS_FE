@@ -66,6 +66,7 @@ const BestSellingCard = () => {
   const [range, setRange] = useState<ReportRange>(() => getPeriodRange('day'));
   // Kept apart from the range: on a Monday "this week" is the same day as today
   const [period, setPeriod] = useState<ReportPeriod | 'custom'>('day');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [category, setCategory] = useState<BestSellingCategory>();
   const [sortBy, setSortBy] = useState<BestSellingSortBy>('quantity');
   const [limit, setLimit] = useState(10);
@@ -230,13 +231,22 @@ const BestSellingCard = () => {
   ];
 
   return (
-    <DashSection title="Sản phẩm bán chạy" icon={<TrophyOutlined />}>
+    <DashSection
+      title="Sản phẩm bán chạy"
+      icon={<TrophyOutlined />}
+      info="Chỉ tính hóa đơn đã thanh toán, theo ngày thanh toán; gồm hàng bán tại quầy và thuốc, vắc xin kê đơn."
+    >
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <FilterRow>
           <Segmented<ReportPeriod | 'custom'>
             value={period}
             onChange={value => {
-              if (value === 'custom') return;
+              // 24/11: "Tùy chọn" opens the date range to pick from
+              if (value === 'custom') {
+                setPeriod('custom');
+                setPickerOpen(true);
+                return;
+              }
               setPeriod(value);
               setRange(getPeriodRange(value));
             }}
@@ -244,11 +254,13 @@ const BestSellingCard = () => {
               ...(Object.keys(REPORT_PERIOD_LABELS) as ReportPeriod[]).map(
                 value => ({ value, label: REPORT_PERIOD_LABELS[value] })
               ),
-              { value: 'custom', label: 'Tùy chọn', disabled: true },
+              { value: 'custom', label: 'Tùy chọn' },
             ]}
             aria-label="Kỳ báo cáo"
           />
           <RangePicker
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
             value={pickerValue}
             allowClear={false}
             format="DD/MM/YYYY"
@@ -309,10 +321,7 @@ const BestSellingCard = () => {
           </Button>
         </FilterRow>
 
-        <Text type="secondary">
-          {formatReportRange(range)} · chỉ tính hóa đơn đã thanh toán, theo ngày
-          thanh toán; gồm hàng bán tại quầy và thuốc, vắc xin kê đơn.
-        </Text>
+        <Text type="secondary">{formatReportRange(range)}</Text>
 
         {error && (
           <Alert

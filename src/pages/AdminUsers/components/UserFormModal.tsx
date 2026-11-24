@@ -16,7 +16,7 @@ const staffRoles: Array<Exclude<AdminRole, 'PetOwner' | 'Admin'>> = [
 const roleLabels: Record<string, string> = {
   Receptionist: 'Lễ tân',
   Veterinarian: 'Bác sĩ thú y',
-  Groomer: 'Groomer',
+  Groomer: 'Nhân viên spa',
   PetOwner: 'Chủ nuôi',
 };
 

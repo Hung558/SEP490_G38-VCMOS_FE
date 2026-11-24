@@ -1,10 +1,9 @@
-import { Card, Space, Tabs, Typography } from 'antd';
+import { Card, Space, Tabs } from 'antd';
 import { useSearchParams } from 'react-router-dom';
+import PageTitle from '@/components/common/PageTitle';
 import ModerationPostsTab from './components/ModerationPostsTab';
 import ModerationReportsTab from './components/ModerationReportsTab';
 import { PageWrapper } from './components/styles';
-
-const { Title, Text } = Typography;
 
 const TABS = ['posts', 'reports'] as const;
 type TabKey = (typeof TABS)[number];
@@ -22,15 +21,7 @@ const AdminCommunityModerationPage = () => {
     <PageWrapper>
       <Card>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <div>
-            <Title level={3} style={{ margin: 0 }}>
-              Kiểm duyệt cộng đồng
-            </Title>
-            <Text type="secondary">
-              Duyệt bài trước khi hiện trên cộng đồng và xử lý báo cáo vi phạm
-              của chủ nuôi.
-            </Text>
-          </div>
+          <PageTitle>Kiểm duyệt cộng đồng</PageTitle>
           <Tabs
             activeKey={tab}
             onChange={key =>

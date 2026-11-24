@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { EmailVerifyBadge } from '@/components/common/EmailVerifyReminder';
-import { getRoleLabel } from '@/constants/roles';
+import { getRoleGroup, getRoleLabel, normalizeRole } from '@/constants/roles';
 import styles from './mainLayout.module.scss';
 import ROUTER from '@/routerMap/ROUTER';
 import Breadcrumb from '../Breadcrumb/Breadcrumb';
@@ -173,6 +173,12 @@ const MainLayout = ({ ...rest }: any) => {
     setMenu(roleMenu);
   }, [user]);
 
+  // 24/11: Admin and clinic staff work only here, so no "Trang chủ" buttons;
+  // pet owners keep both
+  const role = user?.role || user?.systemRole;
+  const showHomeLinks =
+    Boolean(normalizeRole(role)) && getRoleGroup(role) === 'owner';
+
   useEffect(() => {
     const key = location?.pathname;
     setSelectedKey([key]);
@@ -268,13 +274,15 @@ const MainLayout = ({ ...rest }: any) => {
                   <LogoutOutlined style={{ fontSize: '16px' }} />
                 </button>
               </div>
-              <div
-                onClick={() => navigate(ROUTER.HOME)}
-                className={styles.homeBtn}
-              >
-                <HomeOutlined style={{ fontSize: '15px' }} />
-                <span className={styles.homeText}>Trở về Trang chủ</span>
-              </div>
+              {showHomeLinks && (
+                <div
+                  onClick={() => navigate(ROUTER.HOME)}
+                  className={styles.homeBtn}
+                >
+                  <HomeOutlined style={{ fontSize: '15px' }} />
+                  <span className={styles.homeText}>Trở về Trang chủ</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -311,13 +319,15 @@ const MainLayout = ({ ...rest }: any) => {
 
           <TopBarActions>
             <EmailVerifyBadge />
-            <Button
-              icon={<HomeOutlined />}
-              onClick={() => navigate(ROUTER.HOME)}
-              aria-label="Trang chủ"
-            >
-              <span className="home-label">Trang chủ</span>
-            </Button>
+            {showHomeLinks && (
+              <Button
+                icon={<HomeOutlined />}
+                onClick={() => navigate(ROUTER.HOME)}
+                aria-label="Trang chủ"
+              >
+                <span className="home-label">Trang chủ</span>
+              </Button>
+            )}
             <Popover
               content={<MenuUser />}
               trigger="hover"

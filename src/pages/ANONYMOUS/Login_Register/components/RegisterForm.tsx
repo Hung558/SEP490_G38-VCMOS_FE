@@ -41,14 +41,8 @@ const FormHeader = styled.div`
     font-size: 22px;
     font-weight: 800;
     color: #0f172a;
-    margin: 0 0 6px 0;
-    letter-spacing: -0.02em;
-  }
-
-  p {
-    font-size: 13.5px;
-    color: #64748b;
     margin: 0;
+    letter-spacing: -0.02em;
   }
 `;
 
@@ -199,7 +193,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
       <FormContainer>
         <FormHeader>
           <h2>Tạo tài khoản thành viên mới</h2>
-          <p>Trải nghiệm dịch vụ y tế & đặt lịch thông minh</p>
         </FormHeader>
 
         {/* Sign-up form: keep the browser from filling a saved login into it */}

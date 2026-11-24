@@ -6,6 +6,7 @@ export const breadcrumbMap: Record<string, string> = {
   profile: 'Thông tin tài khoản',
   pets: 'Hồ sơ thú cưng',
   'pet-journeys': 'Hành trình của bé',
+  'ai-assessment': 'Tính năng AI',
   settings: 'Cài đặt',
   admin: 'Quản trị',
   users: 'Quản lý tài khoản',

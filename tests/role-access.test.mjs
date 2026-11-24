@@ -68,12 +68,14 @@ test('"Đặt dịch vụ này" pre-selects the service in the owner booking for
   );
 });
 
-test('only Admin, Receptionist and Veterinarian start on their working page after login', () => {
+test('Admin and clinic staff start on their working page after login', () => {
   assert.equal(access.getPostLoginPath('Admin'), '/admin/reports');
   assert.equal(access.getPostLoginPath('receptionist'), '/clinic/dashboard');
   assert.equal(access.getPostLoginPath('Veterinarian'), '/clinic/my-queue');
-  // Pet owners, groomers and an unknown role (LoginForm falls back to 'user') start on the home page
-  for (const role of ['PetOwner', 'Groomer', 'user', undefined]) {
+  // 24/11: the spa staff go straight to "Hàng đợi spa" too
+  assert.equal(access.getPostLoginPath('Groomer'), '/clinic/my-queue');
+  // Pet owners and an unknown role (LoginForm falls back to 'user') start on the home page
+  for (const role of ['PetOwner', 'user', undefined]) {
     assert.equal(access.getPostLoginPath(role), '/', String(role));
   }
 });

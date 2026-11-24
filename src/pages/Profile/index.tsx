@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import {
   Card,
-  Typography,
   Descriptions,
   Spin,
   Avatar,
@@ -42,11 +41,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import { STORAGE, storage } from '@/lib/storage';
+import PageTitle from '@/components/common/PageTitle';
 import { getAccountStatus } from './components/profileContent';
 import OwnerPetsSection from './components/OwnerPetsSection';
 import StaffWorkSection from './components/StaffWorkSection';
-
-const { Title } = Typography;
 
 const ProfileWrapper = styled.div`
   padding: 32px 24px;
@@ -470,17 +468,7 @@ const ProfilePage: React.FC = () => {
 
   return (
     <ProfileWrapper>
-      <Title
-        level={1}
-        style={{
-          marginBottom: 24,
-          color: '#0f172a',
-          fontWeight: 800,
-          fontSize: 24,
-        }}
-      >
-        Thông tin tài khoản
-      </Title>
+      <PageTitle style={{ marginBottom: 24 }}>Thông tin tài khoản</PageTitle>
 
       {/* User Information Card */}
       <ProfileCard>

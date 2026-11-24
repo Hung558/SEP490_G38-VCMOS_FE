@@ -27,6 +27,7 @@ import AdminReportsPage from '@/pages/AdminReports';
 import FrontDeskDashboardPage from '@/pages/FrontDeskDashboard';
 import PetProfilePage from '@/pages/PetProfile';
 import PetJourneysPage from '@/pages/PetJourneys';
+import AiAssessmentPage from '@/pages/AiAssessment';
 import CagesPage from '@/pages/Cages';
 import AppointmentReceptionPage from '@/pages/AppointmentReception';
 import StaffQueuePage from '@/pages/StaffQueue';
@@ -293,6 +294,15 @@ const AppRouter = () => {
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
               <DashboardPage />
+            </Suspense>
+          ),
+        },
+        {
+          // POST /ai-assessments is PetOwner only (SCR-10)
+          path: ROUTER.AI_ASSESSMENT,
+          element: (
+            <Suspense fallback={<SpinCustom spinning={true} />}>
+              <AiAssessmentPage />
             </Suspense>
           ),
         },

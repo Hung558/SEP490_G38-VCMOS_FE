@@ -53,18 +53,11 @@ const SectionHeader = styled.div`
     font-weight: 850;
     color: #0f172a;
     letter-spacing: -0.02em;
-    margin: 0 0 14px 0;
+    margin: 0;
 
     @media (max-width: 640px) {
       font-size: 28px;
     }
-  }
-
-  p {
-    font-size: 16px;
-    color: #64748b;
-    line-height: 1.6;
-    margin: 0;
   }
 `;
 
@@ -366,7 +359,7 @@ const ROLE_PROFILE: Record<
     tint: '#f0fdfa',
   },
   Groomer: {
-    badge: 'Spa & Grooming',
+    badge: 'Nhân viên spa',
     icon: <ScissorOutlined />,
     accent: '#c2410c',
     tint: '#fff7ed',
@@ -379,7 +372,7 @@ const ROLE_ORDER: ClinicalStaffRole[] = ['Veterinarian', 'Groomer'];
 const ROLE_TABS: { key: RoleFilter; label: string }[] = [
   { key: 'ALL', label: 'Tất cả' },
   { key: 'Veterinarian', label: 'Bác sĩ thú y' },
-  { key: 'Groomer', label: 'Spa & Grooming' },
+  { key: 'Groomer', label: 'Nhân viên spa' },
 ];
 
 const SHIFT_OPTIONS: { key: ShiftFilter; label: string }[] = [
@@ -570,10 +563,6 @@ const DoctorsSection: React.FC = () => {
       <SectionHeader>
         <span className="section-tag">Đội Ngũ Chuyên Môn VCMOS</span>
         <h2>Bác Sĩ Thú Y & Nhân Viên Spa</h2>
-        <p>
-          Bác sĩ thú y phụ trách khám, điều trị & tiêm phòng · Nhân viên Spa phụ
-          trách tắm sấy, vệ sinh & cắt tỉa.
-        </p>
       </SectionHeader>
 
       {showToolbar && (

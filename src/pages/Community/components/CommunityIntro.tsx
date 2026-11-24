@@ -21,11 +21,6 @@ const CommunityIntro = () => {
         <div>
           <span className="intro-tag">Cộng đồng</span>
           <h1>Cộng đồng chủ nuôi VCMOS</h1>
-          <p>
-            Hành trình chăm sóc các bé được chủ nuôi chia sẻ và những bài trao
-            đổi kinh nghiệm. Mọi bài viết đều được quản trị viên duyệt trước khi
-            hiện.
-          </p>
         </div>
         <div className="intro-actions">
           {viewer.canInteract && (

@@ -26,7 +26,7 @@ export const getAccountStatus = (status?: string) =>
     color: 'default',
   };
 
-// What each clinic role does (SRS actors) and the screens it works in.
+// The screens each clinic role works in (SRS actors).
 // `path` is set once a screen exists; the others show as in development.
 export interface StaffScreen {
   code: string;
@@ -34,13 +34,8 @@ export interface StaffScreen {
   path?: string;
 }
 
-export const STAFF_ROLE_CONTENT: Record<
-  string,
-  { description: string; screens: StaffScreen[] }
-> = {
+export const STAFF_ROLE_CONTENT: Record<string, { screens: StaffScreen[] }> = {
   Receptionist: {
-    description:
-      'Tiếp đón khách, quản lý lịch hẹn, chuồng, khách vãng lai và thu ngân.',
     screens: [
       {
         code: 'SCR-16',
@@ -63,8 +58,6 @@ export const STAFF_ROLE_CONTENT: Record<
     ],
   },
   Veterinarian: {
-    description:
-      'Khám bệnh, ghi bệnh án SOAP, kê đơn thuốc và theo dõi thú cưng nội trú.',
     screens: [
       {
         code: 'SCR-22',
@@ -78,8 +71,6 @@ export const STAFF_ROLE_CONTENT: Record<
     ],
   },
   Groomer: {
-    description:
-      'Thực hiện dịch vụ spa, grooming và ghi chú chăm sóc cho thú cưng.',
     screens: [
       {
         code: 'SCR-26',

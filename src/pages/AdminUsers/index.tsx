@@ -31,8 +31,9 @@ import {
   summarizeAccounts,
   type AccountSummary,
 } from './components/accountSummary';
+import PageTitle from '@/components/common/PageTitle';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const staffRoles: AdminRole[] = ['Receptionist', 'Veterinarian', 'Groomer'];
 const roles: AdminRole[] = ['PetOwner', ...staffRoles, 'Admin'];
 const statuses: AdminUserStatus[] = ['Active', 'Inactive', 'Locked'];
@@ -40,7 +41,7 @@ const roleLabels: Record<string, string> = {
   PetOwner: 'Chủ nuôi',
   Receptionist: 'Lễ tân',
   Veterinarian: 'Bác sĩ thú y',
-  Groomer: 'Groomer',
+  Groomer: 'Nhân viên spa',
   Admin: 'Quản trị viên',
 };
 const statusLabels: Record<string, string> = {
@@ -259,12 +260,7 @@ const AdminUsersPage = () => {
             wrap
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
-                Quản lý tài khoản
-              </Title>
-              <Text type="secondary">
-                Tài khoản người dùng và nhân sự trong hệ thống
-              </Text>
+              <PageTitle>Quản lý tài khoản</PageTitle>
             </div>
             <Button
               type="primary"

@@ -8,9 +8,10 @@ import {
 import type { FrontDeskReport } from '@/services/ReportService';
 import {
   BarList,
-  Caption,
+  DonutChart,
   InfoTip,
   MeterList,
+  orderedBy,
   Panel,
   PanelGrid,
   Stack,
@@ -26,6 +27,7 @@ import {
   formatReportNumber,
   hasPeriodActivity,
   PAYMENT_LABELS,
+  PAYMENT_ORDER,
 } from './helpers';
 import { Divider, FigureGrid } from './styles';
 
@@ -106,6 +108,13 @@ export default function PeriodOverview({ report }: Props) {
               label,
               value: stats.appointmentsByStatus[key] ?? 0,
               display: formatReportNumber(stats.appointmentsByStatus[key] ?? 0),
+              // 24/11: the states that need attention stand out
+              tone:
+                key === 'Overdue'
+                  ? ('warning' as const)
+                  : key === 'Cancelled'
+                    ? ('critical' as const)
+                    : undefined,
             }))}
           />
         </Panel>
@@ -138,10 +147,17 @@ export default function PeriodOverview({ report }: Props) {
               Tiền đã thu theo phương thức
               <InfoTip text="Chỉ hóa đơn đã thanh toán, theo ngày thanh toán trong kỳ. Không phải số hóa đơn lập trong kỳ." />
             </SubHeading>
-            <BarList
-              whole={invoices.totalCollected}
+            <DonutChart
+              ariaLabel="Tiền đã thu theo phương thức"
               emptyText="Chưa có khoản thu theo phương thức thanh toán."
-              items={invoices.byPaymentMethod.map(method => ({
+              centerValue={formatReportMoney(invoices.totalCollected)}
+              centerLabel="Tổng đã thu"
+              format={formatReportMoney}
+              parts={orderedBy(
+                invoices.byPaymentMethod,
+                method => method.paymentMethod,
+                PAYMENT_ORDER
+              ).map(method => ({
                 key: method.paymentMethod,
                 label:
                   PAYMENT_LABELS[method.paymentMethod] || method.paymentMethod,
@@ -151,10 +167,6 @@ export default function PeriodOverview({ report }: Props) {
               }))}
             />
           </Stack>
-          <Caption style={{ marginTop: 14 }}>
-            Lập/chưa thanh toán theo ngày lập; đã thanh toán và tiền thu theo
-            ngày thanh toán.
-          </Caption>
         </Panel>
 
         <Panel
