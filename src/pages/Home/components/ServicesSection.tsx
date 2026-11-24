@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import ServiceService, {
   type Service,
   type ServiceCategory,
@@ -8,7 +14,7 @@ import ServiceService, {
 } from '@/services/ServiceService';
 import { filterActiveServices } from '@/services/AppointmentServiceService';
 import styled from 'styled-components';
-import { Button, Input, Spin } from 'antd';
+import { Button, Input, Pagination, Spin } from 'antd';
 import {
   MedicineBoxOutlined,
   CheckCircleOutlined,
@@ -74,6 +80,8 @@ const FilterBar = styled.div`
   gap: 16px;
   margin-bottom: 36px;
   flex-wrap: wrap;
+  /* Clears the sticky 68px home header when a page change scrolls back here */
+  scroll-margin-top: 84px;
 
   .categories {
     display: flex;
@@ -257,6 +265,12 @@ const ServiceCard = styled.div`
   }
 `;
 
+const PaginationBar = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+`;
+
 const EmptyNotice = styled.div`
   text-align: center;
   padding: 48px 16px;
@@ -264,6 +278,9 @@ const EmptyNotice = styled.div`
   font-size: 14.5px;
   grid-column: 1 / -1;
 `;
+
+// Two rows of the 3-column grid
+const PAGE_SIZE = 6;
 
 interface ServicesSectionProps {
   /** Opens the booking form with this service pre-selected */
@@ -304,6 +321,8 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
     ServiceCategory | 'ALL'
   >('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [page, setPage] = useState<number>(1);
+  const filterBarRef = useRef<HTMLDivElement>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState(false);
@@ -356,6 +375,34 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
     });
   }, [services, selectedCategory, searchQuery]);
 
+  // Clamped so a shorter list (e.g. after a reload) never leaves an empty page
+  const pageCount = Math.max(1, Math.ceil(filteredServices.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pagedServices = filteredServices.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // A new category or search starts again from the first page
+  const changeCategory = (key: ServiceCategory | 'ALL') => {
+    setSelectedCategory(key);
+    setPage(1);
+  };
+  const changeSearch = (value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+  };
+
+  // A shorter page shrinks the grid under the pager the user just clicked, so
+  // bring the list back into view when its top is hidden under the header
+  const changePage = (next: number) => {
+    setPage(next);
+    const bar = filterBarRef.current;
+    if (bar && bar.getBoundingClientRect().top < 68) {
+      bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const renderGridBody = () => {
     if (loading) {
       return (
@@ -385,7 +432,7 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
         </EmptyNotice>
       );
     }
-    return filteredServices.map(item => (
+    return pagedServices.map(item => (
       <ServiceCard key={item._id}>
         <div className="card-top">
           <div className="icon-box">{getCategoryIcon(item.category)}</div>
@@ -433,14 +480,14 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
         </p>
       </SectionHeader>
 
-      <FilterBar>
+      <FilterBar ref={filterBarRef}>
         <div className="categories">
           {categoryTabs.map(tab => (
             <button
               key={tab.key}
               type="button"
               className={`cat-btn ${selectedCategory === tab.key ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(tab.key)}
+              onClick={() => changeCategory(tab.key)}
             >
               {tab.label}
             </button>
@@ -452,13 +499,25 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
             prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
             placeholder="Tìm theo tên dịch vụ..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => changeSearch(e.target.value)}
             allowClear
           />
         </div>
       </FilterBar>
 
       <ServicesGrid>{renderGridBody()}</ServicesGrid>
+
+      {!loading && !loadError && filteredServices.length > PAGE_SIZE && (
+        <PaginationBar>
+          <Pagination
+            current={currentPage}
+            pageSize={PAGE_SIZE}
+            total={filteredServices.length}
+            onChange={changePage}
+            showSizeChanger={false}
+          />
+        </PaginationBar>
+      )}
     </SectionWrapper>
   );
 };

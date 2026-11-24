@@ -9,7 +9,7 @@ import ReportService, {
   type ReportFilters,
 } from '@/services/ReportService';
 import FrontDeskFilters from './components/FrontDeskFilters';
-import LiveOverview from './components/LiveOverview';
+import CageOverview from './components/CageOverview';
 import PeriodOverview from './components/PeriodOverview';
 import {
   frontDeskIdentityKey,
@@ -151,7 +151,7 @@ function AuthorizedFrontDesk({ role }: { role: string }) {
       )}
       {!display.loading && display.report && (
         <>
-          <LiveOverview report={display.report} />
+          <CageOverview report={display.report} />
           <PeriodOverview report={display.report} />
         </>
       )}

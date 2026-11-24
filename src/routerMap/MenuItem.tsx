@@ -2,7 +2,6 @@ import React from 'react';
 import {
   DashboardOutlined,
   UserOutlined,
-  HomeOutlined,
   TeamOutlined,
   AppstoreOutlined,
   ShoppingOutlined,
@@ -14,7 +13,6 @@ import {
   DollarOutlined,
   BarChartOutlined,
   EditOutlined,
-  CommentOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
 
@@ -96,13 +94,10 @@ export const MenuItemBreadcrumbs = () => {
   ];
 };
 
+// No "Trang chủ" item in any sidebar (24/11): the dashboard header button and
+// "Trở về Trang chủ" under the sidebar already lead home
 export const MenuItemCommon = (): MenuItem[] => {
   return [
-    {
-      key: ROUTER.HOME,
-      label: 'Trang chủ',
-      icon: <HomeOutlined />,
-    },
     {
       key: ROUTER.DASHBOARD,
       label: 'Bảng điều khiển',
@@ -113,11 +108,8 @@ export const MenuItemCommon = (): MenuItem[] => {
       label: 'Hóa đơn',
       icon: <DollarOutlined />,
     },
-    {
-      key: ROUTER.COMMUNITY,
-      icon: <CommentOutlined />,
-      label: 'Cộng đồng',
-    },
+    // The public feed (/community) lives in the home layout, so it is reached
+    // from the home header rather than from this sidebar
     {
       key: ROUTER.MY_COMMUNITY_POSTS,
       icon: <EditOutlined />,
@@ -134,11 +126,6 @@ export const MenuItemCommon = (): MenuItem[] => {
 // Clinic staff and Admin own no pets, so they get no pet-owner dashboard (SCR-07)
 export const MenuItemStaff = (): MenuItem[] => {
   return [
-    {
-      key: ROUTER.HOME,
-      label: 'Trang chủ',
-      icon: <HomeOutlined />,
-    },
     {
       key: ROUTER.PROFILE,
       label: 'Thông tin tài khoản',

@@ -23,10 +23,7 @@ import CageAssignmentService from '@/services/CageAssignmentService';
 import { useActiveCageAssignments } from './useActiveCageAssignments';
 import { useCageAvailability } from './useCageAvailability';
 import { matchesActiveCageAssignment } from './activeCageAssignments';
-import {
-  getSelectedReceptionTodayGroup,
-  isAtClinicStatus,
-} from './receptionToday';
+import { getSelectedReceptionTodayGroup } from './receptionToday';
 import type { ReceptionTodayGroup } from './receptionToday';
 import { useReceptionToday } from './useReceptionToday';
 
@@ -327,9 +324,8 @@ export const useAppointmentReception = () => {
     setFilterStatus(status);
     setFilterIsOnline(undefined);
     setFilterCode(undefined);
-    // Pets at the clinic are listed whatever their appointment date (4.3, 4.6);
-    // an empty object clears the date, undefined falls back to today
-    setDateFilter(isAtClinicStatus(status) ? {} : undefined);
+    // Every counter is for appointments dated today: undefined falls back to today
+    setDateFilter(undefined);
     setPage(1);
   };
 

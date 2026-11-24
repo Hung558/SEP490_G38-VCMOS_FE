@@ -718,10 +718,10 @@ const AuthorizedAdminReportsDashboard = () => {
               <Col xs={24} md={12}>
                 <Title level={5}>Hóa đơn trong kỳ</Title>
                 <Text type="secondary">
-                  Số đã lập và chưa thanh toán tính theo ngày lập (issuedAt). Số
-                  hóa đơn đã thanh toán và tiền thu tính theo ngày thanh toán
-                  (paidAt), có thể gồm hóa đơn lập trước kỳ; không phải các nhóm
-                  trạng thái của cùng một tập hóa đơn.
+                  Số đã lập và chưa thanh toán tính theo ngày lập hóa đơn. Số
+                  hóa đơn đã thanh toán và tiền thu tính theo ngày thanh toán,
+                  có thể gồm hóa đơn lập trước kỳ; không phải các nhóm trạng
+                  thái của cùng một tập hóa đơn.
                 </Text>
 
                 <Text>

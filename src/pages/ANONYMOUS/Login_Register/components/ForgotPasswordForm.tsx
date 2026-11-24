@@ -268,14 +268,6 @@ const SecurityFooter = styled.div`
   justify-content: space-between;
   font-size: 12px;
   color: #64748b;
-
-  .left {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #0d9488;
-    font-weight: 500;
-  }
 `;
 
 // Strength Meter & Checklist for Step 3
@@ -510,10 +502,6 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
               </ShieldIconBox>
               <CategoryBadge>BẢO MẬT TÀI KHOẢN THÚ Y</CategoryBadge>
               <Title>Quên mật khẩu?</Title>
-              <Subtitle>
-                Đừng lo lắng! Hãy nhập địa chỉ email bạn đã đăng ký với VCMOS.
-                Chúng tôi sẽ gửi mã xác thực OTP 6 số để đặt lại mật khẩu.
-              </Subtitle>
             </HeaderWrapper>
 
             <Form form={formStep1} layout="vertical" onFinish={onSendEmail}>
@@ -543,10 +531,6 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
               <PrimarySubmitBtn type="submit">
                 Gửi mã xác thực &rarr;
               </PrimarySubmitBtn>
-
-              <BackLink type="button" onClick={onToggleView}>
-                <ArrowLeftOutlined /> Quay lại trang Đăng nhập
-              </BackLink>
             </Form>
 
             <NoticeAlertBox>
@@ -802,18 +786,11 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
               >
                 Cập nhật mật khẩu & Đăng nhập &rarr;
               </PrimarySubmitBtn>
-
-              <BackLink type="button" onClick={onToggleView}>
-                <ArrowLeftOutlined /> Quay lại trang Đăng nhập
-              </BackLink>
             </Form>
           </>
         )}
 
         <SecurityFooter>
-          <div className="left">
-            <SafetyCertificateOutlined /> Chuẩn mã hóa y tế SSL 256-bit
-          </div>
           <div>Hỗ trợ: (024) 7300 8888</div>
         </SecurityFooter>
       </FormCard>

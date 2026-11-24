@@ -125,7 +125,7 @@ export default function FrontDeskFilters({ onApply, loading }: Props) {
         Nhấn Áp dụng để đổi kỳ. Ngày tính theo múi giờ Việt Nam (UTC+7), bao gồm
         cả ngày đầu và ngày cuối; tối đa 366 ngày.{' '}
         <Typography.Text strong>
-          Các bộ đếm trực tiếp và chuồng không thay đổi theo bộ lọc kỳ.
+          Số liệu chuồng hiện tại không thay đổi theo bộ lọc kỳ.
         </Typography.Text>
       </Help>
     </Card>

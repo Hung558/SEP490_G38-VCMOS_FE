@@ -43,10 +43,12 @@ test('feed and post pages are public; moderation is inside the Admin guard', asy
   assert.match(adminBlock, /<AdminCommunityModerationPage \/>/);
 });
 
-test('pet owners get the community in the sidebar, Admin gets moderation', async () => {
+// 24/11: the feed lives in the home layout, so a sidebar link to it threw the
+// owner out of the dashboard; owners reach it from the home header instead
+test('pet owners get "Bài viết của tôi" but no feed link in the sidebar, Admin gets moderation', async () => {
   const menu = await source('src/routerMap/MenuItem.tsx');
   const owner = block(menu, 'export const MenuItemCommon', '\n};');
-  assert.match(owner, /ROUTER\.COMMUNITY,/);
+  assert.doesNotMatch(owner, /ROUTER\.COMMUNITY,/);
   assert.match(owner, /ROUTER\.MY_COMMUNITY_POSTS/);
   const admin = block(menu, 'export const MenuItemAdmin', '\n};');
   assert.match(admin, /ROUTER\.ADMIN_COMMUNITY_MODERATION/);

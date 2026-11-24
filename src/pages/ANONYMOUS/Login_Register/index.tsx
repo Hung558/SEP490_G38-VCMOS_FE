@@ -6,11 +6,7 @@ import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import ForgotPasswordForm from './components/ForgotPasswordForm';
 import VerifyAccountForm from './components/VerifyAccountForm';
-import {
-  HomeOutlined,
-  ArrowLeftOutlined,
-  PlusCircleFilled,
-} from '@ant-design/icons';
+import { HomeOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 
 const PageWrapper = styled.div`
   min-height: 100vh;
@@ -158,31 +154,46 @@ const TopBrandHeader = styled.div`
   .brand-logo {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     text-decoration: none;
 
-    .logo-badge {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
-      color: #ffffff;
+    /* Same mark as the home header (HomeHeader .brand-link) */
+    .logo-box {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background-color: #0d9488;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
-      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25);
     }
 
-    .brand-name {
-      font-size: 18px;
-      font-weight: 800;
+    .brand-title {
       color: #0f172a;
+      font-size: 20px;
+      font-weight: 800;
       letter-spacing: -0.02em;
+    }
 
-      span.sub {
-        color: #0d9488;
-      }
+    .brand-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: #0d9488;
+      background-color: #f0fdfa;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      border: 1px solid #ccfbf1;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+  }
+
+  /* Phones: the badge would push "Trang chủ" onto two lines */
+  @media (max-width: 440px) {
+    .brand-logo .brand-badge {
+      display: none;
     }
   }
 
@@ -190,6 +201,7 @@ const TopBrandHeader = styled.div`
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
     font-size: 13px;
     font-weight: 600;
     color: #64748b;
@@ -328,12 +340,23 @@ const LoginRegisterPage: React.FC = () => {
         <AuthInteractivePanel>
           <TopBrandHeader>
             <Link to={ROUTER.HOME} className="brand-logo">
-              <div className="logo-badge">
-                <PlusCircleFilled />
+              <div className="logo-box">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <ellipse cx="12" cy="16" rx="4.5" ry="3.5" />
+                  <ellipse cx="6" cy="9" rx="2" ry="2.5" />
+                  <ellipse cx="9.5" cy="4.5" rx="1.7" ry="2.2" />
+                  <ellipse cx="14.5" cy="4.5" rx="1.7" ry="2.2" />
+                  <ellipse cx="18" cy="9" rx="2" ry="2.5" />
+                </svg>
               </div>
-              <div className="brand-name">
-                VCMOS <span className="sub">Clinic</span>
-              </div>
+              <span className="brand-title">VCMOS</span>
+              <span className="brand-badge">Veterinary Clinic</span>
             </Link>
 
             <Link to={ROUTER.HOME} className="back-home-link">

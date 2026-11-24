@@ -14,25 +14,17 @@ export type ReceptionTodayKey = ReceptionTodayGroup['key'];
 export type ReceptionTodayCounts = Record<ReceptionTodayKey, number>;
 
 /**
- * The pet is at the clinic in these states. Nghiệp vụ 4.3 lets the owner come
- * early or late, so the appointment date may not be today: a pet booked for
- * tomorrow and checked in today still has to be served and billed today (4.6).
- * These counters and their lists therefore cover every appointment date.
+ * 24/11: every counter covers appointments dated today only, so the panel
+ * matches its title. A pet checked in early or late (nghiệp vụ 4.3) is not
+ * counted here: the date filter of the table finds it, and billing at pick-up
+ * (4.6) lists every appointment date in Hóa đơn → Chờ đón.
  */
-const AT_CLINIC_STATUSES: ReadonlySet<string> = new Set([
-  'CheckedIn',
-  'InProgress',
-  'WaitOwner',
-]);
-
-export const isAtClinicStatus = (status?: string) =>
-  Boolean(status && AT_CLINIC_STATUSES.has(status));
-
 export const getReceptionTodayCountQuery = (
   day: string,
   status: ReceptionTodayGroup['status']
 ): ListStaffAppointmentsParams => ({
-  ...(isAtClinicStatus(status) ? {} : { from: day, to: day }),
+  from: day,
+  to: day,
   page: 1,
   limit: 1,
   ...(status ? { status } : {}),
@@ -56,10 +48,7 @@ export const getSelectedReceptionTodayGroup = (
   >
 ): ReceptionTodayKey | undefined => {
   if (filters.code?.trim() || filters.isOnline !== undefined) return;
-  const datesMatch = isAtClinicStatus(filters.status)
-    ? !filters.from && !filters.to
-    : filters.from === day && filters.to === day;
-  if (!datesMatch) return;
+  if (filters.from !== day || filters.to !== day) return;
   return RECEPTION_TODAY_GROUPS.find(group => group.status === filters.status)
     ?.key;
 };

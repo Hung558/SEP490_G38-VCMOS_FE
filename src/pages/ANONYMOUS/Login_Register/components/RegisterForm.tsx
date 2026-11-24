@@ -58,6 +58,11 @@ const FieldLabel = styled.label`
   font-weight: 600;
   color: #334155;
   margin-bottom: 5px;
+
+  .required {
+    color: #ef4444;
+    margin-left: 3px;
+  }
 `;
 
 const CustomFormItem = styled(Form.Item)`
@@ -197,10 +202,18 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
           <p>Trải nghiệm dịch vụ y tế & đặt lịch thông minh</p>
         </FormHeader>
 
-        <Form form={form} layout="vertical" onFinish={onSubmit}>
+        {/* Sign-up form: keep the browser from filling a saved login into it */}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onSubmit}
+          autoComplete="off"
+        >
           {/* Full Name */}
           <div>
-            <FieldLabel>Họ và tên</FieldLabel>
+            <FieldLabel>
+              Họ và tên<span className="required">*</span>
+            </FieldLabel>
             <CustomFormItem
               name="fullName"
               rules={[
@@ -212,13 +225,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
                 size="large"
                 prefix={<UserOutlined />}
                 placeholder="Ví dụ: Nguyễn Văn An"
+                autoComplete="off"
               />
             </CustomFormItem>
           </div>
 
           {/* Phone */}
           <div>
-            <FieldLabel>Số điện thoại</FieldLabel>
+            <FieldLabel>
+              Số điện thoại<span className="required">*</span>
+            </FieldLabel>
             <CustomFormItem
               name="phone"
               rules={[
@@ -233,17 +249,24 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
                 size="large"
                 prefix={<PhoneOutlined />}
                 placeholder="Ví dụ: 0912345678"
+                autoComplete="off"
               />
             </CustomFormItem>
           </div>
 
-          {/* Email */}
+          {/* Email: required on this form (24/11); the BE still accepts none */}
           <div>
-            <FieldLabel>Email (không bắt buộc)</FieldLabel>
+            <FieldLabel>
+              Email<span className="required">*</span>
+            </FieldLabel>
             <CustomFormItem
               name="email"
               rules={[
-                { required: false },
+                {
+                  required: true,
+                  whitespace: true,
+                  message: 'Vui lòng nhập email!',
+                },
                 { max: 100, message: 'Email tối đa 100 ký tự!' },
                 {
                   pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -255,13 +278,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
                 size="large"
                 prefix={<MailOutlined />}
                 placeholder="Ví dụ: hotro@vcmos.vn"
+                autoComplete="off"
               />
             </CustomFormItem>
           </div>
 
           {/* Password */}
           <div>
-            <FieldLabel>Mật khẩu</FieldLabel>
+            <FieldLabel>
+              Mật khẩu<span className="required">*</span>
+            </FieldLabel>
             <CustomFormItem
               name="password"
               rules={[
@@ -274,13 +300,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
                 size="large"
                 prefix={<LockOutlined />}
                 placeholder="Ít nhất 8 ký tự, 1 chữ hoa và 1 chữ số"
+                autoComplete="new-password"
               />
             </CustomFormItem>
           </div>
 
           {/* Confirm Password */}
           <div>
-            <FieldLabel>Xác nhận mật khẩu</FieldLabel>
+            <FieldLabel>
+              Xác nhận mật khẩu<span className="required">*</span>
+            </FieldLabel>
             <CustomFormItem
               name="confirmPassword"
               dependencies={['password']}
@@ -302,6 +331,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
                 size="large"
                 prefix={<LockOutlined />}
                 placeholder="Nhập lại mật khẩu"
+                autoComplete="new-password"
               />
             </CustomFormItem>
           </div>

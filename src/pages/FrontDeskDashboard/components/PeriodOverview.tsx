@@ -31,10 +31,10 @@ export default function PeriodOverview({ report }: Props) {
   const cages = stats.cageOccupancy;
   const zoneRows = [
     { key: 'all', label: 'Toàn phòng khám', ...cages },
-    { key: 'holding', label: 'Khu chờ (Holding)', ...cages.byZone.Holding },
+    { key: 'holding', label: 'Khu chờ', ...cages.byZone.Holding },
     {
       key: 'inpatient',
-      label: 'Khu nội trú (InpatientWard)',
+      label: 'Khu nội trú',
       ...cages.byZone.InpatientWard,
     },
     {
@@ -70,7 +70,7 @@ export default function PeriodOverview({ report }: Props) {
             type="info"
             showIcon
             message="Chưa có lịch hẹn hoặc hóa đơn trong kỳ này."
-            description="Các bộ đếm trực tiếp và chuồng vẫn phản ánh tình hình hiện tại, không phải dữ liệu trong kỳ."
+            description="Số liệu chuồng vẫn phản ánh tình hình hiện tại, không phải dữ liệu trong kỳ."
           />
         )}
         <MetricGrid>
@@ -166,7 +166,7 @@ export default function PeriodOverview({ report }: Props) {
             type="info"
             showIcon
             message="Hai mốc thời gian khác nhau"
-            description="Số hóa đơn lập và số chưa thanh toán tính theo ngày lập (issuedAt). Số đã thanh toán và tiền đã thu tính theo ngày thanh toán (paidAt), có thể gồm hóa đơn lập trước kỳ. Không dùng hai số này để tính tỷ lệ thanh toán."
+            description="Số hóa đơn lập và số chưa thanh toán tính theo ngày lập hóa đơn. Số đã thanh toán và tiền đã thu tính theo ngày thanh toán, có thể gồm hóa đơn lập trước kỳ. Không dùng hai số này để tính tỷ lệ thanh toán."
           />
         </Card>
       </SectionGrid>

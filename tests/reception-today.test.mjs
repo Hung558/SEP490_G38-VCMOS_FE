@@ -23,9 +23,9 @@ test('Vietnam date changes at 17:00 UTC independently of the host date', () => {
   assert.equal(getVietnamTodayString(new Date('2026-11-12T17:00:00Z')), day);
 });
 
-test('today count requests use limit 1; pets at the clinic count on every appointment date', () => {
-  // Nghiệp vụ 4.3 (17/11): early or late check-in, so a pet booked for another
-  // day can be checked in, served and waiting for pick-up today
+test('today count requests use limit 1 and only appointments dated today', () => {
+  // 24/11: the panel is "Lịch hẹn hôm nay", so every counter is limited to today.
+  // Early/late check-ins (4.3) are still billed from Hóa đơn → Chờ đón (all dates)
   assert.deepEqual(
     RECEPTION_TODAY_GROUPS.map(({ status }) =>
       buildStaffAppointmentFilterQuery(getReceptionTodayCountQuery(day, status))
@@ -33,9 +33,9 @@ test('today count requests use limit 1; pets at the clinic count on every appoin
     [
       { ...today, page: 1, limit: 1 },
       { ...today, page: 1, limit: 1, status: 'Booked' },
-      { page: 1, limit: 1, status: 'CheckedIn' },
-      { page: 1, limit: 1, status: 'InProgress' },
-      { page: 1, limit: 1, status: 'WaitOwner' },
+      { ...today, page: 1, limit: 1, status: 'CheckedIn' },
+      { ...today, page: 1, limit: 1, status: 'InProgress' },
+      { ...today, page: 1, limit: 1, status: 'WaitOwner' },
     ]
   );
 });
@@ -61,21 +61,21 @@ test('selected group is derived from the current day and exact table filters', (
     getSelectedReceptionTodayGroup(day, { ...today, status: 'Booked' }),
     'booked'
   );
-  // At-clinic groups are selected with no date; today's date alone is a manual filter
+  // Every group, at-clinic ones included, is selected only with today's date
   assert.equal(
-    getSelectedReceptionTodayGroup(day, { status: 'WaitOwner' }),
+    getSelectedReceptionTodayGroup(day, { ...today, status: 'WaitOwner' }),
     'waitOwner'
   );
   assert.equal(
-    getSelectedReceptionTodayGroup(day, { status: 'InProgress' }),
+    getSelectedReceptionTodayGroup(day, { ...today, status: 'InProgress' }),
     'inProgress'
   );
   assert.equal(
-    getSelectedReceptionTodayGroup(day, { status: 'CheckedIn' }),
+    getSelectedReceptionTodayGroup(day, { ...today, status: 'CheckedIn' }),
     'checkedIn'
   );
   assert.equal(
-    getSelectedReceptionTodayGroup(day, { ...today, status: 'WaitOwner' }),
+    getSelectedReceptionTodayGroup(day, { status: 'WaitOwner' }),
     undefined
   );
   assert.equal(
