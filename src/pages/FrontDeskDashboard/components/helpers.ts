@@ -19,6 +19,9 @@ export const APPOINTMENT_STATUSES = [
   ['Overdue', 'Quá hạn'],
   ['Cancelled', 'Đã hủy'],
 ] as const;
+// Fixed order of the donut parts (24/11): each keeps its colour every period
+export const PAYMENT_ORDER = ['Cash', 'VNPay', 'PayOS'] as const;
+
 export const PAYMENT_LABELS: Record<string, string> = {
   Cash: 'Tiền mặt',
   VNPay: 'VNPay',

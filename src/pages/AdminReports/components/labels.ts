@@ -49,6 +49,10 @@ export const itemTypeLabels: Record<string, string> = {
   InpatientDay: 'Ngày nội trú',
 };
 
+// Fixed order of donut parts (24/11): each keeps its colour every period
+export const PAYMENT_ORDER = ['Cash', 'VNPay', 'PayOS'] as const;
+export const ITEM_TYPE_ORDER = ['Service', 'Product', 'InpatientDay'] as const;
+
 export const paymentLabels: Record<string, string> = {
   Cash: 'Tiền mặt',
   VNPay: 'VNPay',

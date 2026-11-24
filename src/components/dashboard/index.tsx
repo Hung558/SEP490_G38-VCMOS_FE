@@ -8,8 +8,21 @@ import { Segmented, Table, Tooltip } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
+import PageTitle from '@/components/common/PageTitle';
+import {
+  donutArcs,
+  foldParts,
+  shareText,
+  showTick,
+  trendAsLine,
+  trendPaths,
+} from './chartMath';
+
+export { orderedBy, upToToday } from './chartMath';
 
 export const VIZ = {
   accent: '#0d9488',
@@ -18,6 +31,11 @@ export const VIZ = {
   accentWash: '#f0fdfa',
   // Second categorical slot (validated against the accent: CVD ΔE 10.7)
   series2: '#eb6834',
+  // Third slot (24/11, donut parts): teal/orange/violet validated all pairs
+  // on white, worst CVD ΔE 10.7, normal 24.7, tritan 11.6
+  series3: '#6250d6',
+  // Status colours, always shown with an icon and the status name
+  warning: '#d97706',
   grid: '#eef2f6',
   border: '#e6ebf1',
   text: '#0f172a',
@@ -46,21 +64,6 @@ const HeaderBox = styled.header`
   flex-wrap: wrap;
   gap: 12px 24px;
 
-  h1 {
-    margin: 0;
-    font-size: 26px;
-    line-height: 1.25;
-    font-weight: 800;
-    color: ${VIZ.text};
-    letter-spacing: -0.01em;
-  }
-
-  p {
-    margin: 4px 0 0;
-    color: ${VIZ.textMuted};
-    font-size: 14px;
-  }
-
   .extra {
     display: flex;
     align-items: center;
@@ -69,20 +72,16 @@ const HeaderBox = styled.header`
   }
 `;
 
+/** Page title (the shared PageTitle look) with optional actions beside it */
 export const PageHeader = ({
   title,
-  subtitle,
   extra,
 }: {
   title: React.ReactNode;
-  subtitle?: React.ReactNode;
   extra?: React.ReactNode;
 }) => (
   <HeaderBox>
-    <div>
-      <h1>{title}</h1>
-      {subtitle && <p>{subtitle}</p>}
-    </div>
+    <PageTitle>{title}</PageTitle>
     {extra && <div className="extra">{extra}</div>}
   </HeaderBox>
 );
@@ -543,8 +542,54 @@ const List = styled.ul`
     min-width: 0;
   }
 
-  .meter-track {
+  .tone-icon {
+    margin-right: 6px;
+    font-size: 13px;
+  }
+
+  /* Used and free as two parts, a 2px surface gap between them */
+  .capacity {
+    display: flex;
+    gap: 2px;
+    height: 10px;
+    border-radius: 9999px;
+    overflow: hidden;
+    background: #f1f5f9;
+  }
+
+  .capacity span {
+    height: 100%;
+    min-width: 0;
+  }
+
+  .capacity .used {
+    background: ${VIZ.accent};
+  }
+
+  .capacity .free {
     background: ${VIZ.accentTrack};
+  }
+`;
+
+const LegendRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  color: ${VIZ.textSecondary};
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  i {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    display: inline-block;
   }
 `;
 
@@ -561,7 +606,14 @@ export interface BarItem {
   value: number;
   display: React.ReactNode;
   sub?: React.ReactNode;
+  /** A state that needs attention: its bar takes the status colour + icon */
+  tone?: 'warning' | 'critical';
 }
+
+const TONE_STYLE = {
+  warning: { color: VIZ.warning, icon: <ExclamationCircleOutlined /> },
+  critical: { color: VIZ.critical, icon: <CloseCircleOutlined /> },
+} as const;
 
 const share = (value: number, whole: number) =>
   whole > 0 && Number.isFinite(value)
@@ -585,23 +637,40 @@ export const BarList = ({
   const top = whole ?? Math.max(0, ...items.map(item => item.value));
   return (
     <List>
-      {items.map(item => (
-        <li key={item.key}>
-          <div className="row-head">
-            <span className="name">{item.label}</span>
-            <span className="figure">
-              {item.display}
-              {item.sub && <span className="sub">{item.sub}</span>}
-            </span>
-          </div>
-          <div className="track" aria-hidden>
-            <div
-              className="fill"
-              style={{ width: `${share(item.value, top)}%` }}
-            />
-          </div>
-        </li>
-      ))}
+      {items.map(item => {
+        const tone = item.tone ? TONE_STYLE[item.tone] : undefined;
+        return (
+          <li key={item.key}>
+            <div className="row-head">
+              <span className="name">
+                {tone && (
+                  <span
+                    className="tone-icon"
+                    style={{ color: tone.color }}
+                    aria-hidden
+                  >
+                    {tone.icon}
+                  </span>
+                )}
+                {item.label}
+              </span>
+              <span className="figure">
+                {item.display}
+                {item.sub && <span className="sub">{item.sub}</span>}
+              </span>
+            </div>
+            <div className="track" aria-hidden>
+              <div
+                className="fill"
+                style={{
+                  width: `${share(item.value, top)}%`,
+                  ...(tone ? { background: tone.color } : {}),
+                }}
+              />
+            </div>
+          </li>
+        );
+      })}
     </List>
   );
 };
@@ -614,30 +683,59 @@ export interface MeterItem {
   caption?: React.ReactNode;
 }
 
-/** Ratios against their own limit (cages in use of total), same-ramp track */
-export const MeterList = ({ items }: { items: MeterItem[] }) => (
-  <List>
-    {items.map(item => (
-      <li key={item.key}>
-        <div className="row-head">
-          <span className="name">{item.label}</span>
-          <span className="figure">
-            {item.used.toLocaleString('vi-VN')}/
-            {item.total.toLocaleString('vi-VN')}
-          </span>
-        </div>
-        <div className="track meter-track" aria-hidden>
-          <div
-            className="fill"
-            style={{ width: `${share(item.used, item.total)}%` }}
-          />
-        </div>
-        {item.caption && (
-          <Caption style={{ marginTop: 5 }}>{item.caption}</Caption>
-        )}
-      </li>
-    ))}
-  </List>
+/**
+ * Capacity per named row (cages in use of total): one bar split into "in use"
+ * and "free" (24/11), same hue, the free part a light step of it
+ */
+export const MeterList = ({
+  items,
+  usedLabel = 'Đang dùng',
+  freeLabel = 'Còn trống',
+}: {
+  items: MeterItem[];
+  usedLabel?: string;
+  freeLabel?: string;
+}) => (
+  <>
+    <LegendRow aria-hidden>
+      <span>
+        <i style={{ background: VIZ.accent }} />
+        {usedLabel}
+      </span>
+      <span>
+        <i style={{ background: VIZ.accentTrack }} />
+        {freeLabel}
+      </span>
+    </LegendRow>
+    <List>
+      {items.map(item => {
+        const used = Math.max(0, Math.min(item.used, item.total));
+        const free = Math.max(0, item.total - used);
+        return (
+          <li key={item.key}>
+            <div className="row-head">
+              <span className="name">{item.label}</span>
+              <span className="figure">
+                {item.used.toLocaleString('vi-VN')}/
+                {item.total.toLocaleString('vi-VN')}
+              </span>
+            </div>
+            <div
+              className="capacity"
+              role="img"
+              aria-label={`${typeof item.label === 'string' ? item.label : ''}: ${usedLabel.toLowerCase()} ${used}, ${freeLabel.toLowerCase()} ${free}`}
+            >
+              {used > 0 && <span className="used" style={{ flexGrow: used }} />}
+              {free > 0 && <span className="free" style={{ flexGrow: free }} />}
+            </div>
+            {item.caption && (
+              <Caption style={{ marginTop: 5 }}>{item.caption}</Caption>
+            )}
+          </li>
+        );
+      })}
+    </List>
+  </>
 );
 
 /* ------------------------------------------------------------ split bar */
@@ -944,13 +1042,571 @@ export const ColumnChart = ({
       <div className="x-axis" aria-hidden>
         {points.map((point, index) => (
           <span key={point.key}>
-            {index % every === 0 || index === points.length - 1
-              ? point.tick
-              : ''}
+            {showTick(index, points.length, every) ? point.tick : ''}
           </span>
         ))}
       </div>
     </ChartBox>
+  );
+};
+
+/* ----------------------------------------------------------- line chart */
+
+const LINE_BOX_WIDTH = 1000;
+
+const LineBox = styled(ChartBox)`
+  .line-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .area {
+    fill: ${VIZ.accent};
+    fill-opacity: 0.1;
+  }
+
+  .stroke {
+    fill: none;
+    stroke: ${VIZ.accent};
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .slot {
+    position: relative;
+  }
+
+  .hair {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: #94a3b8;
+    opacity: 0;
+  }
+
+  .dot {
+    position: absolute;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: ${VIZ.accent};
+    box-shadow: 0 0 0 2px #ffffff;
+    transform: translate(-50%, 50%);
+    opacity: 0;
+  }
+
+  .slot:hover .hair,
+  .slot:focus-visible .hair,
+  .slot:hover .dot,
+  .slot:focus-visible .dot,
+  .slot.is-last .dot {
+    opacity: 1;
+  }
+`;
+
+/**
+ * Single-series line over time with a light area under it (24/11, long
+ * ranges): each point is a hover/focus slot showing a crosshair and its value
+ */
+export const LineChart = ({
+  points,
+  height = 190,
+  ariaLabel,
+  maxTicks = 8,
+}: {
+  points: ColumnPoint[];
+  height?: number;
+  ariaLabel: string;
+  maxTicks?: number;
+}) => {
+  const top = niceCeil(Math.max(0, ...points.map(point => point.value)));
+  const every = Math.max(1, Math.ceil(points.length / maxTicks));
+  const { line, area } = trendPaths(
+    points.map(point => point.value),
+    top,
+    LINE_BOX_WIDTH,
+    height
+  );
+  return (
+    <LineBox $height={height} role="group" aria-label={ariaLabel}>
+      <div className="y-axis" aria-hidden>
+        {[1, 0.5, 0].map(ratio => (
+          <span key={ratio} style={{ top: `${(1 - ratio) * 100}%` }}>
+            {compact(top * ratio)}
+          </span>
+        ))}
+      </div>
+      <div className="plot">
+        {[1, 0.5].map(ratio => (
+          <div
+            key={ratio}
+            className="gridline"
+            style={{ top: `${(1 - ratio) * 100}%` }}
+            aria-hidden
+          />
+        ))}
+        <svg
+          className="line-svg"
+          viewBox={`0 0 ${LINE_BOX_WIDTH} ${height}`}
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <path className="area" d={area} />
+          <path className="stroke" d={line} />
+        </svg>
+        <div className="columns">
+          {points.map((point, index) => (
+            <Tooltip
+              key={point.key}
+              mouseEnterDelay={0}
+              title={
+                <TooltipBody>
+                  <strong>{point.display}</strong>
+                  {point.label}
+                  {point.sub && <div>{point.sub}</div>}
+                </TooltipBody>
+              }
+            >
+              <div
+                className={`slot${index === points.length - 1 ? ' is-last' : ''}`}
+                tabIndex={0}
+                aria-label={`${point.label}: ${point.display}${
+                  point.sub ? `, ${point.sub}` : ''
+                }`}
+              >
+                <span className="hair" aria-hidden />
+                <span
+                  className="dot"
+                  aria-hidden
+                  style={{
+                    bottom: `${(Math.max(0, point.value) / top) * 100}%`,
+                  }}
+                />
+              </div>
+            </Tooltip>
+          ))}
+        </div>
+      </div>
+      <div className="x-axis" aria-hidden>
+        {points.map((point, index) => (
+          <span key={point.key}>
+            {showTick(index, points.length, every) ? point.tick : ''}
+          </span>
+        ))}
+      </div>
+    </LineBox>
+  );
+};
+
+/**
+ * Change over time (24/11): columns for a few periods (≤ 14), a line with its
+ * area for longer ranges, where the trend matters more than each period
+ */
+export const TrendChart = (props: {
+  points: ColumnPoint[];
+  height?: number;
+  ariaLabel: string;
+  maxTicks?: number;
+}) =>
+  trendAsLine(props.points.length) ? (
+    <LineChart {...props} />
+  ) : (
+    <ColumnChart {...props} />
+  );
+
+/* ---------------------------------------------------------------- donut */
+
+/** Categorical slots in fixed order: colour follows the entity, not its rank */
+export const CATEGORICAL = [VIZ.accent, VIZ.series2, VIZ.series3] as const;
+
+// 24/11: wide enough for the exact total (e.g. 1.234.567.890 ₫) in the middle
+const DONUT_SIZE = 172;
+const DONUT_STROKE = 20;
+const DONUT_GAP = 2;
+
+const DonutBox = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+
+  .ring {
+    position: relative;
+    flex: 0 0 auto;
+    width: ${DONUT_SIZE}px;
+    height: ${DONUT_SIZE}px;
+    margin: 0 auto;
+  }
+
+  .ring svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .slice {
+    fill: none;
+    transition: stroke-width 0.15s;
+  }
+
+  .slice:hover {
+    stroke-width: ${DONUT_STROKE + 4}px;
+  }
+
+  .center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 ${DONUT_STROKE + 6}px;
+    pointer-events: none;
+  }
+
+  .center-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: ${VIZ.text};
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .center-label {
+    margin-top: 2px;
+    font-size: 11.5px;
+    color: ${VIZ.textMuted};
+  }
+
+  .legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1 1 200px;
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+  }
+
+  .legend li {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    column-gap: 8px;
+    align-items: baseline;
+  }
+
+  .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    align-self: center;
+  }
+
+  .name {
+    font-size: 13.5px;
+    color: #334155;
+    overflow-wrap: anywhere;
+  }
+
+  .figure {
+    font-size: 13.5px;
+    font-weight: 650;
+    color: ${VIZ.text};
+    white-space: nowrap;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sub {
+    grid-column: 2 / 4;
+    font-size: 12px;
+    color: ${VIZ.textMuted};
+  }
+`;
+
+export interface DonutPart {
+  key: string;
+  label: string;
+  value: number;
+  /** Value as text, e.g. 1.200.000 ₫ */
+  display: string;
+  sub?: string;
+}
+
+/**
+ * One whole in at most 3 parts, read at a glance (24/11): ring with 2px gaps,
+ * the total in the middle, a legend with each part's figure and share. Pass
+ * the parts in a fixed order, so a part keeps its colour from one period to
+ * the next.
+ */
+export const DonutChart = ({
+  parts,
+  ariaLabel,
+  centerLabel,
+  centerValue,
+  format,
+  emptyText = 'Chưa có dữ liệu trong kỳ.',
+}: {
+  parts: DonutPart[];
+  ariaLabel: string;
+  centerLabel: string;
+  centerValue: string;
+  /** Formats a folded "Khác" value */
+  format: (value: number) => string;
+  emptyText?: string;
+}) => {
+  const shown = foldParts(parts, CATEGORICAL.length, format) as DonutPart[];
+  const radius = (DONUT_SIZE - DONUT_STROKE) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const arcs = donutArcs(shown, circumference, DONUT_GAP);
+  if (!arcs.length) return <EmptyLine>{emptyText}</EmptyLine>;
+  const color = (key: string) =>
+    key === 'other'
+      ? VIZ.textMuted
+      : CATEGORICAL[shown.findIndex(part => part.key === key)];
+  const shareOf = (key: string) =>
+    arcs.find(arc => arc.key === key)?.share ?? 0;
+  return (
+    <DonutBox>
+      <div className="ring">
+        <svg
+          viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`}
+          role="img"
+          aria-label={`${ariaLabel}: ${shown
+            .map(
+              part =>
+                `${part.label} ${part.display} (${shareText(shareOf(part.key))})`
+            )
+            .join(', ')}`}
+        >
+          {arcs.map(arc => {
+            const part = shown.find(p => p.key === arc.key)!;
+            return (
+              <Tooltip
+                key={arc.key}
+                mouseEnterDelay={0}
+                title={
+                  <TooltipBody>
+                    <strong>{part.display}</strong>
+                    {part.label} · {shareText(arc.share)}
+                    {part.sub && <div>{part.sub}</div>}
+                  </TooltipBody>
+                }
+              >
+                <circle
+                  className="slice"
+                  cx={DONUT_SIZE / 2}
+                  cy={DONUT_SIZE / 2}
+                  r={radius}
+                  stroke={color(arc.key)}
+                  strokeWidth={DONUT_STROKE}
+                  strokeDasharray={`${arc.length} ${circumference - arc.length}`}
+                  strokeDashoffset={-arc.start}
+                />
+              </Tooltip>
+            );
+          })}
+        </svg>
+        <div className="center" aria-hidden>
+          <span className="center-value">{centerValue}</span>
+          <span className="center-label">{centerLabel}</span>
+        </div>
+      </div>
+      <ul className="legend">
+        {shown.map(part => (
+          <li key={part.key}>
+            <span
+              className="swatch"
+              style={{ background: color(part.key) }}
+              aria-hidden
+            />
+            <span className="name">{part.label}</span>
+            <span className="figure">
+              {part.display} · {shareText(shareOf(part.key))}
+            </span>
+            {part.sub && <span className="sub">{part.sub}</span>}
+          </li>
+        ))}
+      </ul>
+    </DonutBox>
+  );
+};
+
+/* ------------------------------------------------------------ parts bar */
+
+const PartsBox = styled.div`
+  .total-label {
+    font-size: 12.5px;
+    color: ${VIZ.textMuted};
+  }
+
+  .total-value {
+    margin: 2px 0 12px;
+    font-size: 22px;
+    font-weight: 700;
+    color: ${VIZ.text};
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .bar {
+    display: flex;
+    gap: 2px;
+    height: 28px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .bar > span {
+    height: 100%;
+    min-width: 3px;
+    transition: opacity 0.15s;
+  }
+
+  .bar:hover > span {
+    opacity: 0.6;
+  }
+
+  .bar > span:hover,
+  .bar > span:focus-visible {
+    opacity: 1;
+    outline: none;
+  }
+
+  .legend {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+
+  .legend li {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    column-gap: 8px;
+    align-items: baseline;
+  }
+
+  .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    align-self: center;
+  }
+
+  .name {
+    font-size: 13.5px;
+    color: #334155;
+    overflow-wrap: anywhere;
+  }
+
+  .figure {
+    font-size: 13.5px;
+    font-weight: 650;
+    color: ${VIZ.text};
+    white-space: nowrap;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sub {
+    grid-column: 2 / 4;
+    font-size: 12px;
+    color: ${VIZ.textMuted};
+  }
+`;
+
+/**
+ * One whole split into at most 3 parts as one tall bar (24/11): the exact
+ * total above, each part a block in its fixed colour, a legend with figures
+ * and shares below. Pass the parts in a fixed order, as for the donut.
+ */
+export const PartsBar = ({
+  parts,
+  ariaLabel,
+  totalLabel,
+  totalValue,
+  format,
+  emptyText = 'Chưa có dữ liệu trong kỳ.',
+}: {
+  parts: DonutPart[];
+  ariaLabel: string;
+  totalLabel: string;
+  totalValue: string;
+  format: (value: number) => string;
+  emptyText?: string;
+}) => {
+  const shown = foldParts(parts, CATEGORICAL.length, format) as DonutPart[];
+  const total = shown.reduce((sum, part) => sum + Math.max(0, part.value), 0);
+  if (total <= 0) return <EmptyLine>{emptyText}</EmptyLine>;
+  const color = (part: DonutPart, index: number) =>
+    part.key === 'other' ? VIZ.textMuted : CATEGORICAL[index];
+  const shareOf = (part: DonutPart) => Math.max(0, part.value) / total;
+  return (
+    <PartsBox>
+      <div className="total-label">{totalLabel}</div>
+      <div className="total-value">{totalValue}</div>
+      <div
+        className="bar"
+        role="img"
+        aria-label={`${ariaLabel}: ${shown
+          .map(
+            part =>
+              `${part.label} ${part.display} (${shareText(shareOf(part))})`
+          )
+          .join(', ')}`}
+      >
+        {shown.map((part, index) =>
+          part.value > 0 ? (
+            <Tooltip
+              key={part.key}
+              mouseEnterDelay={0}
+              title={
+                <TooltipBody>
+                  <strong>{part.display}</strong>
+                  {part.label} · {shareText(shareOf(part))}
+                  {part.sub && <div>{part.sub}</div>}
+                </TooltipBody>
+              }
+            >
+              <span
+                style={{ flexGrow: part.value, background: color(part, index) }}
+              />
+            </Tooltip>
+          ) : null
+        )}
+      </div>
+      <ul className="legend">
+        {shown.map((part, index) => (
+          <li key={part.key}>
+            <span
+              className="swatch"
+              style={{ background: color(part, index) }}
+              aria-hidden
+            />
+            <span className="name">{part.label}</span>
+            <span className="figure">
+              {part.display} · {shareText(shareOf(part))}
+            </span>
+            {part.sub && <span className="sub">{part.sub}</span>}
+          </li>
+        ))}
+      </ul>
+    </PartsBox>
   );
 };
 
