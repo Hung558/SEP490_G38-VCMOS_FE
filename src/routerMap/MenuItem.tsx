@@ -32,7 +32,7 @@ export const ListTitleRouter = () => {
   return [
     {
       key: ROUTER.PROFILE,
-      label: 'Thông tin cá nhân',
+      label: 'Thông tin tài khoản',
     },
     {
       key: ROUTER.DASHBOARD,
@@ -65,7 +65,7 @@ export const MenuItemBreadcrumbs = () => {
       key: ROUTER.DASHBOARD,
     },
     {
-      label: 'Thông tin cá nhân',
+      label: 'Thông tin tài khoản',
       key: ROUTER.PROFILE,
     },
     {

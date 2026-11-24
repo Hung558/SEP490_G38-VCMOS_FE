@@ -16,7 +16,7 @@ interface Landing {
 const LANDING: Record<RoleGroup, Landing> = {
   owner: { path: ROUTER.DASHBOARD, label: 'Bảng điều khiển' },
   admin: { path: ROUTER.ADMIN_REPORTS, label: 'Tổng quan quản trị' },
-  staff: { path: ROUTER.PROFILE, label: 'Trang cá nhân' },
+  staff: { path: ROUTER.PROFILE, label: 'Thông tin tài khoản' },
 };
 
 // Clinic roles start on their own working page: the reception page
