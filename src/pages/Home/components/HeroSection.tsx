@@ -110,24 +110,11 @@ const HospitalBannerCard = styled.div`
       line-height: 1.2;
       color: #0f172a;
       letter-spacing: -0.025em;
-      margin: 0 0 18px 0;
+      margin: 0 0 28px 0;
 
       @media (max-width: 768px) {
         font-size: 30px;
-      }
-    }
-
-    p.hospital-subtitle {
-      font-size: 17.5px;
-      color: #475569;
-      line-height: 1.6;
-      margin: 0 0 32px 0;
-      max-width: 600px;
-      font-weight: 400;
-
-      @media (max-width: 768px) {
-        font-size: 15px;
-        margin-bottom: 24px;
+        margin-bottom: 22px;
       }
     }
 
@@ -322,12 +309,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
           </div>
 
           <h1 className="hospital-title">Bệnh Viện & Phòng Khám Thú Y VCMOS</h1>
-
-          <p className="hospital-subtitle">
-            Hệ thống y tế thú y chuẩn lâm sàng hàng đầu. Đồng hành chăm sóc trọn
-            đời cùng thú cưng với hồ sơ bệnh án điện tử SOAP, chẩn đoán cận lâm
-            sàng kỹ thuật số hiện đại và đội ngũ bác sĩ tận tâm.
-          </p>
 
           <div className="cta-button-group">
             <Button

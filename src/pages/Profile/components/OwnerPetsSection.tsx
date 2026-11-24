@@ -26,9 +26,6 @@ const OwnerPetsSection: React.FC = () => {
       <div className="section-header">
         <div>
           <h4>Thú cưng của tôi</h4>
-          <div className="section-desc">
-            Bấm vào một bé để xem hồ sơ đầy đủ.
-          </div>
         </div>
         <Button
           icon={<AppstoreOutlined />}

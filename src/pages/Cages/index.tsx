@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Cage } from '@/services/CageService';
-import { Button, Card, Segmented, Space, Typography } from 'antd';
+import { Button, Card, Segmented, Space } from 'antd';
+import PageTitle from '@/components/common/PageTitle';
 import {
   AppstoreOutlined,
   HistoryOutlined,
@@ -45,7 +46,6 @@ const VIEW_OPTIONS = {
   ],
 };
 
-const { Title, Text } = Typography;
 const PAGE_SIZE = 10;
 
 const CagesPage = () => {
@@ -70,16 +70,9 @@ const CagesPage = () => {
             style={{ justifyContent: 'space-between', width: '100%' }}
             wrap
           >
-            <div>
-              <Title level={3} style={{ margin: 0 }}>
-                {state.isAdmin ? 'Quản lý chuồng' : 'Sơ đồ chuồng'}
-              </Title>
-              <Text type="secondary">
-                {state.isAdmin
-                  ? 'Thêm, sửa chuồng và xem nhanh chuồng nào đang trống'
-                  : 'Chuồng trống, thú cưng đang ở trong chuồng; xếp và giải phóng chuồng'}
-              </Text>
-            </div>
+            <PageTitle>
+              {state.isAdmin ? 'Quản lý chuồng' : 'Sơ đồ chuồng'}
+            </PageTitle>
             <Segmented
               aria-label="Kiểu hiển thị"
               value={view}

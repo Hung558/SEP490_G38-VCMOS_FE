@@ -64,8 +64,9 @@ import { useAuth } from '@/contexts/routerProvider/authContext';
 import { normalizeRole } from '@/constants/roles';
 import AdmissionModal from '@/pages/InpatientCare/AdmissionModal';
 import { canAdmitFromExam } from '@/services/InpatientRecordService/helpers';
+import PageTitle from '@/components/common/PageTitle';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 // "Lưu nháp" and "Hoàn tất ca khám" sit at the bottom right, where the email
 // reminder widget is fixed; the extra room lets the vet scroll them above it
@@ -433,9 +434,9 @@ const ExamRecordCase = ({
       <Card>
         <PageHeader>
           <div>
-            <Title level={3} style={{ margin: 0 }}>
+            <PageTitle>
               Khám bệnh · {getAppointmentServiceName(item.serviceId)}
-            </Title>
+            </PageTitle>
             <Space wrap size={6} style={{ marginTop: 6 }}>
               {order && <Tag color="blue">{order.code}</Tag>}
               {order && <Tag>{dayjs(order.date).format('DD/MM/YYYY')}</Tag>}

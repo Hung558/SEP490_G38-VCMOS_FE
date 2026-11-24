@@ -840,7 +840,7 @@ const WalkInForm = ({
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message="Không tải được danh sách bác sĩ, groomer. Vẫn có thể tiếp nhận và phân công sau trong chi tiết lịch hẹn."
+          message="Không tải được danh sách bác sĩ, nhân viên spa. Vẫn có thể tiếp nhận và phân công sau trong chi tiết lịch hẹn."
         />
       )}
       <Form.List name="services">
@@ -925,7 +925,7 @@ const WalkInForm = ({
                         label={
                           rowService
                             ? role === 'Groomer'
-                              ? 'Groomer phụ trách'
+                              ? 'Nhân viên spa phụ trách'
                               : 'Bác sĩ phụ trách'
                             : 'Người phụ trách'
                         }

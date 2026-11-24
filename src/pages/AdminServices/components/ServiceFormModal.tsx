@@ -150,14 +150,14 @@ const ServiceFormModal = ({
           <Form.Item
             name="requiredRole"
             label="Vai trò thực hiện"
-            extra="Người được phân công làm dịch vụ này. Mặc định theo danh mục: Chăm sóc / làm đẹp cho Groomer, còn lại cho Bác sĩ thú y."
+            extra="Người được phân công làm dịch vụ này. Mặc định theo danh mục: Chăm sóc / làm đẹp cho Nhân viên spa, còn lại cho Bác sĩ thú y."
             rules={[{ required: true, message: 'Chọn vai trò thực hiện.' }]}
           >
             <Select
               placeholder="Chọn vai trò"
               options={[
                 { value: 'Veterinarian', label: 'Bác sĩ thú y' },
-                { value: 'Groomer', label: 'Groomer' },
+                { value: 'Groomer', label: 'Nhân viên spa' },
               ]}
             />
           </Form.Item>

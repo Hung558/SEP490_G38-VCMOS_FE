@@ -58,18 +58,11 @@ const SectionHeader = styled.div`
     font-weight: 850;
     color: #0f172a;
     letter-spacing: -0.02em;
-    margin: 0 0 14px 0;
+    margin: 0;
 
     @media (max-width: 640px) {
       font-size: 28px;
     }
-  }
-
-  p {
-    font-size: 16px;
-    color: #64748b;
-    line-height: 1.6;
-    margin: 0;
   }
 `;
 
@@ -473,11 +466,6 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
       <SectionHeader>
         <span className="section-tag">Hệ Sinh Thái Dịch Vụ Y Tế Toàn Diện</span>
         <h2>Dịch Vụ Khám Chữa Bệnh & Chăm Sóc Sức Khỏe Thú Cưng</h2>
-        <p>
-          Quy trình y khoa chuẩn mực, thiết bị cận lâm sàng hiện đại cùng bảng
-          giá niêm yết công khai. Toàn bộ chẩn đoán và phác đồ điều trị được tự
-          động số hóa vào hồ sơ bệnh án điện tử SOAP.
-        </p>
       </SectionHeader>
 
       <FilterBar ref={filterBarRef}>

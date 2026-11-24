@@ -46,18 +46,11 @@ const SectionHeader = styled.div`
     font-weight: 850;
     color: #0f172a;
     letter-spacing: -0.02em;
-    margin: 0 0 14px 0;
+    margin: 0;
 
     @media (max-width: 640px) {
       font-size: 28px;
     }
-  }
-
-  p {
-    font-size: 16px;
-    color: #64748b;
-    line-height: 1.6;
-    margin: 0;
   }
 `;
 
@@ -138,10 +131,6 @@ const CommunitySection: React.FC = () => {
       <SectionHeader>
         <span className="section-tag">Cộng đồng</span>
         <h2 id="home-community-title">Cộng đồng chủ nuôi VCMOS</h2>
-        <p>
-          Hành trình chăm sóc các bé được chủ nuôi chia sẻ và những bài trao đổi
-          kinh nghiệm. Mọi bài viết đều được duyệt trước khi hiện.
-        </p>
       </SectionHeader>
 
       <Toolbar>

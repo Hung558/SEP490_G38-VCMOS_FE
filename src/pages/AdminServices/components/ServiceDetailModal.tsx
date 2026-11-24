@@ -64,7 +64,7 @@ const ServiceDetailModal = ({
           </Descriptions.Item>
           <Descriptions.Item label="Vai trò thực hiện">
             {getServiceStaffRole(service) === 'Groomer'
-              ? 'Groomer'
+              ? 'Nhân viên spa'
               : 'Bác sĩ thú y'}
             {service.requiredRole ? '' : ' (theo danh mục)'}
           </Descriptions.Item>

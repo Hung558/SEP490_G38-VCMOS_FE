@@ -175,18 +175,6 @@ const VerifyAccountForm: React.FC<VerifyAccountFormProps> = ({
           onFinish={onVerify}
           initialValues={{ email: initialEmail }}
         >
-          <div
-            style={{
-              color: '#64748b',
-              fontSize: '13.5px',
-              marginBottom: '20px',
-              textAlign: 'left',
-            }}
-          >
-            Nhập email và mã xác thực đã được gửi để hoàn tất xác minh tài
-            khoản.
-          </div>
-
           <CustomFormItem
             name="email"
             rules={[

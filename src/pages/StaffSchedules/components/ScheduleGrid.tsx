@@ -179,7 +179,9 @@ const ScheduleGrid = ({
       pagination={false}
       // Fits the content area of a 1366px screen; narrower screens scroll
       scroll={{ x: 940 }}
-      locale={{ emptyText: 'Không có bác sĩ hay groomer nào đang hoạt động.' }}
+      locale={{
+        emptyText: 'Không có bác sĩ hay nhân viên spa nào đang hoạt động.',
+      }}
     />
   );
 };

@@ -5,7 +5,7 @@ import { CalendarOutlined } from '@ant-design/icons';
 import { getStaffRoleContent } from './profileContent';
 import { SectionCard } from './styles';
 
-/** Receptionist, Veterinarian, Groomer: what the role does and its schedule */
+/** Receptionist, Veterinarian, Groomer: the role's screens and its schedule */
 const StaffWorkSection: React.FC<{ role?: string }> = ({ role }) => {
   const content = getStaffRoleContent(role);
   if (!content) return null;
@@ -13,10 +13,7 @@ const StaffWorkSection: React.FC<{ role?: string }> = ({ role }) => {
   return (
     <SectionCard>
       <div className="section-header">
-        <div>
-          <h4>Công việc của bạn</h4>
-          <div className="section-desc">{content.description}</div>
-        </div>
+        <h4>Công việc của bạn</h4>
       </div>
 
       <div className="screen-list">

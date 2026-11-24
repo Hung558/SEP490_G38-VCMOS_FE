@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card, Tabs, Typography } from 'antd';
+import { Card, Tabs } from 'antd';
+import PageTitle from '@/components/common/PageTitle';
 import { ClockCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { StaffAppointment } from '@/types';
 import { useAuth } from '@/contexts/routerProvider/authContext';
@@ -13,8 +14,6 @@ import {
 import PendingCheckoutTab from './components/PendingCheckoutTab';
 import IssuedInvoicesTab from './components/IssuedInvoicesTab';
 import InvoiceSummaryBar from './components/InvoiceSummaryBar';
-
-const { Title, Text } = Typography;
 
 type Target =
   | { kind: 'order'; order: StaffAppointment }
@@ -40,16 +39,7 @@ const ClinicInvoicesPage = () => {
     <PageWrapper>
       <Card>
         <PageHeader>
-          <div>
-            <Title level={3} style={{ margin: 0 }}>
-              Thu ngân và hóa đơn
-            </Title>
-            <Text type="secondary">
-              {canPay
-                ? 'Khách đến đón bé: lập hóa đơn, thu tiền mặt, VNPay QR hoặc chuyển khoản VietQR (PayOS). Thanh toán xong đơn chuyển Hoàn tất.'
-                : 'Xem các đơn chờ thanh toán và hóa đơn của phòng khám.'}
-            </Text>
-          </div>
+          <PageTitle>Thu ngân và hóa đơn</PageTitle>
         </PageHeader>
 
         <InvoiceSummaryBar revision={revision} />

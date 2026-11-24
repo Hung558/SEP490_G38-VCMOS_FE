@@ -800,7 +800,7 @@ export const isQueueingOrder = (orderStatus?: string): boolean =>
 
 /** BE trả 409 khi phân công cho lịch chưa check-in */
 export const ASSIGN_AT_CHECK_IN_MESSAGE =
-  'Khách chưa check-in: phân công bác sĩ hoặc groomer ngay ở bước Check-in.';
+  'Khách chưa check-in: phân công bác sĩ hoặc nhân viên spa ngay ở bước Check-in.';
 
 /** Lý do không phân công được nhân sự cho dịch vụ; undefined nếu được phép */
 export const getAssignStaffBlockReason = (

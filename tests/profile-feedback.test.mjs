@@ -21,19 +21,16 @@ const visit = node => {
 };
 visit(page);
 
+// 24/11: every page title is the shared PageTitle, an <h1>
 test('profile has one primary account heading before its information card', () => {
   const titles = nodes.filter(
     node =>
       ts.isJsxElement(node) &&
-      node.openingElement.tagName.getText(page) === 'Title'
+      node.openingElement.tagName.getText(page) === 'PageTitle'
   );
   assert.equal(titles.length, 1);
   const title = titles[0];
   assert.match(title.getText(page), /Thông tin tài khoản/);
-  const level = title.openingElement.attributes.properties.find(
-    attr => ts.isJsxAttribute(attr) && attr.name.getText(page) === 'level'
-  );
-  assert.equal(level?.initializer?.getText(page), '{1}');
   assert.ok(title.getStart(page) < source.indexOf('<ProfileCard>'));
 });
 

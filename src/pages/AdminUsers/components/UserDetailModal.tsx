@@ -5,7 +5,7 @@ const roleLabels: Record<string, string> = {
   PetOwner: 'Chủ nuôi',
   Receptionist: 'Lễ tân',
   Veterinarian: 'Bác sĩ thú y',
-  Groomer: 'Groomer',
+  Groomer: 'Nhân viên spa',
   Admin: 'Quản trị viên',
 };
 

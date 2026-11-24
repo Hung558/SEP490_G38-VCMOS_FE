@@ -22,8 +22,9 @@ import WalkInModal from './components/WalkInModal';
 import ClinicScheduleTab from './components/ClinicScheduleTab';
 import ReceptionTodayOverview from './components/ReceptionTodayOverview';
 import CheckoutModal from '@/components/invoice/CheckoutModal';
+import PageTitle from '@/components/common/PageTitle';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const AppointmentReceptionPage = () => {
   const state = useAppointmentReception();
@@ -173,14 +174,7 @@ const AppointmentReceptionPage = () => {
       <Card>
         <PageHeader>
           <div>
-            <Title level={3} style={{ margin: 0 }}>
-              Tiếp nhận lịch hẹn phòng khám
-            </Title>
-            <Text type="secondary">
-              Tiếp nhận lịch hẹn và khách vãng lai, phân công nhân sự, xem lịch
-              chung và tra cứu khách hàng. Xếp, chuyển, giải phóng chuồng ở Sơ
-              đồ chuồng.
-            </Text>
+            <PageTitle>Tiếp nhận lịch hẹn phòng khám</PageTitle>
           </div>
           {state.isReceptionist && (
             <Button

@@ -16,21 +16,16 @@ export const SectionCard = styled.section`
   .section-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
     flex-wrap: wrap;
     margin-bottom: 20px;
 
     h4 {
-      margin: 0 0 4px 0;
+      margin: 0;
       font-size: 18px;
       font-weight: 800;
       color: #0f172a;
-    }
-
-    .section-desc {
-      font-size: 13.5px;
-      color: #64748b;
     }
   }
 

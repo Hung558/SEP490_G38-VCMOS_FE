@@ -82,8 +82,9 @@ import {
   type SubtaskRequest,
 } from '@/services/SubtaskRequestService';
 import { StatGrid, StatTile } from '@/components/dashboard';
+import PageTitle from '@/components/common/PageTitle';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 // Refresh while the page is visible, so a check-in at the desk shows up (SCR-22)
 const POLL_MS = 30000;
@@ -808,14 +809,7 @@ const StaffQueuePage = () => {
     <>
       <PageHeader>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            {isVet ? 'Hàng đợi khám' : 'Hàng đợi spa'}
-          </Title>
-          <Text type="secondary">
-            {isVet
-              ? 'Ca khám khách đặt (lễ tân phân công lúc check-in) và chỉ định bác sĩ khác giao cho bạn, chung một danh sách. Ca cấp cứu xếp trước; bấm "Bắt đầu khám" để mở bệnh án SOAP.'
-              : 'Ca spa khách đặt (lễ tân phân công lúc check-in) và việc bác sĩ giao thêm trong lúc khám, chung một danh sách. Ca cấp cứu xếp trước.'}
-          </Text>
+          <PageTitle>{isVet ? 'Hàng đợi khám' : 'Hàng đợi spa'}</PageTitle>
         </div>
         <Space wrap>
           {isGroomer && (

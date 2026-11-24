@@ -39,8 +39,9 @@ import {
 import ScheduleGrid from './components/ScheduleGrid';
 import BusyShiftModal, { type BusyTarget } from './components/BusyShiftModal';
 import { useStaffSchedules } from './components/useStaffSchedules';
+import PageTitle from '@/components/common/PageTitle';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface StoredUserInfo {
   _id?: string;
@@ -153,22 +154,13 @@ const StaffSchedulesPage = () => {
   };
 
   const title = access === 'viewOwn' ? 'Lịch làm việc của tôi' : 'Ca làm việc';
-  const subtitle =
-    access === 'manage'
-      ? 'Mặc định bác sĩ và groomer làm đủ 3 ca mỗi ngày. Bấm vào một ca để báo bận hoặc bỏ báo bận; người bận ca nào sẽ không hiện khi phân công ca đó.'
-      : access === 'viewAll'
-        ? 'Ca bận của bác sĩ và groomer trong tuần. Chỉ Admin sửa được ca.'
-        : 'Các ca bạn được ghi bận trong tuần. Liên hệ Admin nếu cần đổi.';
 
   return (
     <PageWrapper>
       <Card>
         <PageHeader>
           <div>
-            <Title level={3} style={{ margin: 0 }}>
-              {title}
-            </Title>
-            <Text type="secondary">{subtitle}</Text>
+            <PageTitle>{title}</PageTitle>
           </div>
           <Button
             icon={<ReloadOutlined spin={loading} />}

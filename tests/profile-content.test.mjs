@@ -28,7 +28,7 @@ test('account status shows the real state, not a fixed "Active"', () => {
 test('each clinic role has its own work content; others have none', () => {
   for (const role of ['Receptionist', 'Veterinarian', 'Groomer']) {
     const roleContent = content.getStaffRoleContent(role);
-    assert.ok(roleContent?.description, role);
+    assert.ok(roleContent, role);
     assert.ok(roleContent.screens.length > 0, role);
     const codes = roleContent.screens.map(s => s.code);
     assert.equal(

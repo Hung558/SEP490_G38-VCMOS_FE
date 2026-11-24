@@ -119,7 +119,7 @@ const CreateSubtaskForm = ({
     roleLabel
       ? `Chỉ hiện ${roleLabel.toLowerCase()}: chỉ định này do ${roleLabel.toLowerCase()} làm.`
       : taskType?.trim()
-        ? 'Chưa rõ việc này của bác sĩ hay groomer nên hiện cả hai. Chọn trong danh sách gợi ý để lọc đúng người.'
+        ? 'Chưa rõ việc này của bác sĩ hay nhân viên spa nên hiện cả hai. Chọn trong danh sách gợi ý để lọc đúng người.'
         : undefined,
   ]
     .filter(Boolean)
@@ -212,7 +212,7 @@ const CreateSubtaskForm = ({
             placeholder={
               roleLabel
                 ? `Chọn ${roleLabel.toLowerCase()}`
-                : 'Chọn bác sĩ hoặc Groomer'
+                : 'Chọn bác sĩ hoặc nhân viên spa'
             }
             loading={!staff && !error}
             notFoundContent={
