@@ -44,7 +44,6 @@ import { toast } from 'sonner';
 import { STORAGE, storage } from '@/lib/storage';
 import { getAccountStatus } from './components/profileContent';
 import OwnerPetsSection from './components/OwnerPetsSection';
-import AdminOverviewSection from './components/AdminOverviewSection';
 import StaffWorkSection from './components/StaffWorkSection';
 
 const { Title } = Typography;
@@ -717,9 +716,10 @@ const ProfilePage: React.FC = () => {
         )}
       </ProfileCard>
 
-      {/* Role-specific part: the owner's pets, the admin overview or the staff work */}
+      {/* Role-specific part: the owner's pets or the staff work. The admin's
+          account and service counts live on "Quản lý tài khoản" and "Quản lý
+          dịch vụ" since 24/11 */}
       {roleGroup === 'owner' && <OwnerPetsSection />}
-      {roleGroup === 'admin' && <AdminOverviewSection />}
       {roleGroup === 'staff' && <StaffWorkSection role={role} />}
 
       {/* Edit Profile Modal */}

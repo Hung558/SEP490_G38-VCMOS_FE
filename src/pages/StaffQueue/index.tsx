@@ -8,7 +8,6 @@ import {
   Segmented,
   Space,
   Table,
-  Tabs,
   Tag,
   Typography,
 } from 'antd';
@@ -16,11 +15,14 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   BuildOutlined,
   CheckCircleOutlined,
+  ClockCircleOutlined,
   EyeOutlined,
   FileTextOutlined,
   PlayCircleOutlined,
   ProfileOutlined,
   ReloadOutlined,
+  SyncOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -33,9 +35,7 @@ import type { GroomingNote, MyQueueItem, Pet } from '@/types';
 import AppointmentServiceService, {
   QUEUE_PERIODS,
   QUEUE_VIEWS,
-  countMyQueue,
   extractApiError,
-  filterMyQueue,
   getAppointmentServiceName,
   getAppointmentServiceStatusColor,
   getAppointmentServiceStatusLabel,
@@ -67,8 +67,21 @@ import {
 import QueueCageModal from './components/QueueCageModal';
 import GroomingNoteModal from './components/GroomingNoteModal';
 import GroomingNoteHistoryModal from './components/GroomingNoteHistoryModal';
-import AssignedSubtasks from './components/AssignedSubtasks';
+import { useAssignedSubtasks } from './components/AssignedSubtasks';
 import QueueServiceSubtasks from './components/QueueServiceSubtasks';
+import {
+  buildWorkRows,
+  filterWorkRows,
+  summarizeWork,
+  type WorkRow,
+  type WorkSourceFilter,
+} from './components/groomerWork';
+import {
+  populated,
+  SUBTASK_STATUSES,
+  type SubtaskRequest,
+} from '@/services/SubtaskRequestService';
+import { StatGrid, StatTile } from '@/components/dashboard';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -96,8 +109,14 @@ const StaffQueuePage = () => {
   const isVet = role === 'Veterinarian';
   const isGroomer = role === 'Groomer';
   const userId = user?._id ?? storedUser?._id;
-  const [tab, setTab] = useState('services');
   const [subtaskServiceId, setSubtaskServiceId] = useState<string>();
+  // 24/11: the services the receptionist assigned and the tasks a vet handed
+  // over during an exam, in one list for vets ("Hàng đợi khám") and groomers
+  // ("Hàng đợi spa")
+  const subtasks = useAssignedSubtasks({ userId, enabled: isVet || isGroomer });
+  const refreshSubtasksRef = useRef(subtasks.refresh);
+  refreshSubtasksRef.current = subtasks.refresh;
+  const [source, setSource] = useState<WorkSourceFilter>('all');
 
   const [items, setItems] = useState<MyQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,8 +166,13 @@ const StaffQueuePage = () => {
   useEffect(() => {
     fetchQueue();
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible' && !groomingUpdateRef.current)
+      if (
+        document.visibilityState === 'visible' &&
+        !groomingUpdateRef.current
+      ) {
         fetchQueue(true);
+        void refreshSubtasksRef.current({ silent: true });
+      }
     }, POLL_MS);
     return () => {
       window.clearInterval(timer);
@@ -160,11 +184,6 @@ const StaffQueuePage = () => {
     () => getQueuePeriodRange(period, anchor),
     [period, anchor]
   );
-  const visible = useMemo(
-    () => filterMyQueue(items, view, range, today),
-    [items, view, range, today]
-  );
-  const counts = countMyQueue(items, range, today);
   const rangeText = !range
     ? ''
     : range.from === range.to
@@ -173,11 +192,27 @@ const StaffQueuePage = () => {
         : `ngày ${dayjs(range.from).format('DD/MM/YYYY')}`
       : `từ ${dayjs(range.from).format('DD/MM')} đến ${dayjs(range.to).format('DD/MM/YYYY')}`;
 
+  const workRows = useMemo(
+    () => buildWorkRows(items, subtasks.items),
+    [items, subtasks.items]
+  );
+  const workVisible = useMemo(
+    () => filterWorkRows(workRows, { view, source, range }),
+    [workRows, view, source, range]
+  );
+  const work = summarizeWork(workRows, range, source);
+  // Services on screen; handed-over tasks already carry their pet
+  const visibleServices = useMemo(
+    () =>
+      workVisible.flatMap(row => (row.kind === 'service' ? [row.item] : [])),
+    [workVisible]
+  );
+
   // Pet name and species for the rows on screen, one request per pet
   useEffect(() => {
     const petIds = [
       ...new Set(
-        visible
+        visibleServices
           .map(item => getQueueOrder(item)?.petId)
           .filter((id): id is string => Boolean(id))
       ),
@@ -188,7 +223,7 @@ const StaffQueuePage = () => {
         .then(res => setPets(prev => ({ ...prev, [petId]: res.pet })))
         .catch(() => setPets(prev => ({ ...prev, [petId]: null })));
     }
-  }, [visible]);
+  }, [visibleServices]);
 
   const openExam = (item: MyQueueItem) =>
     navigate(
@@ -467,111 +502,255 @@ const StaffQueuePage = () => {
     );
   };
 
-  const columns: ColumnsType<MyQueueItem> = [
+  // Nghiệp vụ 5: mỗi ca hiện giờ. It shares the queue number column so the
+  // table fits the screen without scrolling sideways
+  const renderQueueNo = (item: MyQueueItem) => {
+    const time = getQueueItemTime(item);
+    return (
+      <Space direction="vertical" size={2}>
+        <Text strong style={{ fontSize: 16 }}>
+          {typeof item.queueNo === 'number' ? `#${item.queueNo}` : '—'}
+        </Text>
+        {time ? (
+          <Text strong>{time}</Text>
+        ) : (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Chưa có giờ
+          </Text>
+        )}
+        {item.isEmergency && <Tag color="red">Cấp cứu</Tag>}
+      </Space>
+    );
+  };
+
+  const renderService = (item: MyQueueItem) => {
+    const category = getServiceRefCategory(item.serviceId);
+    return (
+      <Space direction="vertical" size={2}>
+        <Text strong>{getAppointmentServiceName(item.serviceId)}</Text>
+        {item.sequenceNo > 0 && (
+          <Text type="secondary">Thứ tự trong lịch hẹn: {item.sequenceNo}</Text>
+        )}
+        {category && (
+          <Tag style={{ margin: 0 }}>
+            {serviceCategoryLabels[category as ServiceCategory] || category}
+          </Tag>
+        )}
+      </Space>
+    );
+  };
+
+  /** Appointment code, date, channel, state and the owner's note */
+  const renderOrderInfo = (
+    order:
+      | {
+          code?: string;
+          date?: string;
+          isOnline?: boolean;
+          derivedStatus?: string;
+        }
+      | null
+      | undefined,
+    note?: string
+  ) => {
+    if (!order) return <Text type="secondary">—</Text>;
+    return (
+      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+        <Text strong style={{ color: '#0958d9' }}>
+          {order.code || '—'}
+        </Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {[
+            order.date
+              ? `${dayjs(order.date).format('DD/MM/YYYY')}${order.date === today ? ' · Hôm nay' : ''}`
+              : '',
+            typeof order.isOnline === 'boolean'
+              ? order.isOnline
+                ? 'Online'
+                : 'Tại chỗ'
+              : '',
+            order.derivedStatus
+              ? getAppointmentStatusLabel(order.derivedStatus)
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+        {note ? (
+          <Paragraph
+            aria-label="Ghi chú của khách"
+            style={{ margin: 0 }}
+            ellipsis={{ rows: 2, tooltip: note }}
+          >
+            <Text type="secondary">Ghi chú: </Text>
+            {note}
+          </Paragraph>
+        ) : (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Không có ghi chú của khách
+          </Text>
+        )}
+      </Space>
+    );
+  };
+
+  // Nghiệp vụ 5: ghi chú khách để lại khi đặt lịch (triệu chứng, yêu cầu)
+  const renderOrder = (item: MyQueueItem) =>
+    renderOrderInfo(getQueueOrder(item), getQueueCustomerNote(item));
+
+  const renderStatus = (item: MyQueueItem) => (
+    <Tag color={getAppointmentServiceStatusColor(item.status)}>
+      {getAppointmentServiceStatusLabel(
+        item.status,
+        getServiceRefCategory(item.serviceId)
+      )}
+    </Tag>
+  );
+
+  // ---- One list of assigned services and handed-over tasks (24/11)
+  const subtaskOrder = (task: SubtaskRequest) =>
+    populated(populated(task.appointmentServiceId)?.orderId) as
+      | {
+          code?: string;
+          date?: string;
+          note?: string;
+          derivedStatus?: string;
+          petId?: unknown;
+        }
+      | undefined;
+
+  const renderTaskPet = (task: SubtaskRequest) => {
+    const pet = populated(subtaskOrder(task)?.petId) as
+      | {
+          _id: string;
+          name?: string;
+          species?: string;
+          breed?: string;
+          weight?: number;
+        }
+      | undefined;
+    if (!pet) return <Text type="secondary">—</Text>;
+    return (
+      <Space direction="vertical" size={0}>
+        <Text strong>{pet.name || '—'}</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {describeWalkInPet(pet)}
+        </Text>
+        <Button
+          type="link"
+          size="small"
+          icon={<ProfileOutlined aria-hidden />}
+          style={{ padding: 0, height: 'auto' }}
+          onClick={() =>
+            navigate(generatePath(ROUTER.PET_PROFILE, { petId: pet._id }))
+          }
+        >
+          Hồ sơ pet
+        </Button>
+      </Space>
+    );
+  };
+
+  const renderTask = (task: SubtaskRequest & { createdAt?: string }) => {
+    const catalogue = populated(task.serviceId);
+    return (
+      <Space direction="vertical" size={2}>
+        <Text strong>{task.taskType}</Text>
+        {catalogue?.name && catalogue.name !== task.taskType && (
+          <Text type="secondary">Dịch vụ: {catalogue.name}</Text>
+        )}
+        {task.instructions && (
+          <Paragraph
+            aria-label="Dặn dò của bác sĩ"
+            style={{ margin: 0 }}
+            ellipsis={{ rows: 2, tooltip: task.instructions }}
+          >
+            <Text type="secondary">Bác sĩ dặn: </Text>
+            {task.instructions}
+          </Paragraph>
+        )}
+      </Space>
+    );
+  };
+
+  const workColumns: ColumnsType<WorkRow> = [
     {
-      // Nghiệp vụ 5: mỗi ca hiện giờ. It shares the queue number column so the
-      // table fits the screen without scrolling sideways
       title: 'STT · Giờ',
-      key: 'queueNo',
+      key: 'time',
       width: 110,
-      render: (_, item) => {
-        const time = getQueueItemTime(item);
+      render: (_, row) => {
+        if (row.kind === 'service') return renderQueueNo(row.item);
+        const created = row.task.createdAt;
         return (
           <Space direction="vertical" size={2}>
-            <Text strong style={{ fontSize: 16 }}>
-              {typeof item.queueNo === 'number' ? `#${item.queueNo}` : '—'}
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Giao lúc
             </Text>
-            {time ? (
-              <Text strong>{time}</Text>
-            ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Chưa có giờ
-              </Text>
-            )}
-            {item.isEmergency && <Tag color="red">Cấp cứu</Tag>}
+            <Text strong>{created ? dayjs(created).format('HH:mm') : '—'}</Text>
           </Space>
         );
       },
     },
     {
-      title: 'Dịch vụ',
-      key: 'service',
-      render: (_, item) => {
-        const category = getServiceRefCategory(item.serviceId);
-        return (
-          <Space direction="vertical" size={2}>
-            <Text strong>{getAppointmentServiceName(item.serviceId)}</Text>
-            {item.sequenceNo > 0 && (
-              <Text type="secondary">
-                Thứ tự trong lịch hẹn: {item.sequenceNo}
-              </Text>
-            )}
-            {category && (
-              <Tag style={{ margin: 0 }}>
-                {serviceCategoryLabels[category as ServiceCategory] || category}
-              </Tag>
-            )}
-          </Space>
-        );
-      },
+      title: 'Việc',
+      key: 'work',
+      render: (_, row) => (
+        <Space direction="vertical" size={4}>
+          {row.kind === 'service' ? (
+            <Tag color="cyan" style={{ margin: 0 }}>
+              Khách đặt
+            </Tag>
+          ) : (
+            <Tag color="purple" style={{ margin: 0 }}>
+              {populated(row.task.requestedById)?.fullName
+                ? `${populated(row.task.requestedById)?.fullName} giao`
+                : 'Bác sĩ giao'}
+            </Tag>
+          )}
+          {row.kind === 'service'
+            ? renderService(row.item)
+            : renderTask(row.task)}
+        </Space>
+      ),
     },
-    { title: 'Thú cưng', key: 'pet', render: (_, item) => renderPet(item) },
+    {
+      title: 'Thú cưng',
+      key: 'pet',
+      render: (_, row) =>
+        row.kind === 'service' ? renderPet(row.item) : renderTaskPet(row.task),
+    },
     {
       title: 'Lịch hẹn và ghi chú',
       key: 'order',
-      render: (_, item) => {
-        const order = getQueueOrder(item);
-        if (!order) return <Text type="secondary">—</Text>;
-        // Nghiệp vụ 5: ghi chú khách để lại khi đặt lịch (triệu chứng, yêu cầu)
-        const note = getQueueCustomerNote(item);
-        return (
-          <Space direction="vertical" size={2} style={{ width: '100%' }}>
-            <Text strong style={{ color: '#0958d9' }}>
-              {order.code}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {dayjs(order.date).format('DD/MM/YYYY')}
-              {order.date === today ? ' · Hôm nay' : ''} ·{' '}
-              {order.isOnline ? 'Online' : 'Tại chỗ'} ·{' '}
-              {getAppointmentStatusLabel(order.derivedStatus)}
-            </Text>
-            {note ? (
-              <Paragraph
-                aria-label="Ghi chú của khách"
-                style={{ margin: 0 }}
-                ellipsis={{ rows: 2, tooltip: note }}
-              >
-                <Text type="secondary">Ghi chú: </Text>
-                {note}
-              </Paragraph>
-            ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Không có ghi chú của khách
-              </Text>
-            )}
-          </Space>
-        );
-      },
+      render: (_, row) =>
+        row.kind === 'service'
+          ? renderOrder(row.item)
+          : renderOrderInfo(
+              subtaskOrder(row.task),
+              subtaskOrder(row.task)?.note
+            ),
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
       key: 'status',
-      width: 120,
-      render: (status: string, item) => (
-        <Tag color={getAppointmentServiceStatusColor(status)}>
-          {getAppointmentServiceStatusLabel(
-            status,
-            getServiceRefCategory(item.serviceId)
-          )}
-        </Tag>
-      ),
+      width: 130,
+      render: (_, row) =>
+        row.kind === 'service' ? (
+          renderStatus(row.item)
+        ) : (
+          <Tag color={SUBTASK_STATUSES[row.task.status]?.color}>
+            {SUBTASK_STATUSES[row.task.status]?.label ?? row.task.status}
+          </Tag>
+        ),
     },
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 180,
-      render: (_, item) => renderActions(item),
+      width: 190,
+      render: (_, row) =>
+        row.kind === 'service'
+          ? renderActions(row.item)
+          : subtasks.renderActions(row.task),
     },
   ];
 
@@ -579,17 +758,63 @@ const StaffQueuePage = () => {
   const cagePetId = cageOrder?.petId;
   const noteItem = items.find(item => item._id === noteTarget?.id);
   const subtaskService = items.find(item => item._id === subtaskServiceId);
-  const serviceQueue = (
+  // Nghiệp vụ 5, 6: ngày, tuần (thứ Hai tới Chủ nhật), tháng của ngày hẹn
+  const periodControls = (
+    <Space size={8} wrap>
+      <Segmented
+        aria-label="Khoảng thời gian"
+        value={period}
+        onChange={value => setPeriod(value as QueuePeriod)}
+        options={QUEUE_PERIODS.map(p => ({ value: p.key, label: p.label }))}
+      />
+      {period !== 'all' && (
+        <DatePicker
+          aria-label="Chọn ngày, tuần hoặc tháng"
+          allowClear={false}
+          picker={period === 'day' ? 'date' : period}
+          format={
+            period === 'week'
+              ? // Show the Monday–Sunday range the list is filtered by
+                value => {
+                  const week = getQueuePeriodRange(
+                    'week',
+                    value.format('YYYY-MM-DD')
+                  );
+                  return week
+                    ? `${dayjs(week.from).format('DD/MM')} – ${dayjs(week.to).format('DD/MM/YYYY')}`
+                    : '';
+                }
+              : period === 'day'
+                ? 'DD/MM/YYYY'
+                : 'MM/YYYY'
+          }
+          value={dayjs(anchor)}
+          // Same width for a day, a week (dd/MM – dd/MM/yyyy) and a month
+          style={{ width: 200 }}
+          onChange={value => value && setAnchor(value.format('YYYY-MM-DD'))}
+        />
+      )}
+      {period !== 'all' && anchor !== today && (
+        <Button type="link" onClick={() => setAnchor(today)}>
+          Về hôm nay
+        </Button>
+      )}
+    </Space>
+  );
+
+  const periodNote = rangeText || 'mọi ngày';
+
+  const workList = (
     <>
       <PageHeader>
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            {isVet ? 'Hàng đợi khám của tôi' : 'Hàng đợi spa của tôi'}
+            {isVet ? 'Hàng đợi khám' : 'Hàng đợi spa'}
           </Title>
           <Text type="secondary">
             {isVet
-              ? 'Các ca được lễ tân phân công cho bạn. Ca cấp cứu xếp trước; bấm "Bắt đầu khám" để mở bệnh án SOAP.'
-              : 'Các ca chăm sóc, làm đẹp được phân công cho bạn. Ca cấp cứu xếp trước.'}
+              ? 'Ca khám khách đặt (lễ tân phân công lúc check-in) và chỉ định bác sĩ khác giao cho bạn, chung một danh sách. Ca cấp cứu xếp trước; bấm "Bắt đầu khám" để mở bệnh án SOAP.'
+              : 'Ca spa khách đặt (lễ tân phân công lúc check-in) và việc bác sĩ giao thêm trong lúc khám, chung một danh sách. Ca cấp cứu xếp trước.'}
           </Text>
         </div>
         <Space wrap>
@@ -602,63 +827,76 @@ const StaffQueuePage = () => {
             </Button>
           )}
           <Button
-            icon={<ReloadOutlined spin={loading} />}
-            disabled={Boolean(groomingUpdate)}
-            onClick={() => fetchQueue()}
+            icon={<ReloadOutlined spin={loading || subtasks.loading} />}
+            disabled={Boolean(groomingUpdate) || Boolean(subtasks.busyId)}
+            onClick={() => {
+              fetchQueue();
+              void subtasks.refresh();
+            }}
           >
             Làm mới
           </Button>
         </Space>
       </PageHeader>
 
-      <Space wrap size={16} style={{ marginBottom: 16 }}>
-        <Segmented
-          value={view}
-          onChange={value => setView(value as QueueView)}
-          options={QUEUE_VIEWS.map(v => ({
-            value: v.key,
-            label: `${v.label} (${counts[v.key]})`,
-          }))}
-        />
-        <Space size={8} wrap>
-          <Segmented
-            aria-label="Khoảng thời gian"
-            value={period}
-            onChange={value => setPeriod(value as QueuePeriod)}
-            options={QUEUE_PERIODS.map(p => ({ value: p.key, label: p.label }))}
+      <div style={{ marginBottom: 16 }}>
+        <StatGrid $min={170}>
+          <StatTile
+            icon={<UnorderedListOutlined />}
+            tone="slate"
+            label="Tổng việc"
+            value={work.total.toLocaleString('vi-VN')}
+            caption={`${work.sources.booked} khách đặt · ${work.sources.assigned} bác sĩ giao · ${periodNote}`}
           />
-          {period !== 'all' && (
-            <DatePicker
-              aria-label="Chọn ngày, tuần hoặc tháng"
-              allowClear={false}
-              picker={period === 'day' ? 'date' : period}
-              format={
-                period === 'week'
-                  ? // Show the Monday–Sunday range the list is filtered by
-                    value => {
-                      const week = getQueuePeriodRange(
-                        'week',
-                        value.format('YYYY-MM-DD')
-                      );
-                      return week
-                        ? `${dayjs(week.from).format('DD/MM')} – ${dayjs(week.to).format('DD/MM/YYYY')}`
-                        : '';
-                    }
-                  : period === 'day'
-                    ? 'DD/MM/YYYY'
-                    : 'MM/YYYY'
-              }
-              value={dayjs(anchor)}
-              onChange={value => value && setAnchor(value.format('YYYY-MM-DD'))}
-            />
-          )}
-          {period !== 'all' && anchor !== today && (
-            <Button type="link" onClick={() => setAnchor(today)}>
-              Về hôm nay
-            </Button>
-          )}
+          <StatTile
+            icon={<ClockCircleOutlined />}
+            tone="amber"
+            label="Chờ làm"
+            value={work.waiting.toLocaleString('vi-VN')}
+          />
+          <StatTile
+            icon={<SyncOutlined />}
+            tone="blue"
+            label="Đang làm"
+            value={work.doing.toLocaleString('vi-VN')}
+          />
+          <StatTile
+            icon={<CheckCircleOutlined />}
+            label="Đã xong"
+            value={work.done.toLocaleString('vi-VN')}
+          />
+        </StatGrid>
+      </div>
+
+      {/* The period sits on its own row: the date box is wider for a week
+          than for a day, and must not push the other filters around */}
+      <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+        {periodControls}
+        <Space wrap size={16}>
+          <Segmented
+            aria-label="Trạng thái việc"
+            value={view}
+            onChange={value => setView(value as QueueView)}
+            options={QUEUE_VIEWS.map(v => ({
+              value: v.key,
+              label: `${v.label} (${work.views[v.key]})`,
+            }))}
+          />
+          <Segmented
+            aria-label="Nguồn việc"
+            value={source}
+            onChange={value => setSource(value as WorkSourceFilter)}
+            options={[
+              { value: 'all', label: `Mọi nguồn (${work.sources.all})` },
+              { value: 'booked', label: `Khách đặt (${work.sources.booked})` },
+              {
+                value: 'assigned',
+                label: `Bác sĩ giao (${work.sources.assigned})`,
+              },
+            ]}
+          />
         </Space>
-      </Space>
+      </div>
 
       {error && (
         <Alert
@@ -673,51 +911,51 @@ const StaffQueuePage = () => {
           }
         />
       )}
+      {subtasks.error && (
+        <Alert
+          type="error"
+          showIcon
+          message={`Việc bác sĩ giao: ${subtasks.error}`}
+          style={{ marginBottom: 16 }}
+          action={
+            <Button size="small" onClick={() => void subtasks.refresh()}>
+              Thử lại
+            </Button>
+          }
+        />
+      )}
+      {subtasks.actionError && (
+        <Alert
+          type="error"
+          showIcon
+          closable
+          onClose={subtasks.clearActionError}
+          message={subtasks.actionError}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <Table
-        columns={columns}
-        dataSource={visible}
-        rowKey="_id"
-        loading={loading}
+        columns={workColumns}
+        dataSource={workVisible}
+        rowKey="key"
+        loading={loading || subtasks.loading}
         // Fits the content area of a 1366px screen; narrower screens scroll
-        scroll={{ x: 900 }}
+        scroll={{ x: 960 }}
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
         locale={{
           emptyText: range
-            ? `Không có ca nào trong nhóm này ${rangeText}.`
-            : 'Không có ca nào trong nhóm này.',
+            ? `Không có việc nào trong nhóm này ${rangeText}.`
+            : 'Không có việc nào trong nhóm này.',
         }}
       />
+      {subtasks.modals}
     </>
   );
 
   return (
     <PageWrapper>
-      <Card>
-        {isVet || isGroomer ? (
-          <Tabs
-            activeKey={tab}
-            onChange={setTab}
-            items={[
-              {
-                key: 'services',
-                label: isVet ? 'Ca khám chính' : 'Ca spa',
-                children: serviceQueue,
-              },
-              {
-                key: 'subtasks',
-                label: 'Việc được giao',
-                children:
-                  tab === 'subtasks' ? (
-                    <AssignedSubtasks userId={userId} />
-                  ) : undefined,
-              },
-            ]}
-          />
-        ) : (
-          serviceQueue
-        )}
-      </Card>
+      <Card>{workList}</Card>
       {isVet && subtaskServiceId && (
         <QueueServiceSubtasks
           key={subtaskServiceId}

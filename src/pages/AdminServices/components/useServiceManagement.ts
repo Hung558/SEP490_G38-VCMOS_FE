@@ -85,6 +85,34 @@ export const useServiceManagement = ({
     fetchServices();
   }, [fetchServices]);
 
+  // Counts over the whole catalogue (moved here from the admin profile, 24/11),
+  // separate from the filtered table list
+  const [summary, setSummary] = useState<{
+    total: number;
+    active: number;
+    inactive: number;
+  } | null>(null);
+  const [summaryFailed, setSummaryFailed] = useState(false);
+  const fetchSummary = useCallback(async () => {
+    try {
+      const all = readServices(await ServiceService.listServices({}));
+      const active = all.filter(item => item.status === 'Active').length;
+      setSummary({ total: all.length, active, inactive: all.length - active });
+      setSummaryFailed(false);
+    } catch {
+      setSummaryFailed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
+  const refreshAll = useCallback(() => {
+    fetchServices();
+    fetchSummary();
+  }, [fetchServices, fetchSummary]);
+
   const total = services.length;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const hasFilters = Boolean(searchApplied || category || status);
@@ -191,7 +219,7 @@ export const useServiceManagement = ({
         setFormOpen(false);
         setEditingService(null);
         toast.success(isEditing ? 'Đã cập nhật dịch vụ' : 'Đã tạo dịch vụ mới');
-        await fetchServices();
+        await Promise.all([fetchServices(), fetchSummary()]);
       } catch (error) {
         const { message, fieldErrors } = extractApiError(
           error,
@@ -203,7 +231,7 @@ export const useServiceManagement = ({
         setSaving(false);
       }
     },
-    [editingService, fetchServices]
+    [editingService, fetchServices, fetchSummary]
   );
 
   const openDetail = useCallback(async (service: Service) => {
@@ -271,7 +299,7 @@ export const useServiceManagement = ({
               : previous
           );
         }
-        await fetchServices();
+        await Promise.all([fetchServices(), fetchSummary()]);
       } catch (error) {
         toast.error(
           extractApiError(
@@ -283,7 +311,7 @@ export const useServiceManagement = ({
         setStatusPendingId(null);
       }
     },
-    [fetchServices]
+    [fetchServices, fetchSummary]
   );
 
   return {
@@ -296,6 +324,10 @@ export const useServiceManagement = ({
     hasFilters,
     setPage,
     retryList: fetchServices,
+    refreshAll,
+    summary,
+    summaryFailed,
+    retrySummary: fetchSummary,
 
     searchDraft,
     searchApplied,

@@ -49,12 +49,15 @@ export const useAppointmentReception = () => {
   >('appointments');
   // Bumped after every change the shared calendar (SCR-17) shows
   const [scheduleRevision, setScheduleRevision] = useState(0);
+  // "Lịch hẹn hôm nay" counters: the receptionist's, and since 24/11 the Admin's
+  // too (read only, the same figures on top of the list)
+  const showsToday = isReceptionist || isAdmin;
   const cageAvailability = useCageAvailability(
-    isReceptionist,
+    showsToday,
     activeTab === 'appointments',
     scheduleRevision
   );
-  const today = useReceptionToday(isReceptionist, activeTab === 'appointments');
+  const today = useReceptionToday(showsToday, activeTab === 'appointments');
   const refreshToday = today.refresh;
 
   const {
@@ -320,12 +323,16 @@ export const useAppointmentReception = () => {
   };
 
   const selectTodayGroup = (status: ReceptionTodayGroup['status']) => {
-    if (!isReceptionist) return;
+    if (!showsToday) return;
     setFilterStatus(status);
     setFilterIsOnline(undefined);
     setFilterCode(undefined);
-    // Every counter is for appointments dated today: undefined falls back to today
-    setDateFilter(undefined);
+    // Every counter is for appointments dated today. The receptionist's default
+    // date is today (undefined falls back to it); the Admin's default is every
+    // date, so today is set explicitly
+    setDateFilter(
+      isReceptionist ? undefined : { from: today.date, to: today.date }
+    );
     setPage(1);
   };
 
@@ -627,6 +634,7 @@ export const useAppointmentReception = () => {
   return {
     isAdmin,
     isReceptionist,
+    showsToday,
     activeTab,
     setActiveTab,
     scheduleRevision,

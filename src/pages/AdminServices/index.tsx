@@ -4,6 +4,7 @@ import ServiceFilters from './components/ServiceFilters';
 import ServiceTable from './components/ServiceTable';
 import ServiceFormModal from './components/ServiceFormModal';
 import ServiceDetailModal from './components/ServiceDetailModal';
+import ServiceSummaryBar from './components/ServiceSummaryBar';
 import { useServiceManagement } from './components/useServiceManagement';
 import { PageWrapper } from './components/styles';
 
@@ -38,6 +39,12 @@ const AdminServicesPage = () => {
             </Button>
           </Space>
 
+          <ServiceSummaryBar
+            summary={state.summary}
+            failed={state.summaryFailed}
+            onRetry={state.retrySummary}
+          />
+
           <ServiceFilters
             searchDraft={state.searchDraft}
             category={state.category}
@@ -48,7 +55,7 @@ const AdminServicesPage = () => {
             onCategoryChange={state.handleCategoryChange}
             onStatusChange={state.handleStatusChange}
             onReset={state.resetFilters}
-            onRefresh={state.retryList}
+            onRefresh={state.refreshAll}
           />
 
           <ServiceTable

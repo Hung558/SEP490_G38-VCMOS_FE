@@ -94,23 +94,3 @@ export const STAFF_ROLE_CONTENT: Record<
 
 export const getStaffRoleContent = (role?: string) =>
   STAFF_ROLE_CONTENT[normalizeRole(role)] || null;
-
-export interface AccountSummary {
-  total: number;
-  locked: number;
-  byRole: Record<string, number>;
-}
-
-/** Counts accounts per role and the locked ones, for the admin overview */
-export const summarizeAccounts = (
-  users: { role?: string; status?: string }[]
-): AccountSummary => {
-  const byRole: Record<string, number> = {};
-  let locked = 0;
-  for (const user of users) {
-    const key = normalizeRole(user.role) || user.role || 'Khác';
-    byRole[key] = (byRole[key] || 0) + 1;
-    if (user.status === 'Locked') locked++;
-  }
-  return { total: users.length, locked, byRole };
-};

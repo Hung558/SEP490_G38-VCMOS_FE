@@ -1,24 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  Alert,
-  Button,
-  Input,
-  Modal,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { Alert, Button, Input, Modal, Space, Typography } from 'antd';
 import { toast } from 'sonner';
 import { extractApiError } from '@/services/AppointmentServiceService';
 import SubtaskRequestService, {
   getSubtaskActions,
-  populated,
   SUBTASK_IMAGE_TYPES,
   SUBTASK_LIMIT,
-  SUBTASK_STATUSES,
   validateSubtaskImage,
   type SubtaskRequest,
   type SubtaskResult,
@@ -88,15 +75,30 @@ const ResultModal = ({
   );
 };
 
-const AssignedSubtasks = ({ userId }: { userId?: string }) => {
-  const [status, setStatus] = useState<SubtaskStatus | 'all'>('all');
+/**
+ * Tasks handed to the signed-in staff member (GET /subtask-requests/my-queue)
+ * with their actions: start, send the result, view the details. Shared by the
+ * work lists of vets ("Hàng đợi khám") and groomers ("Hàng đợi spa") (24/11).
+ * `enabled: false` loads nothing (hooks cannot be skipped for other roles).
+ */
+export const useAssignedSubtasks = ({
+  userId,
+  status = 'all',
+  enabled = true,
+}: {
+  userId?: string;
+  status?: SubtaskStatus | 'all';
+  enabled?: boolean;
+}) => {
   const load = useCallback(
     (signal: AbortSignal) =>
-      SubtaskRequestService.listMine(
-        status === 'all' ? undefined : status,
-        signal
-      ),
-    [status]
+      enabled
+        ? SubtaskRequestService.listMine(
+            status === 'all' ? undefined : status,
+            signal
+          )
+        : Promise.resolve({ data: [] as SubtaskRequest[] }),
+    [status, enabled]
   );
   const { items, error, loading, refresh } = useSubtaskList(load);
   const [busyId, setBusyId] = useState<string>();
@@ -147,125 +149,43 @@ const AssignedSubtasks = ({ userId }: { userId?: string }) => {
     }
   };
 
-  const columns: ColumnsType<SubtaskRequest> = [
-    { title: 'Chỉ định', dataIndex: 'taskType' },
-    {
-      title: 'Thú cưng / lịch hẹn',
-      render: (_, task) => {
-        const order = populated(populated(task.appointmentServiceId)?.orderId);
-        return (
-          <Space direction="vertical" size={0}>
-            <Typography.Text strong>
-              {populated(order?.petId)?.name || '—'}
-            </Typography.Text>
-            <Typography.Text type="secondary">
-              {order?.code || '—'}
-            </Typography.Text>
-          </Space>
-        );
-      },
-    },
-    {
-      title: 'Người yêu cầu',
-      render: (_, task) => populated(task.requestedById)?.fullName || '—',
-    },
-    {
-      title: 'Trạng thái',
-      render: (_, task) => (
-        <Tag color={SUBTASK_STATUSES[task.status]?.color}>
-          {SUBTASK_STATUSES[task.status]?.label ?? task.status}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Thao tác',
-      render: (_, task) => {
-        const actions = getSubtaskActions(task, userId);
-        return (
-          <Space wrap>
-            <Button size="small" onClick={() => setDetail(task)}>
-              Xem chi tiết
-            </Button>
-            {actions.start && (
-              <Button
-                size="small"
-                type="primary"
-                disabled={!!busyId || loading}
-                loading={busyId === task._id && !resultTarget}
-                onClick={() => mutate(task)}
-              >
-                Bắt đầu
-              </Button>
-            )}
-            {actions.complete && (
-              <Button
-                size="small"
-                type={actions.start ? 'default' : 'primary'}
-                disabled={!!busyId || loading}
-                onClick={() => {
-                  setResultError(undefined);
-                  setResultTarget(task);
-                }}
-              >
-                Gửi kết quả
-              </Button>
-            )}
-          </Space>
-        );
-      },
-    },
-  ];
-
-  return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Text type="secondary">
-        Các chỉ định cận lâm sàng và dịch vụ phụ được giao cho bạn.
-      </Typography.Text>
-      <Space wrap>
-        <Select
-          aria-label="Trạng thái chỉ định"
-          value={status}
-          disabled={!!busyId}
-          onChange={value => {
-            setActionError(undefined);
-            setStatus(value);
-          }}
-          style={{ width: 185 }}
-          options={[
-            { label: 'Mọi trạng thái', value: 'all' },
-            ...Object.entries(SUBTASK_STATUSES).map(([value, meta]) => ({
-              value,
-              label: meta.label,
-            })),
-          ]}
-        />
-        <Button loading={loading} disabled={!!busyId} onClick={refresh}>
-          Làm mới việc được giao
+  const renderActions = (task: SubtaskRequest) => {
+    const actions = getSubtaskActions(task, userId);
+    return (
+      <Space wrap size={6}>
+        <Button size="small" onClick={() => setDetail(task)}>
+          Xem chi tiết
         </Button>
+        {actions.start && (
+          <Button
+            size="small"
+            type="primary"
+            disabled={!!busyId || loading}
+            loading={busyId === task._id && !resultTarget}
+            onClick={() => mutate(task)}
+          >
+            Bắt đầu
+          </Button>
+        )}
+        {actions.complete && (
+          <Button
+            size="small"
+            type={actions.start ? 'default' : 'primary'}
+            disabled={!!busyId || loading}
+            onClick={() => {
+              setResultError(undefined);
+              setResultTarget(task);
+            }}
+          >
+            Gửi kết quả
+          </Button>
+        )}
       </Space>
-      {actionError && <Alert type="error" showIcon message={actionError} />}
-      {error ? (
-        <Alert
-          type="error"
-          showIcon
-          message={error}
-          action={
-            <Button size="small" onClick={refresh}>
-              Thử lại
-            </Button>
-          }
-        />
-      ) : (
-        <Table
-          columns={columns}
-          dataSource={items}
-          rowKey="_id"
-          loading={loading}
-          scroll={{ x: 740 }}
-          pagination={{ pageSize: 15, hideOnSinglePage: true }}
-          locale={{ emptyText: 'Không có yêu cầu trong nhóm này.' }}
-        />
-      )}
+    );
+  };
+
+  const modals = (
+    <>
       {resultTarget && (
         <ResultModal
           key={resultTarget._id}
@@ -288,8 +208,18 @@ const AssignedSubtasks = ({ userId }: { userId?: string }) => {
           <SubtaskDetailLoader key={detail._id} id={detail._id} showIntake />
         </Modal>
       )}
-    </Space>
+    </>
   );
-};
 
-export default AssignedSubtasks;
+  return {
+    items,
+    error,
+    loading,
+    refresh,
+    busyId,
+    actionError,
+    clearActionError: () => setActionError(undefined),
+    renderActions,
+    modals,
+  };
+};

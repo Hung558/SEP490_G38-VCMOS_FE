@@ -26,6 +26,11 @@ import AdminUserService, {
 } from '@/services/AdminUserService';
 import UserFormModal from './components/UserFormModal';
 import UserDetailModal from './components/UserDetailModal';
+import AccountSummaryBar from './components/AccountSummaryBar';
+import {
+  summarizeAccounts,
+  type AccountSummary,
+} from './components/accountSummary';
 
 const { Title, Text } = Typography;
 const staffRoles: AdminRole[] = ['Receptionist', 'Veterinarian', 'Groomer'];
@@ -81,6 +86,26 @@ const AdminUsersPage = () => {
     fetchUsers();
   }, [fetchUsers]);
 
+  // Counts over every account (moved here from the admin profile, 24/11),
+  // separate from the filtered table list
+  const [summary, setSummary] = useState<AccountSummary | null>(null);
+  const [summaryFailed, setSummaryFailed] = useState(false);
+  const fetchSummary = useCallback(async () => {
+    try {
+      const response: any = await AdminUserService.listUsers();
+      setSummary(
+        summarizeAccounts(response?.users || response?.data?.users || [])
+      );
+      setSummaryFailed(false);
+    } catch {
+      setSummaryFailed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
   const handleFormSubmit = async (
     values: CreateStaffPayload | UpdateAdminUserPayload
   ) => {
@@ -97,7 +122,7 @@ const AdminUsersPage = () => {
       );
       setFormOpen(false);
       setEditingUser(null);
-      await fetchUsers();
+      await Promise.all([fetchUsers(), fetchSummary()]);
     } catch (error: any) {
       const errorData = error?.response?.data;
       const errorDetails = errorData?.errors
@@ -115,14 +140,14 @@ const AdminUsersPage = () => {
       try {
         await AdminUserService.updateStatus(user._id, nextStatus);
         toast.success(`Đã chuyển trạng thái sang ${statusLabels[nextStatus]}`);
-        await fetchUsers();
+        await Promise.all([fetchUsers(), fetchSummary()]);
       } catch (error: any) {
         toast.error(
           error?.response?.data?.message || 'Không thể cập nhật trạng thái'
         );
       }
     },
-    [fetchUsers]
+    [fetchUsers, fetchSummary]
   );
 
   const columns = useMemo(
@@ -252,6 +277,11 @@ const AdminUsersPage = () => {
               Tạo tài khoản nhân sự
             </Button>
           </Space>
+          <AccountSummaryBar
+            summary={summary}
+            failed={summaryFailed}
+            onRetry={fetchSummary}
+          />
           <Space wrap>
             <Input.Search
               allowClear
@@ -283,7 +313,13 @@ const AdminUsersPage = () => {
                 label: statusLabels[item],
               }))}
             />
-            <Button icon={<ReloadOutlined />} onClick={fetchUsers}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                fetchUsers();
+                fetchSummary();
+              }}
+            >
               Làm mới
             </Button>
           </Space>

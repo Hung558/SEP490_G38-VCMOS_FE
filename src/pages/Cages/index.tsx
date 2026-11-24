@@ -17,6 +17,7 @@ import CageBoard from './components/CageBoard';
 import CageBoardActionModal from './components/CageBoardActionModal';
 import { useCageBoard } from './components/useCageBoard';
 import CageAssignmentHistory from './components/CageAssignmentHistory';
+import CageSummaryBar from './components/CageSummaryBar';
 
 type CageView = 'board' | 'history' | 'list';
 
@@ -86,6 +87,12 @@ const CagesPage = () => {
               options={state.isAdmin ? VIEW_OPTIONS.admin : VIEW_OPTIONS.staff}
             />
           </Space>
+
+          <CageSummaryBar
+            refreshKey={`${board.lastUpdated?.getTime() ?? ''}|${state.cages
+              .map(cage => `${cage._id}:${cage.status}`)
+              .join(',')}`}
+          />
 
           {view === 'board' ? (
             <CageBoard

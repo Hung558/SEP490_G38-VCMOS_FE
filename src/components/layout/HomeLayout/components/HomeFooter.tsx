@@ -3,7 +3,6 @@ import {
   PhoneOutlined,
   EnvironmentOutlined,
   ClockCircleOutlined,
-  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import styled from 'styled-components';
 
@@ -64,20 +63,7 @@ const StyledFooter = styled(Footer)`
       font-size: 14px;
       line-height: 1.6;
       color: #64748b;
-      margin-bottom: 20px;
-    }
-
-    .license-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      color: #0f766e;
-      background: #f0fdfa;
-      border: 1px solid #ccfbf1;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-weight: 500;
+      margin-bottom: 0;
     }
   }
 
@@ -195,10 +181,6 @@ const HomeFooter = () => {
             sóc y khoa toàn diện, chẩn đoán kỹ thuật số hiện đại và phác đồ điều
             trị minh bạch.
           </p>
-          <div className="license-badge">
-            <SafetyCertificateOutlined />
-            <span>Giấy phép hoạt động ngành thú y số 48/GCN-TY</span>
-          </div>
         </div>
 
         {/* Dịch vụ y khoa */}

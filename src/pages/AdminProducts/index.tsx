@@ -4,6 +4,7 @@ import ProductFilters from './components/ProductFilters';
 import ProductTable from './components/ProductTable';
 import ProductFormModal from './components/ProductFormModal';
 import ProductDetailModal from './components/ProductDetailModal';
+import ProductSummaryBar from './components/ProductSummaryBar';
 import { useProductManagement } from './components/useProductManagement';
 import { PageWrapper } from './components/styles';
 
@@ -39,6 +40,12 @@ const AdminProductsPage = () => {
             </Button>
           </Space>
 
+          <ProductSummaryBar
+            summary={state.summary}
+            failed={state.summaryFailed}
+            onRetry={state.retrySummary}
+          />
+
           <ProductFilters
             searchDraft={state.searchDraft}
             category={state.category}
@@ -49,7 +56,7 @@ const AdminProductsPage = () => {
             onCategoryChange={state.handleCategoryChange}
             onStatusChange={state.handleStatusChange}
             onReset={state.resetFilters}
-            onRefresh={state.retryList}
+            onRefresh={state.refreshAll}
           />
 
           <ProductTable

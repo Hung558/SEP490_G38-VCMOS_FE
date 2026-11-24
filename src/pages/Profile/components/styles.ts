@@ -112,43 +112,6 @@ export const SectionCard = styled.section`
     }
   }
 
-  /* Admin: KPI row of stat tiles */
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .stat-tile {
-    padding: 14px 16px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-
-    .stat-label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-      font-size: 13px;
-      color: #64748b;
-    }
-
-    .stat-value {
-      font-size: 26px;
-      font-weight: 600;
-      line-height: 1.2;
-      color: #0f172a;
-    }
-  }
-
-  .shortcut-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
   /* Clinic staff: screens of the role and the work schedule */
   .screen-list {
     display: grid;

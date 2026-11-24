@@ -12,6 +12,7 @@ import {
 } from '../AppointmentReception/components/styles';
 import PendingCheckoutTab from './components/PendingCheckoutTab';
 import IssuedInvoicesTab from './components/IssuedInvoicesTab';
+import InvoiceSummaryBar from './components/InvoiceSummaryBar';
 
 const { Title, Text } = Typography;
 
@@ -50,6 +51,8 @@ const ClinicInvoicesPage = () => {
             </Text>
           </div>
         </PageHeader>
+
+        <InvoiceSummaryBar revision={revision} />
 
         <Tabs
           activeKey={tab}

@@ -69,20 +69,3 @@ test('screens that exist link to their page; the rest are still in development',
     'SCR-26': '/clinic/my-queue',
   });
 });
-
-test('summarizeAccounts counts accounts per role and locked ones', () => {
-  const summary = content.summarizeAccounts([
-    { role: 'PetOwner', status: 'Active' },
-    { role: 'PetOwner', status: 'Locked' },
-    { role: 'Veterinarian', status: 'Active' },
-    { role: 'admin', status: 'Active' },
-  ]);
-  assert.equal(summary.total, 4);
-  assert.equal(summary.locked, 1);
-  assert.deepEqual(summary.byRole, { PetOwner: 2, Veterinarian: 1, Admin: 1 });
-  assert.deepEqual(content.summarizeAccounts([]), {
-    total: 0,
-    locked: 0,
-    byRole: {},
-  });
-});
