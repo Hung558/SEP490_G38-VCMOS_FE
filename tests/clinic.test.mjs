@@ -404,7 +404,9 @@ test('a locked or deactivated account ends the session (BE protect, UC-62)', () 
 
 test('dashboard tabs and the booking link', () => {
   assert.equal(dashboardTabs.parseDashboardTab('appointments'), 'appointments');
-  assert.equal(dashboardTabs.parseDashboardTab('ai'), 'ai');
+  assert.equal(dashboardTabs.parseDashboardTab('journey'), 'journey');
+  // 24/11: the AI check is a page of its own now
+  assert.equal(dashboardTabs.parseDashboardTab('ai'), 'pets');
   assert.equal(dashboardTabs.parseDashboardTab('xyz'), 'pets');
   assert.equal(dashboardTabs.parseDashboardTab(null), 'pets');
   assert.equal(
@@ -415,6 +417,35 @@ test('dashboard tabs and the booking link', () => {
     dashboardTabs.getBookingLink(),
     '/dashboard?tab=appointments&book=new'
   );
+  assert.equal(
+    dashboardTabs.getBookingLink(PET, 'svc1'),
+    `/dashboard?tab=appointments&book=${PET}&service=svc1`
+  );
+});
+
+test('journey tab: link, pet order and the pet shown first', () => {
+  assert.equal(dashboardTabs.getJourneyLink(), '/dashboard?tab=journey');
+  assert.equal(
+    dashboardTabs.getJourneyLink(PET, '#inpatient-logs'),
+    `/dashboard?tab=journey&pet=${PET}#inpatient-logs`
+  );
+  const pets = [
+    { _id: 'a', status: 'Deleted' },
+    { _id: 'b', status: 'Active' },
+    { _id: 'c', status: 'Active' },
+  ];
+  assert.deepEqual(
+    dashboardTabs.sortJourneyPets(pets).map(p => p._id),
+    ['b', 'c', 'a']
+  );
+  assert.equal(dashboardTabs.pickJourneyPet(pets, 'c')._id, 'c');
+  assert.equal(dashboardTabs.pickJourneyPet(pets, 'gone')._id, 'b');
+  assert.equal(dashboardTabs.pickJourneyPet(pets, null)._id, 'b');
+  assert.equal(
+    dashboardTabs.pickJourneyPet([{ _id: 'a', status: 'Deleted' }])._id,
+    'a'
+  );
+  assert.equal(dashboardTabs.pickJourneyPet([]), undefined);
 });
 
 test('cage weight limits and canCageHoldPet enforce BR-11 for Vet and Groomer waiting cages', () => {

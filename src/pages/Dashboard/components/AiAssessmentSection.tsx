@@ -75,12 +75,6 @@ const HeaderRow = styled.div`
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 0 0 4px 0;
-  }
-
-  .main-desc {
-    font-size: 13.5px;
-    color: #64748b;
     margin: 0;
   }
 `;
@@ -484,10 +478,6 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
           <SafetyCertificateOutlined style={{ color: '#0d9488' }} />
           Sàng Lọc & Đánh Giá Triệu Chứng Thú Cưng Ban Đầu
         </h3>
-        <p className="main-desc">
-          AI đối chiếu hồ sơ, bệnh án cũ ở phòng khám, triệu chứng và ảnh của bé
-          để gợi ý mức độ khẩn cấp và cách chăm sóc an toàn trong lúc chờ khám.
-        </p>
       </HeaderRow>
 
       <DisclaimerBanner>

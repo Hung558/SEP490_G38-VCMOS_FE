@@ -8,8 +8,12 @@ const ROUTER = {
   PROFILE: '/profile',
   // Build the real path with generatePath(ROUTER.PET_PROFILE, { petId })
   PET_PROFILE: '/pets/:petId',
+  // Owners read journeys in the dashboard tab; these old links send them
+  // there, vets and groomers still open one pet's journey here
   PET_JOURNEYS: '/pet-journeys',
   PET_JOURNEY: '/pet-journeys/:petId',
+  // Đánh giá sức khỏe bằng AI của chủ nuôi (SCR-10), mục riêng ở sidebar
+  AI_ASSESSMENT: '/ai-assessment',
   ADMIN_USERS: '/admin/users',
   ADMIN_SERVICES: '/admin/services',
   ADMIN_PRODUCTS: '/admin/products',

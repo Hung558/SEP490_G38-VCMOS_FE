@@ -14,7 +14,7 @@ import {
   BarChartOutlined,
   EditOutlined,
   SafetyCertificateOutlined,
-  FieldTimeOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -96,7 +96,8 @@ export const MenuItemBreadcrumbs = () => {
 };
 
 // No "Trang chủ" item in any sidebar (24/11): the dashboard header button and
-// "Trở về Trang chủ" under the sidebar already lead home
+// "Trở về Trang chủ" under the sidebar already lead home.
+// 24/11: "Hành trình của bé" is a dashboard tab now; the AI check has its own item
 export const MenuItemCommon = (): MenuItem[] => {
   return [
     {
@@ -105,9 +106,9 @@ export const MenuItemCommon = (): MenuItem[] => {
       icon: <DashboardOutlined />,
     },
     {
-      key: ROUTER.PET_JOURNEYS,
-      label: 'Hành trình của bé',
-      icon: <FieldTimeOutlined />,
+      key: ROUTER.AI_ASSESSMENT,
+      label: 'Tính năng AI',
+      icon: <RobotOutlined />,
     },
     {
       key: ROUTER.MY_INVOICES,

@@ -8,8 +8,6 @@ import React, {
 import styled from 'styled-components';
 import {
   Card,
-  Row,
-  Col,
   Typography,
   Table,
   Tag,
@@ -26,9 +24,7 @@ import {
 import {
   CalendarOutlined,
   PlusOutlined,
-  MedicineBoxOutlined,
   ReadOutlined,
-  CheckCircleOutlined,
   EyeOutlined,
   ReloadOutlined,
   EditOutlined,
@@ -44,6 +40,7 @@ import AppointmentOrderService, {
   extractApiError,
   canOwnerCancelAppointment,
   getOwnerCancelState,
+  getVietnamTodayString,
   OWNER_CANCEL_DEADLINE_MESSAGE,
 } from '@/services/AppointmentOrderService';
 import type { OnlineAppointment, AppointmentStatus } from '@/types';
@@ -56,19 +53,26 @@ import {
   getAppointmentServiceStaffName,
 } from '@/services/AppointmentServiceService';
 import QuickBookingSection from '@/pages/Home/components/QuickBookingSection';
-import { parseDashboardTab, type DashboardTab } from './dashboardTabs';
+import {
+  getJourneyLink,
+  parseDashboardTab,
+  type DashboardTab,
+} from './dashboardTabs';
 import { STORAGE, storage } from '@/lib/storage';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import {
   generatePath,
-  Link,
+  useLocation,
   useNavigate,
   useSearchParams,
 } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
 import { PET_INPATIENT_LOGS_HASH } from '@/pages/PetProfile/components/inpatientLogsSection';
 import { toast } from 'sonner';
-import AiAssessmentSection from './components/AiAssessmentSection';
+import PageTitle from '@/components/common/PageTitle';
+import { RowActions } from './components/actionButtons';
+import PetVisitsOverview from './components/PetVisitsOverview';
+import PetJourneyTab from './components/PetJourneyTab';
 import PetService from '@/services/PetService';
 import type { Pet, PetStatusFilter } from '@/types';
 import PetFormModal from './components/PetFormModal';
@@ -78,7 +82,7 @@ import PetDetailModal, {
   getSpeciesEmoji,
 } from './components/PetDetailModal';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const DashboardWrapper = styled.div`
   padding: 32px 28px;
@@ -92,101 +96,6 @@ const DashboardWrapper = styled.div`
     margin-bottom: 24px;
     flex-wrap: wrap;
     gap: 16px;
-
-    .header-actions {
-      display: flex;
-      gap: 12px;
-
-      .btn-add-pet {
-        border-color: #cbd5e1;
-        color: #334155;
-        font-weight: 600;
-        height: 40px;
-        border-radius: 8px;
-      }
-
-      .btn-new-appt {
-        background-color: #0d9488;
-        border-color: #0d9488;
-        color: #ffffff;
-        font-weight: 600;
-        height: 40px;
-        border-radius: 8px;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-
-        &:hover {
-          background-color: #0f766e !important;
-          border-color: #0f766e !important;
-        }
-      }
-    }
-  }
-`;
-
-const StatCard = styled(Card)`
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: #ccfbf1;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
-  }
-
-  .ant-card-body {
-    padding: 20px 22px;
-  }
-
-  .stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-
-    .label {
-      font-size: 13px;
-      font-weight: 600;
-      color: #64748b;
-    }
-
-    .icon-box {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-
-      &.teal {
-        background: #f0fdfa;
-        color: #0d9488;
-      }
-      &.blue {
-        background: #f0f9ff;
-        color: #0284c7;
-      }
-      &.green {
-        background: #f0fdf4;
-        color: #16a34a;
-      }
-    }
-  }
-
-  .num {
-    font-size: 28px;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.5px;
-    line-height: 1.2;
-  }
-
-  .sub {
-    font-size: 12px;
-    color: #94a3b8;
-    margin-top: 4px;
   }
 `;
 
@@ -237,60 +146,6 @@ const StatusCell = styled.div`
   }
 `;
 
-const RowActions = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-
-  && .ant-btn {
-    height: 28px;
-    padding: 0 8px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    box-shadow: none;
-  }
-
-  && .act-view {
-    color: #0f766e;
-    background: #f0fdfa;
-    border-color: #99f6e4;
-  }
-  && .act-view:not(:disabled):hover {
-    color: #0d9488;
-    background: #ccfbf1;
-    border-color: #5eead4;
-  }
-
-  && .act-add {
-    color: #0369a1;
-    background: #f0f9ff;
-    border-color: #bae6fd;
-  }
-  && .act-add:not(:disabled):hover {
-    color: #0284c7;
-    background: #e0f2fe;
-    border-color: #7dd3fc;
-  }
-
-  && .act-cancel {
-    color: #b91c1c;
-    background: #fef2f2;
-    border-color: #fecaca;
-  }
-  && .act-cancel:not(:disabled):hover {
-    color: #dc2626;
-    background: #fee2e2;
-    border-color: #fca5a5;
-  }
-  && .act-cancel:disabled {
-    color: #94a3b8;
-    background: #f8fafc;
-    border-color: #e2e8f0;
-  }
-`;
-
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -298,10 +153,16 @@ const DashboardPage: React.FC = () => {
   // Tabs (file 2): the active one lives in ?tab= so a reload or a link from
   // another page lands on it; ?book= opens the booking form in "Quản lí lịch đặt"
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const activeTab = parseDashboardTab(searchParams.get('tab'));
   const bookParam = searchParams.get('book');
   // ?service= comes from "Đặt dịch vụ này" on a home service card
   const serviceParam = searchParams.get('service');
+  // The AI page sends its booking note along with the booking link
+  const bookingNote = (location.state as { bookingNote?: string } | null)
+    ?.bookingNote;
+  // ?pet= is the pet shown in the "Hành trình của bé" tab
+  const journeyPetParam = searchParams.get('pet');
   const [booking, setBooking] = useState<{
     key: number;
     petId?: string;
@@ -338,23 +199,52 @@ const DashboardPage: React.FC = () => {
     if (bookParam) {
       openBooking(
         bookParam === 'new' ? undefined : bookParam,
-        undefined,
+        bookingNote || undefined,
         serviceParam || undefined
       );
     }
-  }, [bookParam, serviceParam, openBooking]);
+  }, [bookParam, serviceParam, bookingNote, openBooking]);
+
+  // The AI check was a tab here until 24/11; old ?tab=ai links go to its page
+  const legacyAiTab = searchParams.get('tab') === 'ai';
+  useEffect(() => {
+    if (legacyAiTab) navigate(ROUTER.AI_ASSESSMENT, { replace: true });
+  }, [legacyAiTab, navigate]);
+
+  // Opens one pet in the "Hành trình của bé" tab and brings the tabs in view
+  const openJourney = useCallback(
+    (petId: string) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          next.set('tab', 'journey');
+          next.set('pet', petId);
+          next.delete('book');
+          next.delete('service');
+          return next;
+        },
+        { replace: true }
+      );
+      document
+        .getElementById('dashboard-tabs')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    [setSearchParams]
+  );
 
   // Pets state connected to backend API
   const [pets, setPets] = useState<Pet[]>([]);
   const [petsTotal, setPetsTotal] = useState(0);
   const [petsLoading, setPetsLoading] = useState(false);
-  // Bumped when the pet form saves (the AI tab can open it), so the AI tab
-  // re-reads its own Active pet list; the tab remounts on every switch
-  const [petsVersion, setPetsVersion] = useState(0);
   const [statusFilter, setStatusFilter] = useState<PetStatusFilter>('Active');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Bumped after anything that changes a pet's visits (booking, cancelling,
+  // adding a service, a pet saved or deleted), so the pet cards reload
+  const [visitsRevision, setVisitsRevision] = useState(0);
+  const refreshVisits = useCallback(() => setVisitsRevision(n => n + 1), []);
 
   const [appointments, setAppointments] = useState<OnlineAppointment[]>([]);
   const [appointmentsTotal, setAppointmentsTotal] = useState(0);
@@ -374,6 +264,17 @@ const DashboardPage: React.FC = () => {
   const [appointmentToDate, setAppointmentToDate] = useState<
     string | undefined
   >(undefined);
+  // Yêu cầu 24/11: the list opens on today's appointments; the other days
+  // (and the date range filter) only when the owner asks for them
+  const [appointmentScope, setAppointmentScope] = useState<'today' | 'all'>(
+    'today'
+  );
+  const hasAppointmentFilters = Boolean(
+    appointmentStatusFilter ||
+      (appointmentScope === 'all' && (appointmentFromDate || appointmentToDate))
+  );
+  // Today's list without filters: when empty it offers the other days
+  const emptyToday = appointmentScope === 'today' && !hasAppointmentFilters;
 
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<
     string | null
@@ -462,11 +363,13 @@ const DashboardPage: React.FC = () => {
     setAppointmentsError(null);
 
     try {
+      const today = getVietnamTodayString();
+      const onlyToday = appointmentScope === 'today';
       const res = await AppointmentOrderService.listMyOnlineBookings(
         {
           status: appointmentStatusFilter,
-          from: appointmentFromDate,
-          to: appointmentToDate,
+          from: onlyToday ? today : appointmentFromDate,
+          to: onlyToday ? today : appointmentToDate,
           page: appointmentPage,
           limit: appointmentLimit,
         },
@@ -508,6 +411,7 @@ const DashboardPage: React.FC = () => {
       }
     }
   }, [
+    appointmentScope,
     appointmentStatusFilter,
     appointmentFromDate,
     appointmentToDate,
@@ -542,6 +446,7 @@ const DashboardPage: React.FC = () => {
       setIsCancelModalOpen(false);
       setAppointmentToCancel(null);
       fetchAppointments();
+      refreshVisits();
       setDetailRefreshCount(c => c + 1);
     } catch (err: unknown) {
       const errRes = extractApiError(
@@ -555,6 +460,7 @@ const DashboardPage: React.FC = () => {
         setIsCancelModalOpen(false);
         setAppointmentToCancel(null);
         fetchAppointments();
+        refreshVisits();
         setDetailRefreshCount(c => c + 1);
       }
     } finally {
@@ -609,6 +515,7 @@ const DashboardPage: React.FC = () => {
     toast.success(`Đã xóa hồ sơ bé ${pet.name}`);
     setPetToDelete(null);
     fetchPets();
+    refreshVisits();
   };
 
   // Appointments table columns
@@ -946,74 +853,72 @@ const DashboardPage: React.FC = () => {
     {
       title: 'Thao tác nhanh',
       key: 'action',
+      // 24/11: same look as the appointment actions, every button labelled;
+      // the main actions on one row, edit and delete on the row below
       render: (_: any, record: Pet) => (
-        <Space size="small" wrap>
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            style={{ borderColor: '#0d9488', color: '#0d9488' }}
-            onClick={() => {
-              setSelectedPet(record);
-              setIsPetDetailModalOpen(true);
-            }}
-            title="Xem chi tiết hồ sơ y bạ"
-          >
-            Chi tiết
-          </Button>
-
-          {isPetOwner && record.status === 'Active' && (
-            <Link
-              to={{
-                pathname: generatePath(ROUTER.PET_JOURNEY, {
-                  petId: record._id,
-                }),
-                hash: PET_INPATIENT_LOGS_HASH,
-              }}
-              aria-label={`Nhật ký nội trú của ${record.name}`}
-            >
-              <Space size={4}>
-                <ReadOutlined aria-hidden="true" />
-                Nhật ký nội trú
-              </Space>
-            </Link>
-          )}
-
-          {record.status === 'Active' && (
+        <RowActions className="stacked">
+          <div className="action-row">
             <Button
               size="small"
-              icon={<EditOutlined />}
+              className="act-view"
+              icon={<EyeOutlined />}
               onClick={() => {
-                setEditingPet(record);
-                setIsPetFormModalOpen(true);
+                setSelectedPet(record);
+                setIsPetDetailModalOpen(true);
               }}
-              title="Chỉnh sửa thông tin"
-            />
-          )}
-
-          {record.status === 'Active' && (
-            <Button
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              title="Xóa thú cưng"
-              aria-label={`Xóa thú cưng ${record.name}`}
-              onClick={() => setPetToDelete(record)}
-            />
-          )}
-
-          {record.status === 'Active' && (
-            <Button
-              size="small"
-              type="primary"
-              style={{ background: '#0d9488' }}
-              icon={<CalendarOutlined />}
-              onClick={() => openBooking(record._id)}
-              title="Đặt lịch khám"
             >
-              Đặt lịch
+              Chi tiết
             </Button>
+            {record.status === 'Active' && (
+              <Button
+                size="small"
+                className="act-book"
+                icon={<CalendarOutlined />}
+                onClick={() => openBooking(record._id)}
+              >
+                Đặt lịch
+              </Button>
+            )}
+            {isPetOwner && record.status === 'Active' && (
+              <Button
+                size="small"
+                className="act-add"
+                icon={<ReadOutlined />}
+                aria-label={`Nhật ký nội trú của ${record.name}`}
+                title="Nhật ký nội trú"
+                onClick={() =>
+                  navigate(getJourneyLink(record._id, PET_INPATIENT_LOGS_HASH))
+                }
+              >
+                Nhật ký
+              </Button>
+            )}
+          </div>
+          {record.status === 'Active' && (
+            <div className="action-row">
+              <Button
+                size="small"
+                className="act-edit"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  setEditingPet(record);
+                  setIsPetFormModalOpen(true);
+                }}
+              >
+                Sửa
+              </Button>
+              <Button
+                size="small"
+                className="act-cancel"
+                icon={<DeleteOutlined />}
+                aria-label={`Xóa thú cưng ${record.name}`}
+                onClick={() => setPetToDelete(record)}
+              >
+                Xóa
+              </Button>
+            </div>
           )}
-        </Space>
+        </RowActions>
       ),
     },
   ];
@@ -1023,109 +928,33 @@ const DashboardPage: React.FC = () => {
       {/* Top Header */}
       <div className="dashboard-header">
         <div>
-          <Title
-            level={3}
-            style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}
-          >
+          <PageTitle>
             Xin chào,{' '}
             {effectiveUser?.fullName || effectiveUser?.phone || 'Quý khách'}!
-          </Title>
-          <Text type="secondary" style={{ fontSize: 14 }}>
-            Bảng theo dõi sức khoẻ thú cưng & quản lý chu trình khám chữa bệnh
-            tại VCMOS
-          </Text>
+          </PageTitle>
         </div>
-
-        <div className="header-actions">
-          <Button
-            className="btn-add-pet"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingPet(null);
-              setIsPetFormModalOpen(true);
-            }}
-          >
-            Thêm thú cưng
-          </Button>
-          <Button
-            type="primary"
-            className="btn-new-appt"
-            icon={<CalendarOutlined />}
-            onClick={() => openBooking()}
-          >
-            + Đặt lịch hẹn mới
-          </Button>
-        </div>
+        {/* 24/11: no "Thêm thú cưng" / "Đặt lịch" here; each tab has its own */}
       </div>
 
-      {/* Stats Cards */}
-      <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={8}>
-          <StatCard>
-            <div className="stat-header">
-              <span className="label">Thú cưng đã đăng ký</span>
-              <div className="icon-box teal">
-                <MedicineBoxOutlined />
-              </div>
-            </div>
-            <div className="num">{petsTotal}</div>
-            <div className="sub">
-              {pets.length > 0
-                ? pets
-                    .slice(0, 2)
-                    .map(p => `Bé ${p.name}`)
-                    .join(' & ') +
-                  (petsTotal > 2 ? ` và ${petsTotal - 2} bé khác` : '')
-                : 'Chưa có hồ sơ thú cưng'}
-            </div>
-          </StatCard>
-        </Col>
-
-        <Col xs={24} sm={12} lg={8}>
-          <StatCard>
-            <div className="stat-header">
-              <span className="label">Lịch hẹn trực tuyến</span>
-              <div className="icon-box blue">
-                <CalendarOutlined />
-              </div>
-            </div>
-            <div className="num">{appointmentsTotal}</div>
-            <div className="sub">
-              {appointmentsTotal > 0
-                ? `${appointmentsTotal} lượt hẹn trên hệ thống`
-                : 'Chưa có lịch hẹn trực tuyến'}
-            </div>
-          </StatCard>
-        </Col>
-
-        <Col xs={24} sm={12} lg={8}>
-          <StatCard>
-            <div className="stat-header">
-              <span className="label">Lịch hiển thị hiện tại</span>
-              <div className="icon-box green">
-                <CheckCircleOutlined />
-              </div>
-            </div>
-            <div className="num">{appointments.length}</div>
-            <div className="sub">
-              {appointments.length > 0
-                ? `${appointments.length} lượt hẹn theo trang lọc`
-                : 'Không có dữ liệu trang này'}
-            </div>
-          </StatCard>
-        </Col>
-      </Row>
-
-      {/* File 2: pets, appointments and the AI check are separate tabs */}
-      <Tabs
-        activeKey={activeTab}
-        onChange={key => setTab(key as DashboardTab)}
-        items={[
-          { key: 'pets', label: '🐾 Quản lí thú cưng' },
-          { key: 'appointments', label: '📅 Quản lí lịch đặt' },
-          { key: 'ai', label: '🤖 Tính năng AI' },
-        ]}
+      {/* Each pet: its visits of today, else its latest finished visits */}
+      <PetVisitsOverview
+        revision={visitsRevision}
+        onOpenJourney={openJourney}
       />
+
+      {/* File 2: pets, appointments and (24/11) the pets' journeys are tabs;
+          the AI check has its own page */}
+      <div id="dashboard-tabs" style={{ scrollMarginTop: 80 }}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={key => setTab(key as DashboardTab)}
+          items={[
+            { key: 'pets', label: '🐾 Quản lí thú cưng' },
+            { key: 'appointments', label: '📅 Quản lí lịch đặt' },
+            { key: 'journey', label: '🧭 Hành trình của bé' },
+          ]}
+        />
+      </div>
 
       {/* Online Appointments Table */}
       {activeTab === 'appointments' && (
@@ -1143,7 +972,19 @@ const DashboardPage: React.FC = () => {
                 initialPetId={booking.petId}
                 initialNote={booking.note}
                 initialServiceId={booking.serviceId}
-                onBooked={fetchAppointments}
+                onBooked={({ date }) => {
+                  refreshVisits();
+                  if (
+                    appointmentScope === 'today' &&
+                    date !== getVietnamTodayString()
+                  ) {
+                    // Booked for another day: list every day so it shows
+                    setAppointmentScope('all');
+                    setAppointmentPage(1);
+                  } else {
+                    fetchAppointments();
+                  }
+                }}
                 onViewAppointments={() => setBooking(null)}
                 onAddPet={() => {
                   setBooking(null);
@@ -1160,6 +1001,7 @@ const DashboardPage: React.FC = () => {
                 <span>📅 Danh Sách Lịch Hẹn Khám Trực Tuyến</span>
                 <Tag color={appointmentsTotal > 0 ? 'cyan' : 'default'}>
                   {appointmentsTotal} lượt hẹn
+                  {appointmentScope === 'today' ? ' hôm nay' : ''}
                 </Tag>
               </div>
             }
@@ -1206,6 +1048,19 @@ const DashboardPage: React.FC = () => {
                 alignItems: 'center',
               }}
             >
+              <Segmented
+                aria-label="Ngày hẹn"
+                value={appointmentScope}
+                onChange={value => {
+                  setAppointmentScope(value as 'today' | 'all');
+                  setAppointmentPage(1);
+                }}
+                options={[
+                  { label: 'Hôm nay', value: 'today' },
+                  { label: 'Tất cả ngày', value: 'all' },
+                ]}
+              />
+
               <Select
                 allowClear
                 placeholder="Lọc theo trạng thái"
@@ -1227,29 +1082,29 @@ const DashboardPage: React.FC = () => {
                 ]}
               />
 
-              <DatePicker.RangePicker
-                format="DD/MM/YYYY"
-                placeholder={['Từ ngày', 'Đến ngày']}
-                value={
-                  appointmentFromDate && appointmentToDate
-                    ? [dayjs(appointmentFromDate), dayjs(appointmentToDate)]
-                    : null
-                }
-                onChange={dates => {
-                  if (dates && dates[0] && dates[1]) {
-                    setAppointmentFromDate(dates[0].format('YYYY-MM-DD'));
-                    setAppointmentToDate(dates[1].format('YYYY-MM-DD'));
-                  } else {
-                    setAppointmentFromDate(undefined);
-                    setAppointmentToDate(undefined);
+              {appointmentScope === 'all' && (
+                <DatePicker.RangePicker
+                  format="DD/MM/YYYY"
+                  placeholder={['Từ ngày', 'Đến ngày']}
+                  value={
+                    appointmentFromDate && appointmentToDate
+                      ? [dayjs(appointmentFromDate), dayjs(appointmentToDate)]
+                      : null
                   }
-                  setAppointmentPage(1);
-                }}
-              />
+                  onChange={dates => {
+                    if (dates && dates[0] && dates[1]) {
+                      setAppointmentFromDate(dates[0].format('YYYY-MM-DD'));
+                      setAppointmentToDate(dates[1].format('YYYY-MM-DD'));
+                    } else {
+                      setAppointmentFromDate(undefined);
+                      setAppointmentToDate(undefined);
+                    }
+                    setAppointmentPage(1);
+                  }}
+                />
+              )}
 
-              {(appointmentStatusFilter ||
-                appointmentFromDate ||
-                appointmentToDate) && (
+              {hasAppointmentFilters && (
                 <Button
                   type="link"
                   size="small"
@@ -1300,31 +1155,28 @@ const DashboardPage: React.FC = () => {
                         fontSize: 14,
                         fontWeight: 700,
                         color: '#0f172a',
-                      }}
-                    >
-                      {appointmentStatusFilter ||
-                      appointmentFromDate ||
-                      appointmentToDate
-                        ? 'Không tìm thấy lịch hẹn phù hợp với bộ lọc'
-                        : 'Chưa có lịch hẹn khám trực tuyến nào'}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12.5,
-                        color: '#64748b',
-                        marginTop: 4,
                         marginBottom: 14,
                       }}
                     >
-                      {appointmentStatusFilter ||
-                      appointmentFromDate ||
-                      appointmentToDate
-                        ? 'Hãy thử thay đổi hoặc xóa bộ lọc trạng thái và khoảng ngày'
-                        : 'Đăng ký ngày hẹn và ghi chú triệu chứng cho thú cưng dễ dàng trực tuyến'}
+                      {hasAppointmentFilters
+                        ? 'Không tìm thấy lịch hẹn phù hợp với bộ lọc'
+                        : emptyToday
+                          ? 'Hôm nay chưa có lịch hẹn nào'
+                          : 'Chưa có lịch hẹn khám trực tuyến nào'}
                     </div>
-                    {appointmentStatusFilter ||
-                    appointmentFromDate ||
-                    appointmentToDate ? (
+                    {/* Booking stays in the card header: no second button here */}
+                    {emptyToday && (
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setAppointmentScope('all');
+                          setAppointmentPage(1);
+                        }}
+                      >
+                        Xem tất cả ngày
+                      </Button>
+                    )}
+                    {hasAppointmentFilters && (
                       <Button
                         size="small"
                         onClick={() => {
@@ -1335,16 +1187,6 @@ const DashboardPage: React.FC = () => {
                         }}
                       >
                         Xóa bộ lọc
-                      </Button>
-                    ) : (
-                      <Button
-                        type="primary"
-                        size="small"
-                        style={{ background: '#0d9488' }}
-                        icon={<CalendarOutlined />}
-                        onClick={() => openBooking()}
-                      >
-                        + Đặt lịch khám ngay
                       </Button>
                     )}
                   </div>
@@ -1397,14 +1239,6 @@ const DashboardPage: React.FC = () => {
             </Space>
           }
         >
-          {isPetOwner && (
-            <Alert
-              type="info"
-              showIcon
-              message="Bạn có thể xem nhật ký nội trú (nếu có) trong hồ sơ của từng thú cưng đang nuôi."
-              style={{ marginBottom: 16 }}
-            />
-          )}
           <Table
             columns={petsColumns}
             dataSource={pets}
@@ -1464,17 +1298,15 @@ const DashboardPage: React.FC = () => {
         </SectionCard>
       )}
 
-      {/* SCR-10: AI health check (BE /ai-assessments) */}
-      {activeTab === 'ai' && (
-        <AiAssessmentSection
-          petsVersion={petsVersion}
-          onAddNewPet={() => {
+      {/* Pick a pet, read its journey right below (24/11) */}
+      {activeTab === 'journey' && (
+        <PetJourneyTab
+          petId={journeyPetParam}
+          revision={visitsRevision}
+          onSelectPet={openJourney}
+          onAddPet={() => {
             setEditingPet(null);
             setIsPetFormModalOpen(true);
-          }}
-          onBookAppointment={({ petId, note, serviceId }) => {
-            openBooking(petId, note || undefined, serviceId);
-            toast.info('Đã chuyển kết quả đánh giá AI sang form đặt lịch khám');
           }}
         />
       )}
@@ -1488,7 +1320,7 @@ const DashboardPage: React.FC = () => {
         }}
         onSuccess={() => {
           fetchPets();
-          setPetsVersion(version => version + 1);
+          refreshVisits();
         }}
         editingPet={editingPet}
       />
@@ -1532,7 +1364,10 @@ const DashboardPage: React.FC = () => {
         petsMap={petsMap}
         isPetOwner={isPetOwner}
         refreshTrigger={detailRefreshCount}
-        onUpdated={fetchAppointments}
+        onUpdated={() => {
+          fetchAppointments();
+          refreshVisits();
+        }}
         onAddService={apt => {
           setAppointmentToAddService(apt);
           setIsAddServiceModalOpen(true);
@@ -1580,6 +1415,7 @@ const DashboardPage: React.FC = () => {
         onSuccess={() => {
           // Re-fetch appointments to refresh table state and detail modal
           fetchAppointments();
+          refreshVisits();
           setDetailRefreshCount(c => c + 1);
         }}
       />

@@ -9,11 +9,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import {
-  ArrowLeftOutlined,
-  IdcardOutlined,
-  ReadOutlined,
-} from '@ant-design/icons';
+import { IdcardOutlined, ReadOutlined } from '@ant-design/icons';
 import PetService from '@/services/PetService';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { isUserPetOwner } from '@/services/AppointmentServiceService';
@@ -21,9 +17,20 @@ import PetTimeline from '@/pages/PetProfile/components/PetTimeline';
 import PetInpatientLogs from '@/pages/PetProfile/components/PetInpatientLogs';
 import { PET_INPATIENT_LOGS_HASH } from '@/pages/PetProfile/components/inpatientLogsSection';
 import ROUTER from '@/routerMap/ROUTER';
+import PageTitle from '@/components/common/PageTitle';
 import type { Pet } from '@/types';
 
-const JourneyDetail = ({ petId }: { petId: string }) => {
+/**
+ * One pet's journey. `embedded`: inside the owner dashboard tab, under the
+ * page's own title, where the owner picks the pet above it.
+ */
+const JourneyDetail = ({
+  petId,
+  embedded = false,
+}: {
+  petId: string;
+  embedded?: boolean;
+}) => {
   const { user } = useAuth();
   const { hash } = useLocation();
   const owner = isUserPetOwner(user);
@@ -73,24 +80,42 @@ const JourneyDetail = ({ petId }: { petId: string }) => {
       />
     );
   if (!pet) return <Skeleton active paragraph={{ rows: 6 }} />;
+  const profileLink = (
+    <Link to={generatePath(ROUTER.PET_PROFILE, { petId })}>
+      <Button icon={<IdcardOutlined />}>Hồ sơ của {pet.name}</Button>
+    </Link>
+  );
   return (
     <>
-      <Space wrap style={{ marginBottom: 16 }}>
-        {owner && (
-          <Link to={ROUTER.PET_JOURNEYS}>
-            <Button icon={<ArrowLeftOutlined />}>Chọn bé khác</Button>
-          </Link>
-        )}
-        <Link to={generatePath(ROUTER.PET_PROFILE, { petId })}>
-          <Button icon={<IdcardOutlined />}>Hồ sơ của {pet.name}</Button>
-        </Link>
-      </Space>
-      <Typography.Title
-        level={1}
-        style={{ fontSize: 26, margin: '0 0 8px', color: '#0f172a' }}
-      >
-        Hành trình của {pet.name}
-      </Typography.Title>
+      {embedded ? (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            marginBottom: 8,
+          }}
+        >
+          <Typography.Title
+            level={2}
+            style={{ fontSize: 22, margin: 0, color: '#0f172a' }}
+          >
+            Hành trình của {pet.name}
+          </Typography.Title>
+          {profileLink}
+        </div>
+      ) : (
+        <>
+          <Space wrap style={{ marginBottom: 16 }}>
+            {profileLink}
+          </Space>
+          <PageTitle style={{ marginBottom: 8 }}>
+            Hành trình của {pet.name}
+          </PageTitle>
+        </>
+      )}
       <Space wrap style={{ marginBottom: 24, color: '#475569' }}>
         <span>{pet.code}</span>
         <span>{[pet.species, pet.breed].filter(Boolean).join(' · ')}</span>

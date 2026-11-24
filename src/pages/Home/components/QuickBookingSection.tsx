@@ -140,19 +140,12 @@ const LeftInfo = styled.div`
     font-weight: 850;
     color: #0f172a;
     line-height: 1.25;
-    margin: 0 0 16px 0;
+    margin: 0 0 28px 0;
     letter-spacing: -0.02em;
 
     @media (max-width: 640px) {
       font-size: 26px;
     }
-  }
-
-  p.desc {
-    font-size: 15px;
-    color: #64748b;
-    line-height: 1.6;
-    margin: 0 0 28px 0;
   }
 
   .benefits-list {
@@ -448,7 +441,7 @@ interface QuickBookingSectionProps {
   /** Service pre-selected when the form opens ("Đặt dịch vụ này" on home) */
   initialServiceId?: string;
   /** A booking was created: the dashboard reloads its appointment list */
-  onBooked?: () => void;
+  onBooked?: (booking: { date: string }) => void;
   onViewAppointments?: () => void;
   onAddPet?: () => void;
 }
@@ -785,7 +778,7 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
       if (res?.data) {
         setCreatedBookingData(res.data);
         toast.success(res.message || 'Đặt lịch online thành công!');
-        onBooked?.();
+        onBooked?.({ date: dateStr });
       }
     } catch (error: unknown) {
       const {
@@ -863,11 +856,6 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
               <SafetyCertificateOutlined /> Đặt Lịch Hẹn Trực Tuyến
             </span>
             <h2>Đăng Ký Khám Cho Thú Cưng Nhanh Chóng</h2>
-            <p className="desc">
-              Chủ động chọn dịch vụ và ngày khám phù hợp cho thú cưng của bạn.
-              Lịch hẹn cùng danh sách dịch vụ được hệ thống phòng khám VCMOS
-              tiếp nhận đồng thời ngay sau khi đăng ký.
-            </p>
 
             <ul className="benefits-list">
               <li>
