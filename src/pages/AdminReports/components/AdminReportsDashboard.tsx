@@ -4,21 +4,19 @@ import dayjs from 'dayjs';
 import {
   Alert,
   Button,
-  Card,
-  Col,
   DatePicker,
   Empty,
-  Progress,
-  Row,
   Segmented,
-  Spin,
-  Space,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
+  Skeleton,
+  Tabs,
 } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import {
+  CalendarOutlined,
+  DollarOutlined,
+  ReloadOutlined,
+  ShopOutlined,
+  TrophyOutlined,
+} from '@ant-design/icons';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import { normalizeRole } from '@/constants/roles';
 import ReportService from '@/services/ReportService';
@@ -29,10 +27,14 @@ import type {
   RevenueReport,
 } from '@/services/ReportService';
 import { validateReportFilters } from '@/services/ReportService';
+import { InfoTip, RangeChip, Stack } from '@/components/dashboard';
 import BestSellingCard from './BestSellingCard';
-import { FilterRow } from './styles';
+import FrontDeskTab from './FrontDeskTab';
+import OperationsTab from './OperationsTab';
+import RevenueTab from './RevenueTab';
+import { dateLabel } from './labels';
+import { FilterCard, TabsBar } from './styles';
 
-const { Text, Title } = Typography;
 const ReportPlaceholder = ({
   loading,
   error,
@@ -43,7 +45,7 @@ const ReportPlaceholder = ({
   onRetry: () => void;
 }) =>
   loading ? (
-    <Spin />
+    <Skeleton active paragraph={{ rows: 8 }} />
   ) : error ? (
     <Alert
       type="error"
@@ -59,12 +61,10 @@ const ReportPlaceholder = ({
     <Empty description="Chưa có báo cáo để hiển thị" />
   );
 type ReportName = 'revenue' | 'operations' | 'frontDesk';
+type TabKey = ReportName | 'bestSelling';
 type ReportState<T> = { key: string; data: T };
 const { RangePicker } = DatePicker;
 type Kind = 'day' | 'week' | 'month' | 'custom';
-const money = (n?: number | null) => `${(n ?? 0).toLocaleString('vi-VN')} ₫`;
-const pct = (n?: number | null) =>
-  `${(n ?? 0).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`;
 const isValidDateInput = (value: string) => {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
   if (!match) return false;
@@ -76,31 +76,12 @@ const isValidDateInput = (value: string) => {
     date.getDate() === day
   );
 };
-const dateLabel = (from: string, to: string) =>
-  from === to
-    ? dayjs(from).format('DD/MM/YYYY')
-    : `${dayjs(from).format('DD/MM/YYYY')} – ${dayjs(to).format('DD/MM/YYYY')}`;
-const statusLabels: Record<string, string> = {
-  Booked: 'Đã đặt',
-  CheckedIn: 'Đã đến',
-  InProgress: 'Đang khám',
-  WaitOwner: 'Chờ chủ đón',
-  Done: 'Hoàn tất',
-  Overdue: 'Quá hạn',
-  Cancelled: 'Đã hủy',
-};
-const categoryLabels: Record<string, string> = {
-  Examination: 'Khám',
-  Vaccination: 'Tiêm chủng',
-  Grooming: 'Spa',
-  Paraclinical: 'Cận lâm sàng',
-  Inpatient: 'Nội trú',
-};
 
 const AuthorizedAdminReportsDashboard = () => {
   const { user } = useAuth();
   const role = normalizeRole(user?.role || user?.systemRole);
   const isAdmin = role === 'Admin';
+  const [tab, setTab] = useState<TabKey>('revenue');
   const [kind, setKind] = useState<Kind>('month');
   const [dates, setDates] = useState<[string, string] | undefined>();
   const [refresh, setRefresh] = useState(0);
@@ -127,8 +108,16 @@ const AuthorizedAdminReportsDashboard = () => {
     [kind, dates]
   );
   const validationError = validateReportFilters(filters);
+  // Grouping by month only means something for a custom range over several
+  // months: today, this week and this month are always shown day by day (24/11)
+  const spansMonths =
+    kind === 'custom' &&
+    !!dates &&
+    !validationError &&
+    dates[0].slice(0, 7) !== dates[1].slice(0, 7);
+  const effectiveGroupBy = spansMonths ? groupBy : 'day';
   const requestKey = `${identity}:${JSON.stringify(filters)}:${refresh}`;
-  const revenueKey = `${requestKey}:${groupBy}`;
+  const revenueKey = `${requestKey}:${effectiveGroupBy}`;
   const revenue =
     revenueState?.key === revenueKey && !loading.revenue
       ? revenueState.data
@@ -179,7 +168,10 @@ const AuthorizedAdminReportsDashboard = () => {
     };
     load(
       'revenue',
-      ReportService.getRevenue({ ...filters, groupBy }, controller.signal),
+      ReportService.getRevenue(
+        { ...filters, groupBy: effectiveGroupBy },
+        controller.signal
+      ),
       setRevenueState,
       revenueKey
     );
@@ -204,7 +196,7 @@ const AuthorizedAdminReportsDashboard = () => {
     refresh,
     identity,
     filters,
-    groupBy,
+    effectiveGroupBy,
   ]);
 
   const reload = useCallback(() => setRefresh(n => n + 1), []);
@@ -215,10 +207,6 @@ const AuthorizedAdminReportsDashboard = () => {
       : frontDesk
         ? dateLabel(frontDesk.from, frontDesk.to)
         : '';
-  const revenueMax = Math.max(
-    1,
-    ...(revenue?.revenueSeries.map(x => x.revenue) ?? [])
-  );
   if (!isAdmin)
     return (
       <Alert
@@ -228,11 +216,49 @@ const AuthorizedAdminReportsDashboard = () => {
       />
     );
 
+  const placeholder = (name: ReportName) => (
+    <ReportPlaceholder
+      loading={loading[name]}
+      error={errors[name]}
+      onRetry={reload}
+    />
+  );
+
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Card>
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          <FilterRow>
+    <Stack $gap={16}>
+      <TabsBar>
+        <Tabs
+          activeKey={tab}
+          onChange={key => setTab(key as TabKey)}
+          items={[
+            {
+              key: 'revenue',
+              label: 'Doanh thu',
+              icon: <DollarOutlined />,
+            },
+            {
+              key: 'operations',
+              label: 'Hoạt động & lịch hẹn',
+              icon: <CalendarOutlined />,
+            },
+            {
+              key: 'frontDesk',
+              label: 'Quầy lễ tân',
+              icon: <ShopOutlined />,
+            },
+            {
+              key: 'bestSelling',
+              label: 'Sản phẩm bán chạy',
+              icon: <TrophyOutlined />,
+            },
+          ]}
+        />
+      </TabsBar>
+
+      {/* The product report keeps its own period (paid invoices up to today) */}
+      {tab !== 'bestSelling' && (
+        <FilterCard>
+          <div className="filters">
             <Segmented<Kind>
               value={kind}
               onChange={value => {
@@ -279,524 +305,60 @@ const AuthorizedAdminReportsDashboard = () => {
               placeholder={['Từ ngày', 'Đến ngày']}
               aria-label="Khoảng ngày báo cáo"
             />
-            <Segmented<'day' | 'month'>
-              value={groupBy}
-              onChange={setGroupBy}
-              options={[
-                { value: 'day', label: 'Ngày' },
-                { value: 'month', label: 'Tháng' },
-              ]}
-              aria-label="Nhóm doanh thu theo"
-            />
+            {tab === 'revenue' && spansMonths && (
+              <span className="group-by">
+                <span className="label">Nhóm theo</span>
+                <Segmented<'day' | 'month'>
+                  value={groupBy}
+                  onChange={setGroupBy}
+                  options={[
+                    { value: 'day', label: 'Ngày' },
+                    { value: 'month', label: 'Tháng' },
+                  ]}
+                  aria-label="Nhóm doanh thu theo"
+                />
+              </span>
+            )}
             <Button
+              className="reload"
               icon={<ReloadOutlined />}
               onClick={reload}
               loading={loading.revenue}
             >
               Làm mới
             </Button>
-          </FilterRow>
+          </div>
           {validationError && (
             <Alert type="warning" showIcon message={validationError} />
           )}
           {shownRange && (
-            <Text type="secondary">
-              Kỳ báo cáo theo dữ liệu máy chủ: {shownRange}. Tổng quan danh mục
-              và tình trạng chuồng là ảnh chụp hiện tại, không phải dữ liệu lịch
-              sử. Múi giờ UTC+7.
-            </Text>
+            <div className="range">
+              <RangeChip>Kỳ báo cáo: {shownRange}</RangeChip>
+              <InfoTip text="Kỳ báo cáo theo dữ liệu máy chủ, múi giờ UTC+7. Tổng quan danh mục và tình trạng chuồng là ảnh chụp hiện tại, không phải dữ liệu lịch sử." />
+            </div>
           )}
-        </Space>
-      </Card>
+        </FilterCard>
+      )}
 
-      <Card title="Doanh thu">
-        {revenue ? (
-          <>
-            <Row gutter={[16, 16]}>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Doanh thu đã thu"
-                  value={revenue?.kpis.totalRevenue ?? 0}
-                  formatter={v => money(Number(v))}
-                  loading={loading.revenue}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Hóa đơn đã thanh toán"
-                  value={revenue?.kpis.paidInvoiceCount ?? 0}
-                  loading={loading.revenue}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Giá trị hóa đơn TB"
-                  value={revenue?.kpis.averageInvoiceValue ?? 0}
-                  formatter={v => money(Number(v))}
-                  loading={loading.revenue}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                {revenue.kpis.revenueChangePercent == null ? (
-                  <div>
-                    <Text type="secondary">So với kỳ trước</Text>
-                    <div>
-                      <Text>Chưa có cơ sở so sánh</Text>
-                    </div>
-                  </div>
-                ) : (
-                  <Statistic
-                    title="So với kỳ trước"
-                    value={revenue.kpis.revenueChangePercent}
-                    precision={1}
-                    suffix="%"
-                    valueStyle={{
-                      color:
-                        revenue.kpis.revenueChangePercent >= 0
-                          ? '#389e0d'
-                          : '#cf1322',
-                    }}
-                  />
-                )}
-              </Col>
-            </Row>
-            {revenue && (
-              <Text type="secondary">
-                Kỳ trước (
-                {dateLabel(
-                  revenue.kpis.previousPeriod.from,
-                  revenue.kpis.previousPeriod.to
-                )}
-                ): {money(revenue.kpis.previousPeriod.totalRevenue)} ·{' '}
-                {revenue.kpis.previousPeriod.paidInvoiceCount} hóa đơn. Chỉ tính
-                hóa đơn đã thanh toán theo ngày thu.
-              </Text>
-            )}
-            <Title level={5}>
-              Diễn biến doanh thu (
-              {revenue?.groupBy === 'month' ? 'theo tháng' : 'theo ngày'})
-            </Title>
-            {revenue?.revenueSeries.length ? (
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {revenue.revenueSeries.map(x => (
-                  <Row
-                    key={x.period}
-                    align="middle"
-                    gutter={12}
-                    style={{ width: '100%' }}
-                  >
-                    <Col xs={6} md={3}>
-                      <Text>{x.period}</Text>
-                    </Col>
-                    <Col xs={14} md={17}>
-                      <Progress
-                        percent={Math.round((x.revenue / revenueMax) * 100)}
-                        showInfo={false}
-                        strokeColor="#1677ff"
-                      />
-                    </Col>
-                    <Col xs={4} md={4} style={{ textAlign: 'right' }}>
-                      <Text strong>
-                        {money(x.revenue)} · {x.invoiceCount} HĐ
-                      </Text>
-                    </Col>
-                  </Row>
-                ))}
-              </Space>
-            ) : (
-              !loading.revenue && (
-                <Empty description="Chưa có doanh thu trong kỳ" />
-              )
-            )}
-            <Row gutter={[16, 16]} style={{ marginTop: 18 }}>
-              <Col xs={24} md={8}>
-                <Title level={5}>Theo phương thức thanh toán</Title>
-                {revenue?.byPaymentMethod.map(x => (
-                  <div key={x.paymentMethod}>
-                    <Text>
-                      {x.paymentMethod}: {money(x.revenue)} · {x.invoiceCount}{' '}
-                      HĐ ({pct(x.percentage)})
-                    </Text>
-                  </div>
-                ))}
-              </Col>
-              <Col xs={24} md={8}>
-                <Title level={5}>Theo nhóm dịch vụ</Title>
-                <Text type="secondary">
-                  Tỷ trọng trên tổng tiền hạng mục dịch vụ, không phải tổng
-                  doanh thu. Nhóm dịch vụ dùng phân loại hiện tại; dịch vụ thiếu
-                  phân loại có thể khiến các nhóm hiển thị cộng lại dưới 100%.
-                </Text>
-                {revenue?.byServiceCategory.map(x => (
-                  <div key={x.category}>
-                    <Text>
-                      {categoryLabels[x.category] || x.category}:{' '}
-                      {money(x.revenue)} · {x.itemCount} lượt (
-                      {pct(x.percentage)})
-                    </Text>
-                  </div>
-                ))}
-              </Col>
-              <Col xs={24} md={8}>
-                <Title level={5}>Theo loại hạng mục</Title>
-                {revenue?.byItemType.map(x => (
-                  <div key={x.type}>
-                    <Text>
-                      {x.type}: {money(x.revenue)} · {x.itemCount} mục (
-                      {pct(x.percentage)})
-                    </Text>
-                  </div>
-                ))}
-              </Col>
-            </Row>
-          </>
+      {tab === 'revenue' &&
+        (revenue ? <RevenueTab revenue={revenue} /> : placeholder('revenue'))}
+      {tab === 'operations' &&
+        (operations ? (
+          <OperationsTab operations={operations} />
         ) : (
-          <ReportPlaceholder
-            loading={loading.revenue}
-            error={errors.revenue}
-            onRetry={reload}
-          />
-        )}
-      </Card>
-
-      <Card title="Hoạt động & lịch hẹn">
-        {operations ? (
-          <>
-            <Row gutter={[16, 16]}>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Tổng lịch hẹn"
-                  value={operations?.appointments.total ?? 0}
-                  loading={loading.operations}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Hoàn tất"
-                  value={operations?.appointments.completionRate ?? 0}
-                  suffix="%"
-                  loading={loading.operations}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Quá hạn"
-                  value={operations?.appointments.overdueRate ?? 0}
-                  suffix="%"
-                  loading={loading.operations}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Đã hủy"
-                  value={operations?.appointments.cancellationRate ?? 0}
-                  suffix="%"
-                  loading={loading.operations}
-                />
-              </Col>
-            </Row>
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-              <Col xs={24} md={12}>
-                <Title level={5}>Trạng thái lịch hẹn trong kỳ</Title>
-                {operations &&
-                  Object.entries(operations.appointments.byStatus).map(
-                    ([s, n]) => (
-                      <Tag key={s} style={{ marginBottom: 8 }}>
-                        {statusLabels[s] || s}: {n}
-                      </Tag>
-                    )
-                  )}
-                <div>
-                  <Text>
-                    Online: {operations?.appointments.byChannel.online ?? 0} (
-                    {pct(operations?.appointments.byChannel.onlineRate)}) ·
-                    Walk-in: {operations?.appointments.byChannel.walkIn ?? 0} (
-                    {pct(operations?.appointments.byChannel.walkInRate)})
-                  </Text>
-                </div>
-              </Col>
-              <Col xs={24} md={12}>
-                <Title level={5}>Dịch vụ theo nhóm trong kỳ</Title>
-                <Text type="secondary">
-                  Lượt tính theo ngày hẹn trong kỳ, không gồm dịch vụ đã hủy; số
-                  hoàn tất hiển thị riêng.
-                </Text>
-                {operations?.servicesByCategory.map(x => (
-                  <div key={x.category}>
-                    <Text>
-                      {categoryLabels[x.category] || x.category}: {x.totalCount}{' '}
-                      lượt, hoàn tất {x.doneCount}
-                    </Text>
-                  </div>
-                ))}
-              </Col>
-            </Row>
-            <Title level={5}>Dịch vụ được sử dụng nhiều</Title>
-            <Table
-              size="small"
-              rowKey="serviceId"
-              pagination={false}
-              loading={loading.operations}
-              dataSource={operations?.topServices ?? []}
-              columns={[
-                { title: 'Hạng', dataIndex: 'rank', width: 70 },
-                { title: 'Dịch vụ', dataIndex: 'name' },
-                { title: 'Mã', dataIndex: 'code', render: v => v || '—' },
-                {
-                  title: 'Nhóm',
-                  dataIndex: 'category',
-                  render: v => categoryLabels[v] || v || '—',
-                },
-                { title: 'Lượt', dataIndex: 'count' },
-                { title: 'Hoàn tất', dataIndex: 'doneCount' },
-              ]}
-              locale={{ emptyText: 'Chưa có lượt sử dụng dịch vụ trong kỳ' }}
-              scroll={{ x: 600 }}
-            />
-            <Title level={5}>Tình trạng chuồng hiện tại</Title>
-            <Row gutter={[16, 8]}>
-              {['Holding', 'InpatientWard'].map(zone => {
-                const z =
-                  operations?.cageOccupancy.byZone[
-                    zone as 'Holding' | 'InpatientWard'
-                  ];
-                return (
-                  <Col xs={24} md={8} key={zone}>
-                    <Text>
-                      {zone === 'Holding' ? 'Khu lưu giữ' : 'Khu nội trú'}:{' '}
-                      {z?.occupied ?? 0}/{z?.total ?? 0} · trống{' '}
-                      {z?.available ?? 0} ({pct(z?.occupancyRate)})
-                    </Text>
-                  </Col>
-                );
-              })}
-              <Col xs={24} md={8}>
-                <Text>
-                  Toàn bộ: {operations?.cageOccupancy.occupied ?? 0}/
-                  {operations?.cageOccupancy.total ?? 0} · trống{' '}
-                  {operations?.cageOccupancy.available ?? 0} (
-                  {pct(operations?.cageOccupancy.occupancyRate)})
-                </Text>
-              </Col>
-              <Col xs={24}>
-                <Text>
-                  Trong đó, chuồng cách ly (đã tính trong khu phía trên):{' '}
-                  {operations?.cageOccupancy.isolatedCages.occupied ?? 0}/
-                  {operations?.cageOccupancy.isolatedCages.total ?? 0} đang dùng
-                  · còn trống{' '}
-                  {operations?.cageOccupancy.isolatedCages.available ?? 0}
-                </Text>
-              </Col>
-            </Row>
-            <Title level={5}>Tổng quan danh mục hiện tại</Title>
-            <Row gutter={16}>
-              {[
-                [
-                  'Khách hàng hoạt động',
-                  operations?.overview.activeCustomersCount,
-                ],
-                ['Thú cưng hoạt động', operations?.overview.activePetsCount],
-                [
-                  'Sản phẩm hoạt động',
-                  operations?.overview.activeProductsCount,
-                ],
-                [
-                  'Sản phẩm ngừng hoạt động',
-                  operations?.overview.inactiveProductsCount,
-                ],
-              ].map(([label, value]) => (
-                <Col xs={12} md={6} key={String(label)}>
-                  <Statistic
-                    title={String(label)}
-                    value={Number(value ?? 0)}
-                    loading={loading.operations}
-                  />
-                </Col>
-              ))}
-            </Row>
-          </>
+          placeholder('operations')
+        ))}
+      {tab === 'frontDesk' &&
+        (frontDesk ? (
+          <FrontDeskTab frontDesk={frontDesk} />
         ) : (
-          <ReportPlaceholder
-            loading={loading.operations}
-            error={errors.operations}
-            onRetry={reload}
-          />
-        )}
-      </Card>
-
-      <Card title="Quầy lễ tân">
-        {frontDesk ? (
-          <>
-            <Text type="secondary">
-              Tình hình tại lần tải gần nhất, ngày vận hành{' '}
-              {frontDesk ? dateLabel(frontDesk.today, frontDesk.today) : '—'}{' '}
-              (UTC+7). Chỉ lịch đặt chưa tiếp nhận giới hạn trong hôm nay; các
-              ca đã đến, đang thực hiện và chờ đón tính mọi ngày hẹn.
-            </Text>
-            <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
-              {[
-                [
-                  'Lịch đặt hôm nay chưa tiếp nhận',
-                  frontDesk?.todayCounters.expectedToday,
-                ],
-                ['Đã check-in', frontDesk?.todayCounters.checkedInNow],
-                ['Đang khám', frontDesk?.todayCounters.inProgressNow],
-                ['Chờ đón', frontDesk?.todayCounters.waitingForPickup],
-              ].map(([label, value]) => (
-                <Col xs={12} md={6} key={String(label)}>
-                  <Statistic
-                    title={String(label)}
-                    value={Number(value ?? 0)}
-                    loading={loading.frontDesk}
-                  />
-                </Col>
-              ))}
-            </Row>
-            <Text type="secondary">
-              Chuồng tại quầy hiện tại:{' '}
-              {frontDesk?.todayCounters.cages.occupied ?? 0}/
-              {frontDesk?.todayCounters.cages.total ?? 0} đang dùng · còn trống{' '}
-              {frontDesk?.todayCounters.cages.available ?? 0} · lấp đầy{' '}
-              {pct(frontDesk?.todayCounters.cages.occupancyRate)}
-            </Text>
-            <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Thời gian chờ TB trong kỳ"
-                  value={
-                    frontDesk?.periodStats.averageWaitMinutes ??
-                    'Chưa có dữ liệu'
-                  }
-                  suffix={
-                    frontDesk?.periodStats.averageWaitMinutes == null
-                      ? ''
-                      : 'phút'
-                  }
-                  loading={loading.frontDesk}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Mẫu tính thời gian chờ"
-                  value={frontDesk?.periodStats.waitTimeSampleCount ?? 0}
-                  loading={loading.frontDesk}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Thu trong kỳ"
-                  value={frontDesk?.periodStats.invoices.totalCollected ?? 0}
-                  formatter={v => money(Number(v))}
-                  loading={loading.frontDesk}
-                />
-              </Col>
-              <Col xs={12} md={6}>
-                <Statistic
-                  title="Hóa đơn đã lập"
-                  value={frontDesk?.periodStats.invoices.issuedCount ?? 0}
-                  loading={loading.frontDesk}
-                />
-              </Col>
-            </Row>
-            <Row gutter={[16, 12]} style={{ marginTop: 14 }}>
-              <Col xs={24} md={12}>
-                <Title level={5}>Lịch hẹn trong kỳ</Title>
-                {frontDesk &&
-                  Object.entries(
-                    frontDesk.periodStats.appointmentsByStatus
-                  ).map(([s, n]) => (
-                    <Tag key={s} style={{ marginBottom: 8 }}>
-                      {statusLabels[s] || s}: {n}
-                    </Tag>
-                  ))}
-                <Text>
-                  Online {frontDesk?.periodStats.onlineCount ?? 0} · Walk-in{' '}
-                  {frontDesk?.periodStats.walkInCount ?? 0} · Tổng{' '}
-                  {frontDesk?.periodStats.totalAppointments ?? 0}
-                </Text>
-              </Col>
-              <Col xs={24} md={12}>
-                <Title level={5}>Hóa đơn trong kỳ</Title>
-                <Text type="secondary">
-                  Số đã lập và chưa thanh toán tính theo ngày lập hóa đơn. Số
-                  hóa đơn đã thanh toán và tiền thu tính theo ngày thanh toán,
-                  có thể gồm hóa đơn lập trước kỳ; không phải các nhóm trạng
-                  thái của cùng một tập hóa đơn.
-                </Text>
-
-                <Text>
-                  Lập trong kỳ{' '}
-                  {frontDesk?.periodStats.invoices.issuedCount ?? 0} · thanh
-                  toán trong kỳ {frontDesk?.periodStats.invoices.paidCount ?? 0}{' '}
-                  · Chưa thanh toán trong số hóa đơn lập trong kỳ{' '}
-                  {frontDesk?.periodStats.invoices.unpaidCount ?? 0}
-                </Text>
-                {frontDesk?.periodStats.invoices.byPaymentMethod.map(x => (
-                  <div key={x.paymentMethod}>
-                    <Text>
-                      {x.paymentMethod}: {money(x.revenue)} · {x.invoiceCount}{' '}
-                      HĐ
-                    </Text>
-                  </div>
-                ))}
-              </Col>
-            </Row>
-            <Title level={5}>Ảnh chụp chuồng theo báo cáo quầy</Title>
-            <Text type="secondary">
-              Toàn bộ: {frontDesk?.periodStats.cageOccupancy.occupied ?? 0}/
-              {frontDesk?.periodStats.cageOccupancy.total ?? 0} đang dùng · còn
-              trống {frontDesk?.periodStats.cageOccupancy.available ?? 0} · lấp
-              đầy {pct(frontDesk?.periodStats.cageOccupancy.occupancyRate)}. Khu
-              lưu giữ:{' '}
-              {frontDesk?.periodStats.cageOccupancy.byZone.Holding.occupied ??
-                0}
-              /{frontDesk?.periodStats.cageOccupancy.byZone.Holding.total ?? 0}{' '}
-              · còn trống{' '}
-              {frontDesk?.periodStats.cageOccupancy.byZone.Holding.available ??
-                0}{' '}
-              (
-              {pct(
-                frontDesk?.periodStats.cageOccupancy.byZone.Holding
-                  .occupancyRate
-              )}
-              ); khu nội trú:{' '}
-              {frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard
-                .occupied ?? 0}
-              /
-              {frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard
-                .total ?? 0}{' '}
-              · còn trống{' '}
-              {frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard
-                .available ?? 0}{' '}
-              (
-              {pct(
-                frontDesk?.periodStats.cageOccupancy.byZone.InpatientWard
-                  .occupancyRate
-              )}
-              ); trong đó, cách ly (đã tính trong các khu):{' '}
-              {frontDesk?.periodStats.cageOccupancy.isolatedCages.occupied ?? 0}
-              /{frontDesk?.periodStats.cageOccupancy.isolatedCages.total ?? 0}{' '}
-              đang dùng, còn trống{' '}
-              {frontDesk?.periodStats.cageOccupancy.isolatedCages.available ??
-                0}
-              .
-            </Text>
-          </>
-        ) : (
-          <ReportPlaceholder
-            loading={loading.frontDesk}
-            error={errors.frontDesk}
-            onRetry={reload}
-          />
-        )}
-        {frontDesk && frontDesk.periodStats.averageWaitMinutes == null && (
-          <Text type="secondary">
-            Chưa đủ dữ liệu để tính thời gian chờ trung bình.
-          </Text>
-        )}
-      </Card>
-      <BestSellingCard key={identity} />
-    </Space>
+          placeholder('frontDesk')
+        ))}
+      {/* Mounted always, so its own filters survive a tab switch */}
+      <div hidden={tab !== 'bestSelling'}>
+        <BestSellingCard key={identity} />
+      </div>
+    </Stack>
   );
 };
 // Remount the whole report subtree (including the existing product report) when

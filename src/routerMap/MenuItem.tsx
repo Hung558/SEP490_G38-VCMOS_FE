@@ -205,11 +205,8 @@ export const MenuItemAdmin = (): MenuItem[] => {
       label: 'Ca làm việc',
       icon: <CalendarOutlined />,
     },
-    {
-      key: ROUTER.FRONT_DESK_DASHBOARD,
-      label: 'Tổng quan lễ tân',
-      icon: <DashboardOutlined />,
-    },
+    // No "Tổng quan lễ tân": its figures are the "Quầy lễ tân" tab of
+    // "Tổng quan quản trị" (24/11)
     {
       key: ROUTER.CLINIC_APPOINTMENTS,
       label: 'Tiếp nhận lịch hẹn',
