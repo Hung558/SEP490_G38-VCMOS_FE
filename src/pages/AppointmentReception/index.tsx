@@ -31,7 +31,7 @@ const AppointmentReceptionPage = () => {
 
   const appointmentContent = (
     <>
-      {state.isReceptionist && (
+      {state.showsToday && (
         <ReceptionTodayOverview
           date={state.today.date}
           counts={state.today.counts}

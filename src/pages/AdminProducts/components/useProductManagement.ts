@@ -10,7 +10,15 @@ import ProductService, {
   type ProductFilters,
   type ProductFormValues,
   type ProductStatus,
+  PRODUCT_CATEGORIES,
 } from '@/services/ProductService';
+
+export interface ProductSummary {
+  total: number;
+  active: number;
+  inactive: number;
+  byCategory: Record<ProductCategory, number>;
+}
 
 interface UseProductManagementOptions {
   pageSize: number;
@@ -105,6 +113,44 @@ export const useProductManagement = ({
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Counts over the whole catalogue (24/11), apart from the filtered table: one
+  // limit-1 request per count, read from the list total
+  const [summary, setSummary] = useState<ProductSummary | null>(null);
+  const [summaryFailed, setSummaryFailed] = useState(false);
+  const fetchSummary = useCallback(async () => {
+    const countOf = async (filters: ProductFilters) =>
+      readProducts(await ProductService.listProducts({ ...filters, limit: 1 }))
+        .total;
+    try {
+      const [total, active, inactive, ...byCategory] = await Promise.all([
+        countOf({}),
+        countOf({ status: 'Active' }),
+        countOf({ status: 'Inactive' }),
+        ...PRODUCT_CATEGORIES.map(item => countOf({ category: item })),
+      ]);
+      setSummary({
+        total,
+        active,
+        inactive,
+        byCategory: Object.fromEntries(
+          PRODUCT_CATEGORIES.map((item, index) => [item, byCategory[index]])
+        ) as Record<ProductCategory, number>,
+      });
+      setSummaryFailed(false);
+    } catch {
+      setSummaryFailed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
+  const refreshAll = useCallback(() => {
+    fetchProducts();
+    fetchSummary();
+  }, [fetchProducts, fetchSummary]);
 
   const hasFilters = Boolean(searchApplied || category || status);
 
@@ -207,7 +253,7 @@ export const useProductManagement = ({
         }
         setFormOpen(false);
         setEditingProduct(null);
-        await fetchProducts();
+        await Promise.all([fetchProducts(), fetchSummary()]);
       } catch (error) {
         const parsed = extractApiError(
           error,
@@ -221,7 +267,7 @@ export const useProductManagement = ({
         setSaving(false);
       }
     },
-    [editingProduct, fetchProducts]
+    [editingProduct, fetchProducts, fetchSummary]
   );
 
   const openDetail = useCallback(async (product: Product) => {
@@ -279,7 +325,7 @@ export const useProductManagement = ({
           await ProductService.activateProduct(product._id);
         }
         toast.success(`${actionLabel} sản phẩm "${product.name}" thành công`);
-        await fetchProducts();
+        await Promise.all([fetchProducts(), fetchSummary()]);
       } catch (error) {
         toast.error(
           extractApiError(
@@ -291,7 +337,7 @@ export const useProductManagement = ({
         setStatusPendingId(null);
       }
     },
-    [fetchProducts]
+    [fetchProducts, fetchSummary]
   );
 
   return {
@@ -321,6 +367,10 @@ export const useProductManagement = ({
     handleStatusChange,
     resetFilters,
     retryList: fetchProducts,
+    refreshAll,
+    summary,
+    summaryFailed,
+    retrySummary: fetchSummary,
     openCreateForm,
     openEditForm,
     closeForm,

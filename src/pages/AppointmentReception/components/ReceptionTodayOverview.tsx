@@ -10,10 +10,9 @@ import type {
 
 const { Title, Text } = Typography;
 
+// Same look as the count strips of the other admin/clinic pages (24/11); each
+// counter stays a button that filters the list
 const Overview = styled.section`
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 16px;
   margin-bottom: 16px;
 
   header {
@@ -28,8 +27,8 @@ const Overview = styled.section`
 
 const Metrics = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 14px;
 `;
 
 const MetricButton = styled(Button)`
@@ -37,32 +36,46 @@ const MetricButton = styled(Button)`
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 3px;
+    justify-content: flex-start;
+    gap: 2px;
     height: 100%;
-    min-height: 106px;
-    padding: 12px;
+    min-height: 92px;
+    padding: 14px 16px;
     white-space: normal;
     text-align: left;
-    border-color: #cbd5e1;
+    border: 1px solid #edf1f5;
+    border-radius: 12px;
+    box-shadow: none;
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  &&:hover {
+    border-color: #0d9488;
+    color: #64748b;
   }
 
   &&[aria-pressed='true'] {
-    border-color: #1677ff;
-    background: #eff6ff;
-    box-shadow: inset 0 0 0 1px #1677ff;
+    border-color: #0d9488;
+    background: #f0fdfa;
+    box-shadow: inset 0 0 0 1px #0d9488;
   }
 
   &&:focus-visible {
-    outline: 2px solid #0958d9;
+    outline: 2px solid #0d9488;
     outline-offset: 2px;
+  }
+
+  .ant-typography {
+    font-size: 12.5px;
   }
 `;
 
 const Count = styled.span`
   font-size: 24px;
   font-weight: 700;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  color: #0f172a;
 `;
 
 interface OverviewProps {

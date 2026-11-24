@@ -116,3 +116,33 @@ test('time in cage reads in minutes, hours and days', () => {
   assert.equal(formatTimeInCage(null, now), undefined);
   assert.equal(formatTimeInCage('not a date', now), undefined);
 });
+
+test('page summary counts every cage, per zone and isolated (24/11)', async () => {
+  const { summarizeCageList } = await import(
+    '../src/pages/Cages/components/cageBoardHelpers.ts'
+  );
+  const cage = (status, zone, isIsolated = false) => ({
+    _id: `${status}-${zone}-${isIsolated}`,
+    label: 'C',
+    size: 'M',
+    status,
+    zone,
+    isIsolated,
+  });
+  const summary = summarizeCageList([
+    cage('Available', 'Holding'),
+    cage('Occupied', 'Holding', true),
+    cage('Available', undefined), // no zone: holding area, as the BE defaults
+    cage('Occupied', 'InpatientWard'),
+    cage('Available', 'InpatientWard', true),
+  ]);
+  assert.deepEqual(summary, {
+    total: 5,
+    available: 3,
+    occupied: 2,
+    holding: { used: 1, total: 3 },
+    inpatient: { used: 1, total: 2 },
+    isolated: { used: 1, total: 2 },
+  });
+  assert.deepEqual(summarizeCageList([]).holding, { used: 0, total: 0 });
+});

@@ -131,3 +131,32 @@ export const getCageBlockReason = (
   }
   return undefined;
 };
+
+export interface CageListSummary {
+  total: number;
+  available: number;
+  occupied: number;
+  holding: { used: number; total: number };
+  inpatient: { used: number; total: number };
+  isolated: { used: number; total: number };
+}
+
+const usage = (cages: Cage[]) => ({
+  used: cages.filter(cage => cage.status === 'Occupied').length,
+  total: cages.length,
+});
+
+/** Counts over every cage for the page header (24/11). A cage without a zone is in the holding area (BE default) */
+export const summarizeCageList = (cages: Cage[]): CageListSummary => {
+  const { used, total } = usage(cages);
+  return {
+    total,
+    available: total - used,
+    occupied: used,
+    holding: usage(
+      cages.filter(cage => (cage.zone ?? 'Holding') === 'Holding')
+    ),
+    inpatient: usage(cages.filter(cage => cage.zone === 'InpatientWard')),
+    isolated: usage(cages.filter(cage => cage.isIsolated)),
+  };
+};
