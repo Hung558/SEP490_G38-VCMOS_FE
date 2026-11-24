@@ -1,14 +1,24 @@
 import { useRef, useState } from 'react';
-import { Alert, Button, Card, Input, Select, Typography } from 'antd';
+import { Alert, Button, Input, Segmented } from 'antd';
 import type { ReportFilters } from '@/services/ReportService';
-import { buildFrontDeskFilters, PERIOD_LABELS } from './helpers';
+import { buildFrontDeskFilters } from './helpers';
 import type { FrontDeskFilterDraft, FrontDeskPeriod } from './helpers';
-import { FieldError, FilterLayout, Help } from './styles';
+import { FieldError, FilterBar } from './styles';
 
 interface Props {
   onApply: (filters: ReportFilters) => void;
   loading: boolean;
 }
+
+const PERIOD_OPTIONS: { value: FrontDeskPeriod; label: string }[] = [
+  { value: 'day', label: 'Hôm nay' },
+  { value: 'week', label: 'Tuần này' },
+  { value: 'month', label: 'Tháng này' },
+  { value: 'custom', label: 'Tùy chọn' },
+];
+
+// Presets apply at once; a custom range waits for "Áp dụng kỳ thống kê" and is
+// checked first (real dates, from ≤ to, at most 366 days)
 export default function FrontDeskFilters({ onApply, loading }: Props) {
   const [draft, setDraft] = useState<FrontDeskFilterDraft>({
     period: 'day',
@@ -17,52 +27,52 @@ export default function FrontDeskFilters({ onApply, loading }: Props) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
+
+  const submit = (next: FrontDeskFilterDraft) => {
+    const result = buildFrontDeskFilters(next);
+    setErrors(result.errors);
+    if (!result.filters) {
+      requestAnimationFrame(() =>
+        formRef.current
+          ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+          ?.focus()
+      );
+      return;
+    }
+    onApply(result.filters);
+  };
+
   return (
-    <Card title="Kỳ thống kê">
-      <FilterLayout
+    <>
+      <FilterBar
         ref={formRef}
         noValidate
         onSubmit={event => {
           event.preventDefault();
-          const result = buildFrontDeskFilters(draft);
-          setErrors(result.errors);
-          if (!result.filters) {
-            requestAnimationFrame(() =>
-              formRef.current
-                ?.querySelector<HTMLElement>('[aria-invalid="true"]')
-                ?.focus()
-            );
-            return;
-          }
-          onApply(result.filters);
+          submit(draft);
         }}
       >
-        <div>
-          <label htmlFor="front-desk-period">Chọn kỳ</label>
-          <Select
-            id="front-desk-period"
+        <div className="field">
+          <label id="front-desk-period-label">Chọn kỳ</label>
+          <Segmented<FrontDeskPeriod>
+            aria-labelledby="front-desk-period-label"
             value={draft.period}
-            aria-invalid={Boolean(errors.period)}
-            aria-describedby="front-desk-period-error"
-            options={Object.entries(PERIOD_LABELS).map(([value, label]) => ({
-              value,
-              label,
-            }))}
-            onChange={(period: FrontDeskPeriod) => {
-              setDraft(value => ({ ...value, period }));
+            options={PERIOD_OPTIONS}
+            onChange={period => {
+              const next = { ...draft, period };
+              setDraft(next);
               setErrors({});
+              if (period !== 'custom') submit(next);
             }}
           />
           {errors.period && (
-            <FieldError id="front-desk-period-error" role="alert">
-              {errors.period}
-            </FieldError>
+            <FieldError role="alert">{errors.period}</FieldError>
           )}
         </div>
         {draft.period === 'custom' && (
           <>
-            <div>
-              <label htmlFor="front-desk-from">Từ ngày (bắt buộc)</label>
+            <div className="field">
+              <label htmlFor="front-desk-from">Từ ngày</label>
               <Input
                 id="front-desk-from"
                 type="date"
@@ -84,8 +94,8 @@ export default function FrontDeskFilters({ onApply, loading }: Props) {
                 </FieldError>
               )}
             </div>
-            <div>
-              <label htmlFor="front-desk-to">Đến ngày (bắt buộc)</label>
+            <div className="field">
+              <label htmlFor="front-desk-to">Đến ngày</label>
               <Input
                 id="front-desk-to"
                 type="date"
@@ -107,27 +117,25 @@ export default function FrontDeskFilters({ onApply, loading }: Props) {
                 </FieldError>
               )}
             </div>
+            <Button
+              className="apply"
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+            >
+              Áp dụng kỳ thống kê
+            </Button>
           </>
         )}
-        <Button type="primary" htmlType="submit" loading={loading}>
-          Áp dụng kỳ thống kê
-        </Button>
-      </FilterLayout>
+      </FilterBar>
       {Object.keys(errors).length > 0 && (
         <Alert
-          style={{ marginTop: 16 }}
+          style={{ marginBottom: 16 }}
           type="error"
           showIcon
           message="Khoảng ngày chưa hợp lệ. Báo cáo chưa được thay đổi."
         />
       )}
-      <Help>
-        Nhấn Áp dụng để đổi kỳ. Ngày tính theo múi giờ Việt Nam (UTC+7), bao gồm
-        cả ngày đầu và ngày cuối; tối đa 366 ngày.{' '}
-        <Typography.Text strong>
-          Số liệu chuồng hiện tại không thay đổi theo bộ lọc kỳ.
-        </Typography.Text>
-      </Help>
-    </Card>
+    </>
   );
 }

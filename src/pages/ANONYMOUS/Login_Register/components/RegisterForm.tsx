@@ -254,19 +254,13 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onToggleView }) => {
             </CustomFormItem>
           </div>
 
-          {/* Email: required on this form (24/11); the BE still accepts none */}
+          {/* Email is optional again (24/11, nghiệp vụ "email tùy chọn"; the BE
+              accepts none). When typed, it must still be a valid address. */}
           <div>
-            <FieldLabel>
-              Email<span className="required">*</span>
-            </FieldLabel>
+            <FieldLabel>Email</FieldLabel>
             <CustomFormItem
               name="email"
               rules={[
-                {
-                  required: true,
-                  whitespace: true,
-                  message: 'Vui lòng nhập email!',
-                },
                 { max: 100, message: 'Email tối đa 100 ký tự!' },
                 {
                   pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,

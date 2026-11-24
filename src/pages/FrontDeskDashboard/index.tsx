@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Skeleton, Space, Typography } from 'antd';
-import { ReloadOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { Alert, Button, Skeleton, Typography } from 'antd';
+import {
+  ArrowRightOutlined,
+  BarChartOutlined,
+  BuildOutlined,
+  DollarOutlined,
+  ReloadOutlined,
+  ScheduleOutlined,
+  UserAddOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/routerProvider/authContext';
 import ROUTER from '@/routerMap/ROUTER';
@@ -8,15 +17,23 @@ import ReportService, {
   type FrontDeskReport,
   type ReportFilters,
 } from '@/services/ReportService';
+import {
+  DashSection,
+  PageHeader,
+  RangeChip,
+  VisuallyHidden,
+} from '@/components/dashboard';
 import FrontDeskFilters from './components/FrontDeskFilters';
 import CageOverview from './components/CageOverview';
 import PeriodOverview from './components/PeriodOverview';
 import {
+  formatReportDate,
   frontDeskIdentityKey,
   isFrontDeskRole,
+  PERIOD_LABELS,
   readFrontDeskError,
 } from './components/helpers';
-import { Header, Help, Page } from './components/styles';
+import { ActionGrid, ActionTile, Page, TopGrid } from './components/styles';
 
 function AuthorizedFrontDesk({ role }: { role: string }) {
   const navigate = useNavigate();
@@ -62,99 +79,135 @@ function AuthorizedFrontDesk({ role }: { role: string }) {
     };
   }, [filters, revision, requestKey]);
 
+  const report = !display.loading ? display.report : undefined;
+  const actions = [
+    {
+      key: 'reception',
+      label: 'Mở tiếp nhận lịch hẹn',
+      icon: <ScheduleOutlined />,
+      to: ROUTER.CLINIC_APPOINTMENTS,
+      primary: true,
+    },
+    ...(role === 'Receptionist'
+      ? [
+          {
+            key: 'walkin',
+            label: 'Tiếp nhận khách tại quầy',
+            icon: <UserAddOutlined />,
+            to: `${ROUTER.CLINIC_APPOINTMENTS}?walkin=new`,
+          },
+        ]
+      : []),
+    {
+      key: 'invoices',
+      label:
+        role === 'Receptionist'
+          ? 'Thu ngân và chờ đón'
+          : 'Xem hóa đơn và chờ đón',
+      icon: <DollarOutlined />,
+      to: ROUTER.CLINIC_INVOICES,
+    },
+    {
+      key: 'cages',
+      label: 'Xem và bố trí chuồng',
+      icon: <BuildOutlined />,
+      to: ROUTER.CAGES,
+    },
+  ];
+
   return (
     <Page>
-      <Header>
-        <div>
-          <Typography.Title level={2}>Tổng quan quầy lễ tân</Typography.Title>
-          <Typography.Text type="secondary">
-            Nắm tình hình tiếp nhận, chờ đón, chuồng và thu ngân trước khi xử lý
-            công việc.
-          </Typography.Text>
-        </div>
-        <Space direction="vertical" align="end">
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={refresh}
-            loading={display.loading}
-          >
-            Làm mới số liệu
-          </Button>
-          {display.receivedAt && (
-            <Typography.Text type="secondary">
-              Tải lúc{' '}
-              {new Intl.DateTimeFormat('vi-VN', {
-                timeZone: 'Asia/Ho_Chi_Minh',
-                timeStyle: 'medium',
-              }).format(display.receivedAt)}{' '}
-              (UTC+7)
-            </Typography.Text>
-          )}
-        </Space>
-      </Header>
-      <Card title="Đi đến công việc">
-        <Space wrap size="middle">
-          <Button
-            type="primary"
-            icon={<ArrowRightOutlined />}
-            onClick={() => navigate(ROUTER.CLINIC_APPOINTMENTS)}
-          >
-            Mở tiếp nhận lịch hẹn
-          </Button>
-          {role === 'Receptionist' && (
+      <PageHeader
+        title="Tổng quan quầy lễ tân"
+        subtitle="Nắm tình hình tiếp nhận, chờ đón, chuồng và thu ngân trước khi xử lý công việc."
+        extra={
+          <>
+            {display.receivedAt && (
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                Tải lúc{' '}
+                {new Intl.DateTimeFormat('vi-VN', {
+                  timeZone: 'Asia/Ho_Chi_Minh',
+                  timeStyle: 'medium',
+                }).format(display.receivedAt)}{' '}
+                (UTC+7)
+              </Typography.Text>
+            )}
             <Button
-              onClick={() =>
-                navigate(`${ROUTER.CLINIC_APPOINTMENTS}?walkin=new`)
-              }
+              icon={<ReloadOutlined />}
+              onClick={refresh}
+              loading={display.loading}
             >
-              Tiếp nhận khách tại quầy
+              Làm mới số liệu
             </Button>
-          )}
-          <Button onClick={() => navigate(ROUTER.CLINIC_INVOICES)}>
-            {role === 'Receptionist'
-              ? 'Thu ngân và chờ đón'
-              : 'Xem hóa đơn và chờ đón'}
-          </Button>
-          <Button onClick={() => navigate(ROUTER.CAGES)}>
-            Xem và bố trí chuồng
-          </Button>
-        </Space>
-        <Help>
-          Các lối tắt mở màn hình nghiệp vụ, không tự áp bộ lọc. Khi tra cứu
-          lịch đã tiếp nhận hoặc chờ đón từ ngày trước, hãy chọn ngày phù hợp
-          tại màn hình đích.
-        </Help>
-      </Card>
-      <FrontDeskFilters
-        loading={display.loading}
-        onApply={next => {
-          setFilters(next);
-          refresh();
-        }}
+          </>
+        }
       />
-      {display.loading && (
-        <Card aria-busy="true">
-          <div role="status">
-            <Typography.Text>Đang tải thống kê quầy lễ tân…</Typography.Text>
-          </div>
-          <Skeleton active paragraph={{ rows: 5 }} />
-        </Card>
-      )}
-      {display.error && (
-        <Alert
-          type="error"
-          showIcon
-          message="Chưa tải được số liệu"
-          description={<span role="alert">{display.error}</span>}
-          action={<Button onClick={refresh}>Thử lại</Button>}
+
+      <TopGrid>
+        <DashSection
+          title="Đi đến công việc"
+          icon={<ThunderboltOutlined />}
+          info="Các lối tắt mở màn hình nghiệp vụ, không tự áp bộ lọc. Khi tra cứu lịch đã tiếp nhận hoặc chờ đón từ ngày trước, hãy chọn ngày phù hợp tại màn hình đích."
+        >
+          <ActionGrid>
+            {actions.map(action => (
+              <ActionTile
+                key={action.key}
+                type="button"
+                $primary={action.primary}
+                onClick={() => navigate(action.to)}
+              >
+                <span className="icon" aria-hidden>
+                  {action.icon}
+                </span>
+                {action.label}
+                <ArrowRightOutlined className="arrow" aria-hidden />
+              </ActionTile>
+            ))}
+          </ActionGrid>
+        </DashSection>
+        <CageOverview report={report} loading={display.loading} />
+      </TopGrid>
+
+      <DashSection
+        title="Thống kê theo kỳ"
+        icon={<BarChartOutlined />}
+        info="Ngày tính theo múi giờ Việt Nam (UTC+7), bao gồm cả ngày đầu và ngày cuối; tối đa 366 ngày. Số liệu chuồng hiện tại không thay đổi theo bộ lọc kỳ."
+        extra={
+          report && (
+            <RangeChip>
+              {PERIOD_LABELS[report.period]} · {formatReportDate(report.from)}
+              {report.from !== report.to && ` – ${formatReportDate(report.to)}`}
+            </RangeChip>
+          )
+        }
+      >
+        <FrontDeskFilters
+          loading={display.loading}
+          onApply={next => {
+            setFilters(next);
+            refresh();
+          }}
         />
-      )}
-      {!display.loading && display.report && (
-        <>
-          <CageOverview report={display.report} />
-          <PeriodOverview report={display.report} />
-        </>
-      )}
+        {display.loading && (
+          <div aria-busy="true">
+            <VisuallyHidden role="status">
+              Đang tải thống kê quầy lễ tân…
+            </VisuallyHidden>
+            <Skeleton active paragraph={{ rows: 6 }} />
+          </div>
+        )}
+        {display.error && (
+          <Alert
+            type="error"
+            showIcon
+            message="Chưa tải được số liệu"
+            description={<span role="alert">{display.error}</span>}
+            action={<Button onClick={refresh}>Thử lại</Button>}
+          />
+        )}
+        {report && <PeriodOverview report={report} />}
+      </DashSection>
     </Page>
   );
 }

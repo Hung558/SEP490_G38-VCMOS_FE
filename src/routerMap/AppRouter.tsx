@@ -173,8 +173,9 @@ const AppRouter = () => {
       ],
     },
     {
-      // Clinic appointments intake: Admin and Receptionist only
-      element: <RoleRoute allowRoles={['Admin', 'Receptionist']} />,
+      // Front-desk overview: Receptionist only. Admin reads the same figures in
+      // the "Quầy lễ tân" tab of /admin/reports and is sent there (24/11)
+      element: <RoleRoute allowRoles={['Receptionist']} />,
       children: [
         {
           path: ROUTER.FRONT_DESK_DASHBOARD,
@@ -184,6 +185,12 @@ const AppRouter = () => {
             </Suspense>
           ),
         },
+      ],
+    },
+    {
+      // Clinic appointments intake: Admin and Receptionist only
+      element: <RoleRoute allowRoles={['Admin', 'Receptionist']} />,
+      children: [
         {
           path: ROUTER.CLINIC_APPOINTMENTS,
           element: (

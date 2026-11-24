@@ -21,31 +21,45 @@ test('reporting landing routes are distinct from the pet-owner dashboard', () =>
   );
 });
 
-test('front-desk report is registered inside the exact Admin/Receptionist role boundary', async () => {
+// 24/11: the front-desk overview is Receptionist only; Admin reads the same
+// figures in the "Quầy lễ tân" tab of /admin/reports
+test('front-desk report is registered inside the Receptionist-only role boundary', async () => {
   const router = await source('src/routerMap/AppRouter.tsx');
   const boundary = router.indexOf(
+    "element: <RoleRoute allowRoles={['Receptionist']} />"
+  );
+  const nextBoundary = router.indexOf(
+    '// Clinic appointments intake',
+    boundary
+  );
+  assert.ok(boundary > 0 && nextBoundary > boundary);
+  const block = router.slice(boundary, nextBoundary);
+  assert.match(block, /path: ROUTER\.FRONT_DESK_DASHBOARD/);
+  assert.match(block, /<FrontDeskDashboardPage\s*\/>/);
+  // Not also reachable through the Admin/Receptionist intake boundary
+  const intake = router.indexOf(
     "element: <RoleRoute allowRoles={['Admin', 'Receptionist']} />"
   );
-  const nextBoundary = router.indexOf('// Work queue:', boundary);
-  assert.ok(boundary > 0 && nextBoundary > boundary);
-  assert.match(
-    router.slice(boundary, nextBoundary),
-    /path: ROUTER\.FRONT_DESK_DASHBOARD/
-  );
-  assert.match(
-    router.slice(boundary, nextBoundary),
-    /<FrontDeskDashboardPage\s*\/>/
+  const intakeEnd = router.indexOf('// Work queue:', intake);
+  assert.doesNotMatch(
+    router.slice(intake, intakeEnd),
+    /ROUTER\.FRONT_DESK_DASHBOARD/
   );
 });
 
-test('report links exist for receptionist and admin without replacing intake links', async () => {
+test('receptionist has the report link; admin keeps intake links without it', async () => {
   const menu = await source('src/routerMap/MenuItem.tsx');
-  for (const name of ['MenuItemReceptionist', 'MenuItemAdmin']) {
+  const body = name => {
     const start = menu.indexOf(`export const ${name}`);
-    const end = menu.indexOf('\n};', start);
-    const body = menu.slice(start, end);
-    assert.match(body, /ROUTER\.FRONT_DESK_DASHBOARD/);
-    assert.match(body, /ROUTER\.CLINIC_APPOINTMENTS/);
-    assert.match(body, /ROUTER\.CLINIC_INVOICES/);
-  }
+    return menu.slice(start, menu.indexOf('\n};', start));
+  };
+  const receptionist = body('MenuItemReceptionist');
+  assert.match(receptionist, /ROUTER\.FRONT_DESK_DASHBOARD/);
+  assert.match(receptionist, /ROUTER\.CLINIC_APPOINTMENTS/);
+  assert.match(receptionist, /ROUTER\.CLINIC_INVOICES/);
+  const admin = body('MenuItemAdmin');
+  assert.doesNotMatch(admin, /key: ROUTER\.FRONT_DESK_DASHBOARD/);
+  assert.match(admin, /ROUTER\.ADMIN_REPORTS/);
+  assert.match(admin, /ROUTER\.CLINIC_APPOINTMENTS/);
+  assert.match(admin, /ROUTER\.CLINIC_INVOICES/);
 });

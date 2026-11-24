@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Button,
-  Card,
   DatePicker,
   Progress,
   Segmented,
@@ -41,6 +40,7 @@ import {
   REPORT_PERIOD_LABELS,
 } from './reportRange';
 import type { ReportPeriod, ReportRange } from './reportRange';
+import { DashSection } from '@/components/dashboard';
 import { FilterRow } from './styles';
 
 const { Text } = Typography;
@@ -230,14 +230,7 @@ const BestSellingCard = () => {
   ];
 
   return (
-    <Card
-      title={
-        <Space size={8}>
-          <TrophyOutlined />
-          Sản phẩm bán chạy
-        </Space>
-      }
-    >
+    <DashSection title="Sản phẩm bán chạy" icon={<TrophyOutlined />}>
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <FilterRow>
           <Segmented<ReportPeriod | 'custom'>
@@ -347,7 +340,7 @@ const BestSellingCard = () => {
           }}
         />
       </Space>
-    </Card>
+    </DashSection>
   );
 };
 
