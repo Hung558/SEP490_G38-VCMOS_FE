@@ -53,7 +53,7 @@ const PetProfileView: React.FC<PetProfileViewProps> = ({
   const hasWeight = pet.weight !== null && pet.weight !== undefined;
   const metrics = [
     { label: 'Loài thú cưng', value: pet.species },
-    { label: 'Giống loài (Breed)', value: pet.breed },
+    { label: 'Giống loài', value: pet.breed },
     { label: 'Màu lông', value: pet.coatColor },
     { label: 'Thể trọng hiện tại', value: hasWeight ? `${pet.weight} kg` : '' },
     {

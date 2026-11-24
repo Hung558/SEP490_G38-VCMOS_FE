@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import {
+  Navigate,
+  generatePath,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import { Button, Result, Skeleton } from 'antd';
 import { toast } from 'sonner';
 import PetService from '@/services/PetService';
@@ -10,8 +16,8 @@ import type { Pet } from '@/types';
 import PetFormModal from '@/pages/Dashboard/components/PetFormModal';
 import DeletePetModal from '@/pages/Dashboard/components/DeletePetModal';
 import PetProfileView from './components/PetProfileView';
-import PetInpatientLogs from './components/PetInpatientLogs';
-import PetTimeline from './components/PetTimeline';
+import PetJourneySummary from './components/PetJourneySummary';
+import { PET_INPATIENT_LOGS_HASH } from './components/inpatientLogsSection';
 import ShareTimelineModal from './components/ShareTimelineModal';
 import { getBookingLink } from '@/pages/Dashboard/dashboardTabs';
 import { PetProfileWrapper } from './components/styles';
@@ -35,7 +41,7 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [petToDelete, setPetToDelete] = useState<Pet | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
-  // Bumped after a share so the timeline reloads its "shared posts" list
+  // Refresh the compact summary after an owner shares this pet.
   const [timelineVersion, setTimelineVersion] = useState(0);
   const requestVersion = useRef(0);
 
@@ -146,11 +152,7 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
         <PetProfileView pet={pet} />
       )}
 
-      {isOwner && pet.status === 'Active' && (
-        <PetInpatientLogs petId={pet._id} />
-      )}
-
-      <PetTimeline
+      <PetJourneySummary
         key={JSON.stringify([
           user?._id,
           effectiveRole,
@@ -158,9 +160,6 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
           timelineVersion,
         ])}
         petId={pet._id}
-        invoiceRole={effectiveRole}
-        sharedPostsVisible={isOwner}
-        aiAssessmentsVisible={isOwner}
       />
 
       {isOwner && (
@@ -195,7 +194,16 @@ const PetProfile: React.FC<{ petId?: string }> = ({ petId }) => {
 
 const PetProfilePage: React.FC = () => {
   const { petId } = useParams<{ petId: string }>();
+  const { hash } = useLocation();
   const { user } = useAuth();
+  if (petId && hash === PET_INPATIENT_LOGS_HASH) {
+    return (
+      <Navigate
+        replace
+        to={generatePath(ROUTER.PET_JOURNEY, { petId }) + hash}
+      />
+    );
+  }
   // Route or account changes must never display the previous pet's records.
   return (
     <PetProfile

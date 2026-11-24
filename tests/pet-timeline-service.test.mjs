@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildPetTimelineQuery,
+  getPetTimelineCategoryLabel,
   formatTimelineDate,
   getPetTimelineRefName,
   getSafeTimelineHttpUrl,
@@ -183,4 +184,11 @@ test('timeline filter enums have Vietnamese labels', () => {
   assert.equal(getPetTimelineStatusLabel('WaitOwner'), 'Chờ chủ đón');
   assert.equal(PET_TIMELINE_TYPE_LABELS.Paraclinical, 'Cận lâm sàng');
   assert.equal(getPetTimelineStatusLabel('Unknown'), 'Khác');
+});
+
+test('timeline categories use Vietnamese labels and never expose unknown enum values', () => {
+  assert.equal(getPetTimelineCategoryLabel('Examination'), 'Khám bệnh');
+  assert.equal(getPetTimelineCategoryLabel('Grooming'), 'Chăm sóc / làm đẹp');
+  assert.equal(getPetTimelineCategoryLabel('Inpatient'), 'Điều trị nội trú');
+  assert.equal(getPetTimelineCategoryLabel('UnmappedCategory'), 'Dịch vụ khác');
 });

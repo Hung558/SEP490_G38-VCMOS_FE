@@ -16,3 +16,11 @@ test('breadcrumbMap labels the pets segment in Vietnamese', async () => {
   const { breadcrumbMap } = await import('../src/routerMap/breadcrumbMap.ts');
   assert.equal(breadcrumbMap.pets, 'Hồ sơ thú cưng');
 });
+
+test('pet journeys have a dedicated list and detail route', () => {
+  assert.equal(ROUTER.PET_JOURNEYS, '/pet-journeys');
+  assert.equal(
+    generatePath(ROUTER.PET_JOURNEY, { petId: '6b1f0c2e9a3d4e5f60718293' }),
+    '/pet-journeys/6b1f0c2e9a3d4e5f60718293'
+  );
+});
