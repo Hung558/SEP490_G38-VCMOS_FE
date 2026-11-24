@@ -304,15 +304,6 @@ const CageBoard = ({
         </Space>
       </Toolbar>
 
-      {!canSeeOccupants && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="Admin chỉ xem trạng thái chuồng. Thông tin thú cưng trong chuồng dành cho nhân viên phòng khám."
-        />
-      )}
-
       {error && (
         <Alert
           type="warning"

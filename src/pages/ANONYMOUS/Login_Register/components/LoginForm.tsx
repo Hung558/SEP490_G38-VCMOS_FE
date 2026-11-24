@@ -37,14 +37,8 @@ const FormHeader = styled.div`
     font-size: 22px;
     font-weight: 800;
     color: #0f172a;
-    margin: 0 0 6px 0;
-    letter-spacing: -0.02em;
-  }
-
-  p {
-    font-size: 13.5px;
-    color: #64748b;
     margin: 0;
+    letter-spacing: -0.02em;
   }
 `;
 
@@ -250,7 +244,6 @@ const LoginForm: React.FC<LoginFormProps> = ({
       <FormContainer>
         <FormHeader>
           <h2>Đăng nhập để bắt đầu phiên làm việc</h2>
-          <p>An toàn, nhanh chóng và dễ dàng</p>
         </FormHeader>
 
         <Form form={form} layout="vertical" onFinish={onSubmit}>
