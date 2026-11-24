@@ -512,8 +512,8 @@ class InpatientCareE2E(unittest.TestCase):
 
     def test_owner_reads_only_own_active_pet_logs(self):
         self.login('PetOwner')
-        self.page.goto(f'{BASE}/pets/{PET}')
-        expect(heading(self.page, PET_NAME)).to_be_visible()
+        self.page.goto(f'{BASE}/pet-journeys/{PET}#inpatient-logs')
+        expect(heading(self.page, f'Hành trình của {PET_NAME}')).to_be_visible()
         panel = self.page.get_by_role('region', name='Nhật ký nội trú', exact=True)
         expect(heading(panel, '^Nhật ký nội trú$')).to_be_visible()
         expect(panel.get_by_text(f'Quan sát: {OWNER_LOG_NOTES}', exact=True)).to_be_visible()

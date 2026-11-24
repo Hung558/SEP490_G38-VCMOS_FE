@@ -8,6 +8,7 @@ import json
 import re
 import unittest
 import threading
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from playwright.async_api import async_playwright
@@ -21,44 +22,45 @@ SECOND_PET_PATH = f'/api/pets/{FOREIGN_PET}'
 VET_ID = '000000000000000000000061'
 ORDER = '000000000000000000000062'
 STAY = '000000000000000000000063'
-CODE = 'APT-TL-QA-62'
-INVOICE_CODE = 'INV-TL-QA-63'
-PET_INFO = {'_id': PET, 'code': 'PET-TL-55', 'name': 'Milo Timeline QA', 'species': 'Dog',
-            'breed': 'Poodle', 'weight': 6.5, 'status': 'Active',
+CODE = 'APT-62'
+INVOICE_CODE = 'INV-63'
+PET_INFO = {'_id': PET, 'code': 'PET-TL-55', 'name': 'Milo', 'species': 'Chó',
+            'breed': 'Poodle', 'weight': 6.5, 'status': 'Active', 'coatColor': 'Nâu',
+            'dob': '2024-05-15', 'createdAt': '2026-10-10T08:00:00Z', 'updatedAt': '2026-11-18T08:00:00Z',
             'owner': {'_id': OWNER['_id'], 'fullName': OWNER['fullName']}}
 INVOICE = {'_id': '000000000000000000000064', 'code': INVOICE_CODE, 'totalAmount': 123456,
            'paymentMethod': 'PayOS', 'paymentStatus': 'Paid', 'items': [
                {'_id': '000000000000000000000065', 'type': 'Service', 'refId': VET_ID,
-                'itemNameSnapshot': 'Dịch vụ QA', 'unitPriceSnapshot': 123456, 'quantity': 1, 'subtotal': 123456}]}
+                'itemNameSnapshot': 'Dịch vụ', 'unitPriceSnapshot': 123456, 'quantity': 1, 'subtotal': 123456}]}
 
 
 def milestone(identifier, code, date, *, category='Examination', invoice=True, inpatient=False):
-    stay = {'_id': STAY, 'orderId': ORDER, 'status': 'Admitted', 'initialDiagnosis': 'Chẩn đoán nội trú QA',
-            'treatmentPlan': 'Kế hoạch điều trị QA', 'admittedAt': '2026-11-18T02:00:00.000Z',
-            'dischargedAt': None, 'daysAdmitted': 2, 'attendingVet': {'_id': VET_ID, 'fullName': 'Bác sĩ Timeline QA'},
-            'cage': {'_id': '000000000000000000000066', 'label': 'Ward-TL-QA'}, 'dailyLogsCount': 1,
+    stay = {'_id': STAY, 'orderId': ORDER, 'status': 'Admitted', 'initialDiagnosis': 'Chẩn đoán nội trú',
+            'treatmentPlan': 'Kế hoạch điều trị', 'admittedAt': '2026-11-18T02:00:00.000Z',
+            'dischargedAt': None, 'daysAdmitted': 2, 'attendingVet': {'_id': VET_ID, 'fullName': 'Bác sĩ Đặng Quang'},
+            'cage': {'_id': '000000000000000000000066', 'label': 'Nội trú A01'}, 'dailyLogsCount': 1,
             'dailyLogs': [{'_id': '000000000000000000000067', 'date': '2026-11-19',
-                            'recordedBy': {'_id': VET_ID, 'fullName': 'Bác sĩ Timeline QA'},
-                            'observations': 'Quan sát nội trú QA', 'notes': 'Ghi chú đợt chăm sóc QA'}],
+                            'recordedBy': {'_id': VET_ID, 'fullName': 'Bác sĩ Đặng Quang'},
+                            'observations': 'Quan sát nội trú', 'notes': 'Ghi chú đợt chăm sóc'}],
             'invoice': dict(INVOICE)} if inpatient else None
     return {'id': identifier, 'orderId': identifier, 'code': code, 'date': date, 'slotStart': '09:00',
             'slotEnd': '09:30', 'isOnline': True, 'derivedStatus': 'Done', 'statusLabel': 'Hoàn tất',
-            'checkedInAt': '2026-11-18T02:00:00.000Z', 'note': 'Ghi chú lịch hẹn QA', 'intake': None,
+            'checkedInAt': '2026-11-18T02:00:00.000Z', 'note': 'Ghi chú lịch hẹn', 'intake': None,
             'cancelReason': None, 'cancelledAt': None, 'categories': [category] + (['Inpatient'] if inpatient else []),
             'currentCage': None,
             'services': [{'_id': VET_ID, 'sequenceNo': 1, 'status': 'Done', 'isEmergency': False,
-                          'service': {'_id': '000000000000000000000068', 'name': 'Khám tổng quát QA', 'category': category},
-                          'assignedStaff': {'_id': VET_ID, 'fullName': 'Bác sĩ Timeline QA'},
+                          'service': {'_id': '000000000000000000000068', 'name': 'Khám tổng quát', 'category': category},
+                          'assignedStaff': {'_id': VET_ID, 'fullName': 'Bác sĩ Đặng Quang'},
                           'medicalRecord': {'_id': '000000000000000000000069', 'status': 'Finalized',
-                                            'subjectiveNote': 'Triệu chứng SOAP QA', 'objectiveNote': 'Khám khách quan QA',
-                                            'assessment': 'Đánh giá SOAP QA', 'plan': 'Phác đồ SOAP QA', 'notes': '',
-                                            'prescriptions': [{'productId': VET_ID, 'productNameSnapshot': 'Thuốc QA',
+                                            'subjectiveNote': 'Triệu chứng SOAP', 'objectiveNote': 'Khám khách quan',
+                                            'assessment': 'Đánh giá SOAP', 'plan': 'Phác đồ SOAP', 'notes': '',
+                                            'prescriptions': [{'productId': VET_ID, 'productNameSnapshot': 'Thuốc',
                                                                'unitSnapshot': 'viên', 'dosage': '1 viên', 'frequency': 'mỗi ngày',
                                                                'durationDays': 3, 'instructions': 'Sau ăn'}]},
-                          'groomingNote': {'beforeNote': 'Trước chăm sóc QA', 'afterNote': 'Sau chăm sóc QA',
-                                           'recommendations': 'Khuyến nghị QA'},
-                          'subtasks': [{'_id': '000000000000000000000070', 'taskType': 'Xét nghiệm QA',
-                                         'instructions': 'Yêu cầu QA', 'resultText': 'Kết quả xét nghiệm QA',
+                          'groomingNote': {'beforeNote': 'Trước chăm sóc', 'afterNote': 'Sau chăm sóc',
+                                           'recommendations': 'Khuyến nghị'},
+                          'subtasks': [{'_id': '000000000000000000000070', 'taskType': 'Xét nghiệm',
+                                         'instructions': 'Yêu cầu', 'resultText': 'Kết quả xét nghiệm',
                                          'status': 'Completed', 'service': None, 'assignedStaff': None,
                                          'requestedBy': None}]}],
             'inpatientRecord': stay, 'invoice': dict(INVOICE) if invoice else None,
@@ -70,8 +72,11 @@ def page_fixture(page=1, *, type_filter='All', rows=None):
     selected = [row for row in rows if type_filter == 'All' or type_filter in row['categories']]
     size = 20
     start = (page-1)*size
-    return {'pet': PET_INFO, 'summary': {'totalVisits': 2, 'completedVisits': 1, 'activeVisits': 1,
-            'totalMedicalRecords': 1, 'totalGroomingNotes': 1, 'totalInpatientStays': 1, 'hasActiveInpatient': True},
+    return {'pet': PET_INFO, 'summary': {'totalVisits': len(rows), 'completedVisits': sum(row['derivedStatus'] == 'Done' for row in rows),
+            'activeVisits': sum(row['derivedStatus'] in ('Booked', 'CheckedIn', 'InProgress', 'WaitOwner') for row in rows),
+            'totalMedicalRecords': len(rows), 'totalGroomingNotes': len(rows),
+            'totalInpatientStays': sum(bool(row['inpatientRecord']) for row in rows),
+            'hasActiveInpatient': any(row['inpatientRecord'] and row['inpatientRecord']['status'] == 'Admitted' for row in rows)},
             'activeInpatient': next((row['inpatientRecord'] for row in rows if row['inpatientRecord']), None),
             'sharedPosts': [], 'timeline': selected[start:start+size],
             'pagination': {'page': page, 'limit': size, 'total': len(selected), 'totalPages': (len(selected) + size - 1) // size}}
@@ -88,11 +93,15 @@ class PetTimelineE2E(unittest.TestCase):
         self.role = 'PetOwner'
         self.timeline_requests, self.writes, self.unhandled, self.page_errors = [], [], [], []
         self.fail_next_timeline = False
+        self.timeline_failure_status = 500
+        self.pet_list_failures = 0
+        self.pet_list_rows = [dict(PET_INFO, name='Milo'), dict(PET_INFO, _id=FOREIGN_PET, code='PET-1056', name='Bông', species='Mèo', breed='Anh lông ngắn', status='Deleted')]
         self.rows = [milestone(ORDER, CODE, '2026-11-18', inpatient=True)] + [
-            milestone(f'{i:024x}', f'APT-TL-QA-{i}', f'2026-11-{(i % 18) + 1:02d}',
+            milestone(f'{i:024x}', f'APT-{i}', f'2026-11-{(i % 18) + 1:02d}',
                       category='Grooming' if i == 72 else 'Examination', inpatient=False)
             for i in range(72, 92)
         ]
+        self.rows[0]['derivedStatus'] = 'InProgress'
         self.ctx = self.browser.new_context(viewport={'width': 1440, 'height': 900}, timezone_id='Asia/Ho_Chi_Minh', service_workers='block')
         self.addCleanup(self.ctx.close)
         install_auth(self.ctx)
@@ -109,9 +118,18 @@ class PetTimelineE2E(unittest.TestCase):
         req, method, path = route.request, route.request.method, parsed.path
         if method not in ('GET', 'HEAD'):
             self.writes.append((method, path))
+        if method == 'GET' and path == '/api/pets':
+            if self.pet_list_failures:
+                self.pet_list_failures -= 1
+                return route.fulfill(status=500, json={'message': 'Không tải được danh sách'})
+            query = parse_qs(parsed.query)
+            page, limit = int(query.get('page', ['1'])[0]), int(query.get('limit', ['12'])[0])
+            self.assertEqual(query.get('status'), ['All'])
+            pets = self.pet_list_rows[(page-1)*limit:page*limit]
+            return route.fulfill(json={'items': pets, 'page': page, 'total': len(self.pet_list_rows), 'limit': limit, 'totalPages': (len(self.pet_list_rows)+limit-1)//limit})
         if method == 'GET' and path in (PET_PATH, SECOND_PET_PATH):
             pet = dict(PET_INFO, _id=PET if path == PET_PATH else FOREIGN_PET,
-                       name='Milo Timeline QA' if path == PET_PATH else 'Bông Timeline QA',
+                       name='Milo' if path == PET_PATH else 'Bông',
                        ownerId=OWNER['_id'], appointmentNotes=[])
             return route.fulfill(json={'pet': pet, 'appointmentNotes': []})
         if method == 'GET' and path.startswith('/api/inpatient-records/pets/') and path.endswith('/daily-logs'):
@@ -123,7 +141,7 @@ class PetTimelineE2E(unittest.TestCase):
             self.timeline_requests.append((path, query, self.role))
             if self.fail_next_timeline:
                 self.fail_next_timeline = False
-                return route.fulfill(status=500, json={'message': 'fixture failure'})
+                return route.fulfill(status=self.timeline_failure_status, json={'message': 'Không tải được hành trình'})
             if self.role == 'PetOwner' and path == TIMELINE_FOREIGN:
                 return route.fulfill(status=403, json={'message': 'Bạn không có quyền xem dòng thời gian của thú cưng này'})
             page = int(query.get('page', ['1'])[0])
@@ -138,32 +156,35 @@ class PetTimelineE2E(unittest.TestCase):
         if role != 'PetOwner':
             install_auth(self.ctx, role)
         with self.page.expect_response(lambda r: r.request.method == 'GET' and r.url.split('?')[0].endswith('/timeline')) as response:
-            self.page.goto(f'{BASE}/pets/{pet_id}')
+            self.page.goto(f'{BASE}/pet-journeys/{pet_id}')
         self.assertEqual(response.value.status, 200)
-        expect(self.page.get_by_text('Hành trình chăm sóc tổng hợp', exact=True)).to_be_visible()
-        return self.page.get_by_role('region', name='Hành trình chăm sóc tổng hợp')
+        expect(self.page.get_by_text('Các mốc hành trình', exact=True)).to_be_visible()
+        return self.page.get_by_role('region', name='Các mốc hành trình')
 
     def test_owner_sees_active_inpatient_history_soap_and_financials(self):
         self.rows[0]['derivedStatus'] = 'WaitOwner'
         panel = self.open_profile()
         expect(panel.get_by_text('Bé đã xong dịch vụ, mời bạn tới phòng khám đón bé.', exact=True)).to_have_count(0)
         expect(panel.get_by_text('Đang điều trị nội trú', exact=True)).to_be_visible()
-        expect(panel.locator('.timeline-active-inpatient').get_by_text(re.compile('Chẩn đoán nội trú QA'))).to_be_visible()
-        expect(panel.locator('.timeline-active-inpatient').get_by_text('Quan sát nội trú QA', exact=False)).to_be_visible()
+        panel.get_by_text('Xem điều trị nội trú hiện tại', exact=True).click()
+        expect(panel.locator('.timeline-active-inpatient').get_by_text(re.compile('Chẩn đoán nội trú'))).to_be_visible()
+        expect(panel.locator('.timeline-active-inpatient').get_by_text('Quan sát nội trú', exact=False)).to_be_visible()
         expect(panel.get_by_text(f'Hóa đơn {INVOICE_CODE}', exact=True).first).to_be_visible()
         expect(panel.get_by_text('123.456 ₫', exact=False).first).to_be_visible()
         expect(panel.get_by_text(CODE, exact=True)).to_be_visible()
+        panel.locator('.timeline-milestone .ant-collapse-header').first.click()
         panel.get_by_text('Hồ sơ chi tiết · 1 thuốc', exact=True).first.click()
-        expect(panel.get_by_text('Triệu chứng SOAP QA', exact=False)).to_be_visible()
-        expect(panel.get_by_text('Thuốc QA', exact=True)).to_be_visible()
-        expect(panel.get_by_text('Yêu cầu QA', exact=False)).to_be_visible()
+        expect(panel.get_by_text('Triệu chứng SOAP', exact=False)).to_be_visible()
+        expect(panel.get_by_text('Thuốc', exact=True)).to_be_visible()
+        expect(panel.get_by_text('Yêu cầu', exact=False)).to_be_visible()
         self.assertTrue(self.timeline_requests and self.timeline_requests[0][0] == TIMELINE)
 
     def test_vet_and_groomer_never_render_financials(self):
         for role in ('Veterinarian', 'Groomer'):
             with self.subTest(role=role):
                 panel = self.open_profile(role=role)
-                expect(panel.locator('.timeline-active-inpatient').get_by_text(re.compile('Chẩn đoán nội trú QA'))).to_be_visible()
+                panel.get_by_text('Xem điều trị nội trú hiện tại', exact=True).click()
+                expect(panel.locator('.timeline-active-inpatient').get_by_text(re.compile('Chẩn đoán nội trú'))).to_be_visible()
                 expect(panel.get_by_text(CODE, exact=True)).to_be_visible()
                 expect(panel.get_by_text(f'Hóa đơn {INVOICE_CODE}', exact=True)).to_have_count(0)
                 expect(panel.get_by_text('123.456 ₫', exact=False)).to_have_count(0)
@@ -192,15 +213,15 @@ class PetTimelineE2E(unittest.TestCase):
     def test_error_retry_and_empty_filter_state(self):
         self.fail_next_timeline = True
         with self.page.expect_response(lambda r: r.request.method == 'GET' and r.url.split('?')[0].endswith('/timeline')) as first:
-            self.page.goto(f'{BASE}/pets/{PET}')
+            self.page.goto(f'{BASE}/pet-journeys/{PET}')
         self.assertEqual(first.value.status, 500)
         expect(self.page.get_by_role('alert').get_by_text('Không tải được hành trình chăm sóc.')).to_be_visible()
         with self.page.expect_response(lambda r: r.request.method == 'GET' and r.url.split('?')[0].endswith('/timeline')) as retry:
-            self.page.get_by_role('region', name='Hành trình chăm sóc tổng hợp').get_by_role('button', name='Thử lại').click()
+            self.page.get_by_role('region', name='Các mốc hành trình').get_by_role('button', name='Thử lại').click()
         self.assertEqual(retry.value.status, 200)
         expect(self.page.get_by_text(CODE, exact=True)).to_be_visible()
         self.rows = []
-        panel = self.page.get_by_role('region', name='Hành trình chăm sóc tổng hợp')
+        panel = self.page.get_by_role('region', name='Các mốc hành trình')
         panel.get_by_role('combobox', name='Lọc loại mốc').press('ArrowDown')
         self.page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter(has_text='Tiêm phòng').click()
         expect(self.page.get_by_text('Không có mốc nào phù hợp bộ lọc.', exact=True)).to_be_visible()
@@ -244,10 +265,10 @@ class PetTimelineE2E(unittest.TestCase):
                         return await handler.abort()
                     if await req.header_value('authorization') != f'Bearer {TOKEN}':
                         blocked.append((method, path, 'missing token'))
-                        return await handler.fulfill(status=401, json={'message': 'Thiếu phiên QA'})
+                        return await handler.fulfill(status=401, json={'message': 'Thiếu phiên'})
                     if method == 'GET' and path in (PET_PATH, SECOND_PET_PATH):
                         value = dict(PET_INFO, _id=PET if path == PET_PATH else FOREIGN_PET,
-                                     name='Milo Timeline QA' if path == PET_PATH else 'Bông Timeline QA',
+                                     name='Milo' if path == PET_PATH else 'Bông',
                                      ownerId=OWNER['_id'], appointmentNotes=[])
                         return await handler.fulfill(json={'pet': value, 'appointmentNotes': []})
                     if method == 'GET' and path in (TIMELINE, TIMELINE_FOREIGN):
@@ -269,9 +290,9 @@ class PetTimelineE2E(unittest.TestCase):
                 await context.route('**/*', route)
                 page = await context.new_page()
                 page.set_default_timeout(8000)
-                await page.goto(f'{BASE}/pets/{PET}', wait_until='domcontentloaded')
+                await page.goto(f'{BASE}/pet-journeys/{PET}', wait_until='domcontentloaded')
                 await asyncio.wait_for(first_started.wait(), timeout=5)
-                await page.evaluate("url => { history.pushState({}, '', url); dispatchEvent(new PopStateEvent('popstate')); }", f'/pets/{FOREIGN_PET}')
+                await page.evaluate("url => { history.pushState({}, '', url); dispatchEvent(new PopStateEvent('popstate')); }", f'/pet-journeys/{FOREIGN_PET}')
                 await page.get_by_role('alert').get_by_text('Không tải được hành trình chăm sóc.').wait_for()
                 release_first.set()
                 await asyncio.wait_for(first_completed.wait(), timeout=5)
@@ -297,11 +318,106 @@ class PetTimelineE2E(unittest.TestCase):
 
     def test_owner_foreign_pet_is_denied_without_leaking_previous_pet(self):
         self.open_profile()
-        self.page.goto(f'{BASE}/pets/{FOREIGN_PET}')
+        self.page.goto(f'{BASE}/pet-journeys/{FOREIGN_PET}')
         expect(self.page.get_by_role('alert').get_by_text('Không tải được hành trình chăm sóc.')).to_be_visible()
         expect(self.page.get_by_text(CODE, exact=True)).to_have_count(0)
         self.assertEqual(self.timeline_requests[-1][0], TIMELINE_FOREIGN)
         self.assertEqual(self.timeline_requests[-1][2], 'PetOwner')
+
+
+    def test_profile_summary_navigates_to_journey_without_rendering_full_history(self):
+        self.rows = self.rows[:3]
+        self.page.goto(f'{BASE}/pets/{PET}')
+        expect(self.page.get_by_role('heading', name='Milo', exact=True)).to_be_visible()
+        expect(self.page.get_by_text('Giống loài', exact=True)).to_be_visible()
+        expect(self.page.get_by_text('Giống loài (Breed)', exact=True)).to_have_count(0)
+        summary = self.page.get_by_role('region', name='Tổng quan hành trình của bé', exact=True)
+        expect(summary.get_by_text('Lượt hẹn', exact=True)).to_be_visible()
+        expect(self.page.locator('.timeline-milestone')).to_have_count(0)
+        self.assertEqual(self.timeline_requests[-1][1].get('limit'), ['1'])
+        count = len(self.timeline_requests)
+        summary.get_by_role('button', name='Làm mới số liệu').click()
+        expect(summary.get_by_role('button', name='Làm mới số liệu')).to_be_enabled()
+        self.assertGreater(len(self.timeline_requests), count)
+        expect(summary.get_by_text('Lượt hẹn', exact=True)).to_be_visible()
+        Path('tests/screenshots').mkdir(exist_ok=True)
+        self.page.screenshot(path='tests/screenshots/feedback-2-2-pet-profile.png', full_page=True, animations='disabled')
+        summary.get_by_role('link').click()
+        expect(self.page).to_have_url(f'{BASE}/pet-journeys/{PET}')
+        expect(self.page.get_by_role('heading', name='Hành trình của Milo', exact=True)).to_be_visible()
+        expect(self.page.locator('.timeline-milestone').first).to_be_visible()
+        self.page.screenshot(path='tests/screenshots/feedback-2-2-journey-collapsed.png', full_page=True, animations='disabled')
+        self.page.locator('.timeline-milestone .ant-collapse-header').first.click()
+        self.page.get_by_text('Hồ sơ chi tiết · 1 thuốc', exact=True).first.click()
+        expect(self.page.get_by_text('Triệu chứng SOAP', exact=False)).to_be_visible()
+        self.page.wait_for_function("() => !Array.from(document.querySelectorAll('.ant-collapse-content-active')).some(el => el.style.height || /ant-motion-collapse/.test(el.className))")
+        self.page.screenshot(path='tests/screenshots/feedback-2-2-journey-expanded.png', full_page=True, animations='disabled')
+        expect(self.page.get_by_text('Examination', exact=True)).to_have_count(0)
+        expect(self.page.get_by_text('Inpatient', exact=True)).to_have_count(0)
+        expect(self.page.get_by_text('Lễ tân lập hóa đơn khi bạn đến đón bé.', exact=False)).to_have_count(0)
+
+    def test_owner_journey_list_includes_archived_pet_and_selects_pet(self):
+        self.page.goto(f'{BASE}/pet-journeys')
+        expect(self.page.get_by_role('heading', name='Hành trình của bé', exact=True)).to_be_visible()
+        expect(self.page.get_by_role('heading', name='Milo', exact=True)).to_be_visible()
+        expect(self.page.get_by_role('heading', name='Bông', exact=True)).to_be_visible()
+        expect(self.page.get_by_text('Đã lưu trữ', exact=True)).to_be_visible()
+        self.assertEqual(self.timeline_requests, [], 'list must not load every pets clinical records')
+        Path('tests/screenshots').mkdir(exist_ok=True)
+        self.page.screenshot(path='tests/screenshots/feedback-2-2-journey-list.png', full_page=True, animations='disabled')
+        self.page.get_by_role('link', name='Xem hành trình của Milo').click()
+        expect(self.page.get_by_role('heading', name='Hành trình của Milo', exact=True)).to_be_visible()
+
+    def test_background_refresh_preserves_expanded_milestone_and_error_retains_data(self):
+        self.page.clock.install()
+        panel = self.open_profile()
+        panel.locator('.timeline-milestone .ant-collapse-header').first.click()
+        panel.get_by_text('Hồ sơ chi tiết · 1 thuốc', exact=True).first.click()
+        expect(panel.get_by_text('Triệu chứng SOAP', exact=False)).to_be_visible()
+        count = len(self.timeline_requests)
+        self.page.clock.run_for(30100)
+        self.page.clock.resume()
+        expect(panel.get_by_text('Triệu chứng SOAP', exact=False)).to_be_visible()
+        self.assertGreater(len(self.timeline_requests), count)
+        expect(panel.locator('.ant-skeleton')).to_have_count(0)
+        self.fail_next_timeline = True
+        panel.get_by_role('button', name=re.compile('Làm mới$')).click()
+        expect(panel.get_by_text('Chưa cập nhật được dữ liệu mới.', exact=False)).to_be_visible()
+        expect(panel.get_by_text('Triệu chứng SOAP', exact=False)).to_be_visible()
+        panel.get_by_role('button', name='Thử lại', exact=True).click()
+        expect(panel.get_by_text('Chưa cập nhật được dữ liệu mới.', exact=False)).to_have_count(0)
+
+    def test_legacy_inpatient_link_redirects_and_opens_daily_logs(self):
+        self.page.goto(f'{BASE}/pets/{PET}#inpatient-logs')
+        expect(self.page).to_have_url(f'{BASE}/pet-journeys/{PET}#inpatient-logs')
+        expect(self.page.get_by_role('region', name='Nhật ký nội trú', exact=True)).to_be_visible()
+
+
+    def test_journey_list_retry_pagination_and_empty_state(self):
+        self.pet_list_failures = 1
+        self.pet_list_rows = [dict(PET_INFO, _id=f'{i:024x}', name=f'Milo {i}') for i in range(1, 14)]
+        self.page.goto(f'{BASE}/pet-journeys')
+        expect(self.page.get_by_text('Không tải được danh sách thú cưng', exact=True)).to_be_visible()
+        self.page.get_by_role('button', name='Thử lại').click()
+        expect(self.page.get_by_role('heading', name='Milo 1', exact=True)).to_be_visible()
+        self.page.locator('.ant-pagination-item-2').click()
+        expect(self.page.get_by_role('heading', name='Milo 13', exact=True)).to_be_visible()
+        expect(self.page.get_by_role('heading', name='Milo 1', exact=True)).to_have_count(0)
+        self.pet_list_rows = []
+        self.page.reload()
+        expect(self.page.get_by_text('Bạn chưa có hồ sơ thú cưng nào', exact=True)).to_be_visible()
+
+
+    def test_permission_revoked_on_refresh_clears_previous_clinical_content(self):
+        panel = self.open_profile()
+        panel.locator('.timeline-milestone .ant-collapse-header').first.click()
+        panel.get_by_text('Hồ sơ chi tiết · 1 thuốc', exact=True).first.click()
+        expect(panel.get_by_text('Triệu chứng SOAP', exact=False)).to_be_visible()
+        self.timeline_failure_status = 403
+        self.fail_next_timeline = True
+        panel.get_by_role('button', name=re.compile('Làm mới$')).click()
+        expect(panel.get_by_role('alert').get_by_text('Không tải được hành trình chăm sóc.', exact=False)).to_be_visible()
+        expect(panel.get_by_text('Triệu chứng SOAP', exact=False)).to_have_count(0)
 
 
 if __name__ == '__main__':

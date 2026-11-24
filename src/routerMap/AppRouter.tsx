@@ -26,6 +26,7 @@ import AdminProductsPage from '@/pages/AdminProducts';
 import AdminReportsPage from '@/pages/AdminReports';
 import FrontDeskDashboardPage from '@/pages/FrontDeskDashboard';
 import PetProfilePage from '@/pages/PetProfile';
+import PetJourneysPage from '@/pages/PetJourneys';
 import CagesPage from '@/pages/Cages';
 import AppointmentReceptionPage from '@/pages/AppointmentReception';
 import StaffQueuePage from '@/pages/StaffQueue';
@@ -262,6 +263,10 @@ const AppRouter = () => {
       element: <RoleRoute allowRoles={['PetOwner']} />,
       children: [
         {
+          path: ROUTER.PET_JOURNEYS,
+          element: <PetJourneysPage />,
+        },
+        {
           path: ROUTER.MY_COMMUNITY_POSTS,
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
@@ -302,6 +307,10 @@ const AppRouter = () => {
         <RoleRoute allow={['owner']} allowRoles={['Veterinarian', 'Groomer']} />
       ),
       children: [
+        {
+          path: ROUTER.PET_JOURNEY,
+          element: <PetJourneysPage />,
+        },
         {
           path: ROUTER.PET_PROFILE,
           element: (

@@ -8,6 +8,8 @@ const ROUTER = {
   PROFILE: '/profile',
   // Build the real path with generatePath(ROUTER.PET_PROFILE, { petId })
   PET_PROFILE: '/pets/:petId',
+  PET_JOURNEYS: '/pet-journeys',
+  PET_JOURNEY: '/pet-journeys/:petId',
   ADMIN_USERS: '/admin/users',
   ADMIN_SERVICES: '/admin/services',
   ADMIN_PRODUCTS: '/admin/products',

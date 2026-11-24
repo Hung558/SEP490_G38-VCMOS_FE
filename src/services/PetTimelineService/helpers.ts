@@ -109,3 +109,8 @@ export const PET_TIMELINE_TYPE_LABELS = {
 
 export const getPetTimelineStatusLabel = (status: string): string =>
   PET_TIMELINE_STATUS_LABELS[status] || 'Khác';
+
+/** Only local Vietnamese labels are rendered for API category enums. */
+export const getPetTimelineCategoryLabel = (category: string): string =>
+  PET_TIMELINE_TYPE_LABELS[category as keyof typeof PET_TIMELINE_TYPE_LABELS] ||
+  'Dịch vụ khác';

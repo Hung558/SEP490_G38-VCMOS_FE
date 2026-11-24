@@ -42,15 +42,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import { STORAGE, storage } from '@/lib/storage';
-import {
-  getAccountStatus,
-  getProfileSubtitle,
-} from './components/profileContent';
+import { getAccountStatus } from './components/profileContent';
 import OwnerPetsSection from './components/OwnerPetsSection';
 import AdminOverviewSection from './components/AdminOverviewSection';
 import StaffWorkSection from './components/StaffWorkSection';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 const ProfileWrapper = styled.div`
   padding: 32px 24px;
@@ -475,14 +472,16 @@ const ProfilePage: React.FC = () => {
   return (
     <ProfileWrapper>
       <Title
-        level={3}
-        style={{ marginBottom: 4, color: '#0f172a', fontWeight: 800 }}
+        level={1}
+        style={{
+          marginBottom: 24,
+          color: '#0f172a',
+          fontWeight: 800,
+          fontSize: 24,
+        }}
       >
         Thông tin tài khoản
       </Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-        {getProfileSubtitle(role)}
-      </Text>
 
       {/* User Information Card */}
       <ProfileCard>

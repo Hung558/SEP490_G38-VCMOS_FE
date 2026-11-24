@@ -964,7 +964,7 @@ const DashboardPage: React.FC = () => {
           {isPetOwner && record.status === 'Active' && (
             <Link
               to={{
-                pathname: generatePath(ROUTER.PET_PROFILE, {
+                pathname: generatePath(ROUTER.PET_JOURNEY, {
                   petId: record._id,
                 }),
                 hash: PET_INPATIENT_LOGS_HASH,

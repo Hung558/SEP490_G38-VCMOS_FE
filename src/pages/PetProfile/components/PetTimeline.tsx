@@ -12,7 +12,6 @@ import {
   Select,
   Skeleton,
   Space,
-  Statistic,
   Tag,
   Timeline,
   Typography,
@@ -32,6 +31,7 @@ import PetTimelineService, {
   formatTimelineDate,
   getSafeTimelineHttpUrl,
   getPetTimelineStatusLabel,
+  getPetTimelineCategoryLabel,
   PET_TIMELINE_TYPE_LABELS,
   getPetTimelineRefName,
   sanitizeTimelineInvoices,
@@ -49,12 +49,53 @@ import PetTimelineService, {
 } from '@/services/PetTimelineService';
 
 import InvoicePdfButton from '@/components/invoice/InvoicePdfButton';
-import { PAY_AT_COUNTER_TEXT } from '@/services/InvoiceService';
+import { INVOICE_METHOD_LABELS } from '@/services/InvoiceService';
+import TimelineStats from './TimelineStats';
 import PetAiAssessments from './PetAiAssessments';
 
 const { Text, Paragraph } = Typography;
 
 const TimelineWrapper = styled.section`
+  color: #0f172a;
+  .timeline-milestone {
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #fff;
+  }
+  .timeline-milestone > .ant-collapse-item > .ant-collapse-header {
+    align-items: center;
+    padding: 16px;
+  }
+  .milestone-heading {
+    display: grid;
+    gap: 8px;
+  }
+  .milestone-date {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .milestone-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #115e59;
+  }
+  .timeline-content .ant-card-head-title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .timeline-content .ant-card,
+  .timeline-content .ant-collapse {
+    border-color: #cbd5e1;
+  }
+  .timeline-content .ant-typography-secondary,
+  .timeline-ref {
+    color: #475569;
+  }
+  .timeline-content {
+    padding: 4px 0;
+    font-size: 14px;
+  }
   .timeline-filters {
     margin: 12px 0 16px;
   }
@@ -140,7 +181,9 @@ const InvoiceSummary = ({
       </Descriptions.Item>
       {invoice.paymentMethod && (
         <Descriptions.Item label="Phương thức">
-          {invoice.paymentMethod}
+          {INVOICE_METHOD_LABELS[
+            invoice.paymentMethod as keyof typeof INVOICE_METHOD_LABELS
+          ] || 'Khác'}
         </Descriptions.Item>
       )}
       {invoice.issuedAt && (
@@ -387,23 +430,6 @@ const Milestone = ({
   ownerView: boolean;
 }) => (
   <div className="timeline-content">
-    <div className="timeline-card-title">
-      <Text strong>{formatTimelineDate(item.date)}</Text>
-      {item.slotStart && (
-        <Text type="secondary">
-          {item.slotStart}
-          {item.slotEnd ? `–${item.slotEnd}` : ''}
-        </Text>
-      )}
-      <StatusTag status={item.derivedStatus} label={item.statusLabel} />
-      <Text className="timeline-ref">
-        {item.code}
-        {!item.isOnline ? ' · khám tại chỗ' : ''}
-      </Text>
-      {item.categories.map(category => (
-        <Tag key={category}>{category}</Tag>
-      ))}
-    </div>
     {ownerView &&
       item.derivedStatus === 'WaitOwner' &&
       item.inpatientRecord?.status !== 'Admitted' && (
@@ -411,7 +437,6 @@ const Milestone = ({
           type="success"
           showIcon
           message="Bé đã xong dịch vụ, mời bạn tới phòng khám đón bé."
-          description={PAY_AT_COUNTER_TEXT}
         />
       )}
     {item.note && (
@@ -497,6 +522,7 @@ const PetTimeline = ({
 }: PetTimelineProps) => {
   const [result, setResult] = useState<PetTimelinePage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<PetTimelineType>('All');
   const [status, setStatus] = useState<PetTimelineStatus | undefined>();
@@ -518,7 +544,7 @@ const PetTimeline = ({
     if (dates[0]) query.from = dates[0].format('YYYY-MM-DD');
     if (dates[1]) query.to = dates[1].format('YYYY-MM-DD');
 
-    setLoading(true);
+    setRefreshing(true);
     void PetTimelineService.listPetTimeline(petId, query, controller.signal)
       .then(response => {
         if (controller.signal.aborted) return;
@@ -533,14 +559,15 @@ const PetTimeline = ({
         setResult(sanitizeTimelineInvoices(response, invoiceRole));
         setError(null);
       })
-      .catch(() => {
+      .catch(error => {
         if (controller.signal.aborted) return;
-        setResult(null);
+        if ([401, 403, 404].includes(error?.response?.status)) setResult(null);
         setError('Không tải được hành trình chăm sóc. Vui lòng thử lại.');
       })
       .finally(() => {
         if (!controller.signal.aborted) {
           setLoading(false);
+          setRefreshing(false);
         }
       });
     return () => controller.abort();
@@ -572,7 +599,6 @@ const PetTimeline = ({
     setPage(next);
   };
   const refresh = () => {
-    setLoading(true);
     setAttempt(previous => previous + 1);
   };
   const showInvoices = canViewTimelineInvoices(invoiceRole);
@@ -584,10 +610,9 @@ const PetTimeline = ({
   // Preserve live status updates for open visits without overlapping requests
   // or requesting while the tab is hidden.
   useEffect(() => {
-    if (!hasActiveCare || loading) return;
+    if (!hasActiveCare || refreshing) return;
     const refreshVisible = () => {
       if (document.visibilityState === 'visible') {
-        setLoading(true);
         setAttempt(previous => previous + 1);
       }
     };
@@ -597,44 +622,21 @@ const PetTimeline = ({
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', refreshVisible);
     };
-  }, [hasActiveCare, loading]);
+  }, [hasActiveCare, refreshing]);
 
   return (
     <TimelineWrapper
       className="timeline-card"
       aria-labelledby={`pet-timeline-${petId}`}
     >
-      <div className="timeline-title" id={`pet-timeline-${petId}`}>
-        <FieldTimeOutlined style={{ color: '#0d9488' }} /> Hành trình chăm sóc
-        tổng hợp
-      </div>
-      <div className="timeline-subtitle">
-        Lịch hẹn, dịch vụ, bệnh án, chăm sóc, cận lâm sàng và các đợt điều trị
-        nội trú của bé.
-      </div>
+      <h2 className="timeline-title" id={`pet-timeline-${petId}`}>
+        <FieldTimeOutlined style={{ color: '#115e59' }} /> Các mốc hành trình
+      </h2>
+      <Text style={{ color: '#475569' }}>Chọn một mốc để xem chi tiết.</Text>
 
       {result && (
         <>
-          <Space wrap size={[12, 12]} style={{ margin: '12px 0' }}>
-            <Statistic title="Lượt hẹn" value={result.summary.totalVisits} />
-            <Statistic
-              title="Đã hoàn tất"
-              value={result.summary.completedVisits}
-            />
-            <Statistic title="Đang xử lý" value={result.summary.activeVisits} />
-            <Statistic
-              title="Bệnh án"
-              value={result.summary.totalMedicalRecords}
-            />
-            <Statistic
-              title="Ghi nhận chăm sóc"
-              value={result.summary.totalGroomingNotes}
-            />
-            <Statistic
-              title="Đợt nội trú"
-              value={result.summary.totalInpatientStays}
-            />
-          </Space>
+          <TimelineStats summary={result.summary} />
           {result.summary.hasActiveInpatient && result.activeInpatient && (
             <Card className="timeline-active-inpatient" size="small">
               <Space wrap>
@@ -651,22 +653,40 @@ const PetTimeline = ({
                   </Text>
                 )}
               </Space>
-              {result.activeInpatient.initialDiagnosis && (
-                <Paragraph style={{ margin: '8px 0 0' }}>
-                  <Text strong>Chẩn đoán ban đầu: </Text>
-                  {result.activeInpatient.initialDiagnosis}
-                </Paragraph>
-              )}
-              {result.activeInpatient.treatmentPlan && (
-                <Paragraph style={{ margin: '4px 0 0' }}>
-                  <Text strong>Kế hoạch điều trị: </Text>
-                  {result.activeInpatient.treatmentPlan}
-                </Paragraph>
-              )}
-              <InpatientLogs logs={result.activeInpatient.dailyLogs} />
-              {showInvoices && result.activeInpatient.invoice && (
-                <InvoiceSummary invoice={result.activeInpatient.invoice} />
-              )}
+              <Collapse
+                size="small"
+                style={{ marginTop: 12 }}
+                items={[
+                  {
+                    key: 'active-care',
+                    label: 'Xem điều trị nội trú hiện tại',
+                    children: (
+                      <>
+                        {result.activeInpatient.initialDiagnosis && (
+                          <Paragraph>
+                            <Text strong>Chẩn đoán ban đầu: </Text>
+                            {result.activeInpatient.initialDiagnosis}
+                          </Paragraph>
+                        )}
+                        {result.activeInpatient.treatmentPlan && (
+                          <Paragraph>
+                            <Text strong>Kế hoạch điều trị: </Text>
+                            {result.activeInpatient.treatmentPlan}
+                          </Paragraph>
+                        )}
+                        <InpatientLogs
+                          logs={result.activeInpatient.dailyLogs}
+                        />
+                        {showInvoices && result.activeInpatient.invoice && (
+                          <InvoiceSummary
+                            invoice={result.activeInpatient.invoice}
+                          />
+                        )}
+                      </>
+                    ),
+                  },
+                ]}
+              />
             </Card>
           )}
         </>
@@ -699,6 +719,7 @@ const PetTimeline = ({
         />
         <DatePicker.RangePicker
           aria-label="Lọc khoảng ngày"
+          placeholder={['Từ ngày', 'Đến ngày']}
           value={dates}
           onChange={value =>
             updateDates((value || [null, null]) as [Dayjs | null, Dayjs | null])
@@ -716,17 +737,30 @@ const PetTimeline = ({
           Xóa bộ lọc
         </Button>
         <Button
-          icon={<ReloadOutlined spin={loading} />}
-          disabled={loading}
+          icon={<ReloadOutlined spin={refreshing} />}
+          disabled={refreshing}
           onClick={refresh}
         >
           Làm mới
         </Button>
       </Space>
 
+      {error && result && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Chưa cập nhật được dữ liệu mới. Đang hiển thị lần tải thành công gần nhất."
+          action={
+            <Button onClick={refresh} disabled={refreshing}>
+              Thử lại
+            </Button>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
       {loading ? (
         <Skeleton active paragraph={{ rows: 5 }} />
-      ) : error ? (
+      ) : error && !result ? (
         <Alert
           type="error"
           showIcon
@@ -755,13 +789,52 @@ const PetTimeline = ({
                       ? 'gray'
                       : 'blue',
                 children: (
-                  <Milestone
-                    item={item}
-                    showInvoices={showInvoices}
-                    ownerView={
-                      invoiceRole === 'PetOwner' &&
-                      result.activeInpatient?.status !== 'Admitted'
-                    }
+                  <Collapse
+                    className="timeline-milestone"
+                    expandIconPosition="end"
+                    items={[
+                      {
+                        key: item.id,
+                        label: (
+                          <div className="milestone-heading">
+                            <div className="timeline-card-title">
+                              <time
+                                className="milestone-date"
+                                dateTime={item.date}
+                              >
+                                {formatTimelineDate(item.date)}
+                              </time>
+                              {item.slotStart && (
+                                <Text style={{ color: '#475569' }}>
+                                  {item.slotStart}
+                                  {item.slotEnd ? `–${item.slotEnd}` : ''}
+                                </Text>
+                              )}
+                              <StatusTag status={item.derivedStatus} />
+                            </div>
+                            <div className="milestone-title">
+                              {item.categories
+                                .map(getPetTimelineCategoryLabel)
+                                .join(' · ') || 'Lịch hẹn'}
+                            </div>
+                            <Text className="timeline-ref">
+                              {item.code}
+                              {!item.isOnline ? ' · Khám tại chỗ' : ''}
+                            </Text>
+                          </div>
+                        ),
+                        children: (
+                          <Milestone
+                            item={item}
+                            showInvoices={showInvoices}
+                            ownerView={
+                              invoiceRole === 'PetOwner' &&
+                              result.activeInpatient?.status !== 'Admitted'
+                            }
+                          />
+                        ),
+                      },
+                    ]}
                   />
                 ),
               }))}

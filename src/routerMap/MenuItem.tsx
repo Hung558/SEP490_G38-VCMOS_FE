@@ -14,6 +14,7 @@ import {
   BarChartOutlined,
   EditOutlined,
   SafetyCertificateOutlined,
+  FieldTimeOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -102,6 +103,11 @@ export const MenuItemCommon = (): MenuItem[] => {
       key: ROUTER.DASHBOARD,
       label: 'Bảng điều khiển',
       icon: <DashboardOutlined />,
+    },
+    {
+      key: ROUTER.PET_JOURNEYS,
+      label: 'Hành trình của bé',
+      icon: <FieldTimeOutlined />,
     },
     {
       key: ROUTER.MY_INVOICES,
