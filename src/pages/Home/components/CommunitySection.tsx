@@ -73,6 +73,12 @@ const Toolbar = styled.div`
     max-width: 100%;
     overflow-x: auto;
   }
+
+  .toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
 `;
 
 const PostGrid = styled.div`
@@ -100,6 +106,13 @@ const Footer = styled.div`
   text-align: center;
 `;
 
+// The home page lists "Trao đổi" first and opens on it, for every role (24/11).
+// The community page keeps FEED_TABS' own order.
+const HOME_FEED_TABS = [
+  ...FEED_TABS.filter(item => item.key === 'Discussion'),
+  ...FEED_TABS.filter(item => item.key !== 'Discussion'),
+];
+
 /**
  * Latest Published community posts on the home page, for every role. Guests
  * and clinic staff only read; pet owners can also like from here.
@@ -107,7 +120,7 @@ const Footer = styled.div`
 const CommunitySection: React.FC = () => {
   const navigate = useNavigate();
   const viewer = useCommunityViewer();
-  const [tab, setTab] = useState<CommunityPostType>('TimelineShare');
+  const [tab, setTab] = useState<CommunityPostType>(HOME_FEED_TABS[0].key);
   const { result, loading, error, retry } = usePublicPosts(
     tab,
     1,
@@ -136,14 +149,26 @@ const CommunitySection: React.FC = () => {
           aria-label="Chọn loại bài cộng đồng"
           value={tab}
           onChange={setTab}
-          options={FEED_TABS.map(item => ({
+          options={HOME_FEED_TABS.map(item => ({
             value: item.key,
             label: item.label,
           }))}
         />
-        <Button onClick={() => navigate(feedPath)}>
-          Xem tất cả <ArrowRightOutlined />
-        </Button>
+        {/* 24/11: "Viết bài trao đổi" sits up here, beside "Xem tất cả" */}
+        <div className="toolbar-actions">
+          {viewer.canInteract && (
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => navigate(`${ROUTER.MY_COMMUNITY_POSTS}?compose=1`)}
+            >
+              Viết bài trao đổi
+            </Button>
+          )}
+          <Button onClick={() => navigate(feedPath)}>
+            Xem tất cả <ArrowRightOutlined />
+          </Button>
+        </div>
       </Toolbar>
 
       {error ? (
@@ -184,22 +209,14 @@ const CommunitySection: React.FC = () => {
         />
       )}
 
-      <Footer>
-        {viewer.canInteract ? (
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`${ROUTER.MY_COMMUNITY_POSTS}?compose=1`)}
-          >
-            Viết bài trao đổi
-          </Button>
-        ) : !viewer.signedIn ? (
+      {!viewer.signedIn && (
+        <Footer>
           <span>
             Đăng nhập bằng tài khoản chủ nuôi để thích, bình luận và chia sẻ
             hành trình của bé.
           </span>
-        ) : null}
-      </Footer>
+        </Footer>
+      )}
     </SectionWrapper>
   );
 };

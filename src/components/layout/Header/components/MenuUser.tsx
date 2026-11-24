@@ -152,7 +152,7 @@ const MenuUser = () => {
       label: (
         <Link className="btn-function" to={ROUTER.PROFILE}>
           <UserOutlined style={{ fontSize: '16px' }} />
-          <span>Thông tin cá nhân</span>
+          <span>Thông tin tài khoản</span>
         </Link>
       ),
     },
