@@ -15,6 +15,8 @@ import {
   EditOutlined,
   SafetyCertificateOutlined,
   RobotOutlined,
+  HistoryOutlined,
+  CommentOutlined,
 } from '@ant-design/icons';
 
 import ROUTER from './ROUTER';
@@ -97,13 +99,18 @@ export const MenuItemBreadcrumbs = () => {
 
 // No "Trang chủ" item in any sidebar (24/11): the dashboard header button and
 // "Trở về Trang chủ" under the sidebar already lead home.
-// 24/11: "Hành trình của bé" is a dashboard tab now; the AI check has its own item
+// The journey item opens the existing dashboard tab; no duplicate pet list.
 export const MenuItemCommon = (): MenuItem[] => {
   return [
     {
       key: ROUTER.DASHBOARD,
       label: 'Bảng điều khiển',
       icon: <DashboardOutlined />,
+    },
+    {
+      key: `${ROUTER.DASHBOARD}?tab=journey`,
+      label: 'Hành trình của bé',
+      icon: <HistoryOutlined />,
     },
     {
       key: ROUTER.AI_ASSESSMENT,
@@ -115,8 +122,11 @@ export const MenuItemCommon = (): MenuItem[] => {
       label: 'Hóa đơn',
       icon: <DollarOutlined />,
     },
-    // The public feed (/community) lives in the home layout, so it is reached
-    // from the home header rather than from this sidebar
+    {
+      key: ROUTER.COMMUNITY,
+      label: 'Cộng đồng',
+      icon: <CommentOutlined />,
+    },
     {
       key: ROUTER.MY_COMMUNITY_POSTS,
       icon: <EditOutlined />,
@@ -145,6 +155,11 @@ export const MenuItemStaff = (): MenuItem[] => {
 export const MenuItemReceptionist = (): MenuItem[] => {
   return [
     ...MenuItemStaff(),
+    {
+      key: ROUTER.COMMUNITY,
+      label: 'Cộng đồng',
+      icon: <CommentOutlined />,
+    },
     {
       key: ROUTER.FRONT_DESK_DASHBOARD,
       label: 'Tổng quan lễ tân',

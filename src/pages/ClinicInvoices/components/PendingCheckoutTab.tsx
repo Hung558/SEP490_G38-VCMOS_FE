@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Space, Table, Tag, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  DatePicker,
+  Segmented,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DollarOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -17,6 +26,22 @@ import InvoiceService, {
   INVOICE_LIST_LIMIT_MAX,
 } from '@/services/InvoiceService';
 
+import {
+  getInvoicePeriodRange,
+  getInvoiceRangePresets,
+  getTodayRange,
+  INVOICE_PERIOD_OPTIONS,
+} from '@/components/invoice/invoiceRange';
+import type {
+  InvoicePeriod,
+  InvoiceRange,
+} from '@/components/invoice/invoiceRange';
+import {
+  FilterCard,
+  ResponsiveFilterRow,
+} from '../../AppointmentReception/components/styles';
+
+const { RangePicker } = DatePicker;
 const { Text } = Typography;
 const PAGE_SIZE = 10;
 
@@ -29,9 +54,9 @@ interface PendingCheckoutTabProps {
 }
 
 /**
- * SCR-20 "Order search" (nghiệp vụ 4.6, 8.2): mọi đơn "Chờ chủ đón" ở mọi ngày
- * hẹn, vì khách được đến sớm hoặc muộn (4.3). Khi khách đến đón, lễ tân bấm
- * Thanh toán để lập hóa đơn và thu tiền.
+ * Orders awaiting pickup, filtered by appointment date (Vietnam today by default).
+ * Clearing the range includes older unpaid visits; invoice lookup stays unfiltered
+ * because the bill may have been issued on a different date.
  */
 const PendingCheckoutTab = ({
   canPay,
@@ -40,6 +65,10 @@ const PendingCheckoutTab = ({
   onRefresh,
 }: PendingCheckoutTabProps) => {
   const [page, setPage] = useState(1);
+  const [period, setPeriod] = useState<InvoicePeriod>('day');
+  const [range, setRange] = useState<InvoiceRange>(getTodayRange);
+  const from = range?.[0]?.format('YYYY-MM-DD');
+  const to = range?.[1]?.format('YYYY-MM-DD');
   const [orders, setOrders] = useState<StaffAppointment[]>([]);
   const [total, setTotal] = useState(0);
   const [unpaid, setUnpaid] = useState<Map<string, Invoice>>(new Map());
@@ -53,16 +82,17 @@ const PendingCheckoutTab = ({
     setError(undefined);
     Promise.all([
       AppointmentOrderService.listStaffAppointments(
-        { status: 'WaitOwner', page, limit: PAGE_SIZE },
+        { status: 'WaitOwner', from, to, page, limit: PAGE_SIZE },
         { signal }
       ),
-      // A bill issued but not paid yet (e.g. waiting for VNPay) keeps the order Wait Owner
+      // A bill issued but not paid yet (e.g. waiting for QR payment) keeps the order Wait Owner
       InvoiceService.list(
         { paymentStatus: 'Unpaid', limit: INVOICE_LIST_LIMIT_MAX },
         { signal }
       ),
     ])
       .then(([orderRes, invoiceRes]) => {
+        if (signal.aborted) return;
         setOrders(orderRes.data || []);
         setTotal(orderRes.pagination?.total || 0);
         const map = new Map<string, Invoice>();
@@ -83,7 +113,7 @@ const PendingCheckoutTab = ({
         if (!signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [page, revision]);
+  }, [from, to, page, revision]);
 
   const columns: ColumnsType<StaffAppointment> = [
     {
@@ -198,8 +228,8 @@ const PendingCheckoutTab = ({
         message="Các bé đã xong mọi dịch vụ và đang chờ trong chuồng (Chờ chủ đón)."
         description={
           canPay
-            ? 'Khi khách đến đón, bấm Thanh toán để lập hóa đơn và thu tiền mặt, VNPay QR hoặc chuyển khoản VietQR (PayOS). Thanh toán xong đơn chuyển Hoàn tất. Danh sách gồm mọi ngày hẹn vì khách có thể đến sớm hoặc muộn.'
-            : 'Lễ tân lập hóa đơn và thu tiền khi khách đến đón. Danh sách gồm mọi ngày hẹn.'
+            ? 'Khi khách đến đón, bấm Thanh toán để lập hóa đơn và thu tiền mặt hoặc thanh toán QR. Thanh toán xong đơn chuyển Hoàn tất. Mặc định hiển thị ngày hẹn hôm nay. Đổi hoặc xóa khoảng ngày để xem các ca cũ chưa thanh toán.'
+            : 'Lễ tân lập hóa đơn và thu tiền khi khách đến đón. Mặc định hiển thị ngày hẹn hôm nay. Đổi hoặc xóa khoảng ngày để xem các ca cũ chưa thanh toán.'
         }
       />
       {error && (
@@ -214,18 +244,46 @@ const PendingCheckoutTab = ({
           }
         />
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh}>
-          Làm mới
-        </Button>
-      </div>
+      <FilterCard>
+        <ResponsiveFilterRow>
+          <Segmented<InvoicePeriod>
+            aria-label="Kỳ chờ thanh toán"
+            value={period}
+            options={INVOICE_PERIOD_OPTIONS}
+            onChange={next => {
+              setPeriod(next);
+              if (next !== 'custom') setRange(getInvoicePeriodRange(next));
+              setPage(1);
+            }}
+          />
+          <RangePicker
+            aria-label="Khoảng ngày hẹn"
+            value={range}
+            format="DD/MM/YYYY"
+            placeholder={['Từ ngày', 'Đến ngày']}
+            presets={getInvoiceRangePresets()}
+            onChange={value => {
+              setRange(value);
+              setPeriod('custom');
+              setPage(1);
+            }}
+          />
+          <Button icon={<ReloadOutlined />} onClick={onRefresh}>
+            Làm mới
+          </Button>
+        </ResponsiveFilterRow>
+      </FilterCard>
       <Table
         rowKey="_id"
         columns={columns}
         dataSource={orders}
         loading={loading}
         scroll={{ x: 870 }}
-        locale={{ emptyText: 'Không có bé nào đang chờ chủ đón.' }}
+        locale={{
+          emptyText: range
+            ? 'Không có ca chờ thanh toán trong khoảng ngày đã chọn. Đổi hoặc xóa khoảng ngày để xem các ca khác.'
+            : 'Không có bé nào đang chờ chủ đón.',
+        }}
         pagination={{
           current: page,
           pageSize: PAGE_SIZE,

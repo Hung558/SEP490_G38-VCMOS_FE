@@ -48,8 +48,7 @@ export const INVOICE_STATUS_COLORS: Record<InvoicePaymentStatus, string> = {
 export const INVOICE_METHOD_LABELS: Record<InvoicePaymentMethod, string> = {
   Cash: 'Tiền mặt',
   VNPay: 'VNPay',
-  // Same words as the BE receipt PDF
-  PayOS: 'PayOS (VietQR)',
+  PayOS: 'Thanh toán QR',
 };
 
 export const INVOICE_ITEM_TYPE_LABELS: Record<InvoiceItemType, string> = {
@@ -71,7 +70,7 @@ export const INVOICE_METHODS: InvoicePaymentMethod[] = [
 
 const PAYOS_STATUS_LABELS: Record<string, string> = {
   PENDING: 'Đang chờ khách chuyển khoản',
-  PROCESSING: 'PayOS đang xử lý giao dịch',
+  PROCESSING: 'Đang xử lý giao dịch thanh toán QR',
   PAID: 'Đã thanh toán',
   UNDERPAID: 'Khách chuyển thiếu tiền',
   CANCELLED: 'Giao dịch đã bị hủy',
@@ -246,7 +245,7 @@ export const MSG_PRODUCT_INACTIVE =
  * clinic also takes a VietQR bank transfer through PayOS (BE 39a55d6).
  */
 export const PAY_AT_COUNTER_TEXT =
-  'Lễ tân lập hóa đơn khi bạn đến đón bé. Bạn thanh toán tại quầy bằng tiền mặt, hoặc quét mã QR (VNPay hoặc chuyển khoản VietQR) do lễ tân đưa.';
+  'Lễ tân lập hóa đơn khi bạn đến đón bé. Bạn thanh toán tại quầy bằng tiền mặt, hoặc quét mã QR do lễ tân đưa.';
 
 export const getInvoiceStatusLabel = (status?: string) =>
   INVOICE_STATUS_LABELS[status as InvoicePaymentStatus] || status || '-';
@@ -609,9 +608,9 @@ export const readInvoiceError = (error: unknown, fallback: string) => {
 
 const GENERIC_INVOICE_ERROR = 'Lỗi máy chủ khi xử lý hóa đơn và thanh toán';
 export const PAYOS_CHECK_UNREACHABLE =
-  'Chưa hỏi được PayOS (mạng tới PayOS đang chậm hoặc gián đoạn). Mã vẫn còn hiệu lực, hãy thử lại sau ít giây.';
+  'Chưa kiểm tra được thanh toán QR (kết nối đang chậm hoặc gián đoạn). Mã QR vẫn còn hiệu lực, hãy thử lại sau ít giây.';
 export const PAYOS_CREATE_UNREACHABLE =
-  'Chưa tạo được mã: không kết nối được tới PayOS. Thử lại sau ít giây hoặc chọn phương thức khác.';
+  'Chưa tạo được mã QR: không kết nối được tới cổng thanh toán. Thử lại sau ít giây hoặc chọn phương thức khác.';
 
 /**
  * The BE does not always reach PayOS: it answers 502/504, or a bare 500 when

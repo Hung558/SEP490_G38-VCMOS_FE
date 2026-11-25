@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, DatePicker, Modal, Select } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  DatePicker,
+  Modal,
+  Select,
+  Segmented,
+} from 'antd';
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import type { Invoice, InvoicePaymentStatus, Pet } from '@/types';
@@ -16,10 +24,15 @@ import InvoiceDetailView from '@/components/invoice/InvoiceDetailView';
 import InvoicePdfButton from '@/components/invoice/InvoicePdfButton';
 import {
   getInvoiceRangePresets,
+  getInvoicePeriodRange,
+  INVOICE_PERIOD_OPTIONS,
   getTodayRange,
   isTodayRange,
 } from '@/components/invoice/invoiceRange';
-import type { InvoiceRange } from '@/components/invoice/invoiceRange';
+import type {
+  InvoiceRange,
+  InvoicePeriod,
+} from '@/components/invoice/invoiceRange';
 import {
   FilterCard,
   PageHeader,
@@ -41,6 +54,7 @@ const MyInvoicesPage = () => {
   const [pets, setPets] = useState<Pet[]>([]);
   const [petId, setPetId] = useState<string>();
   const [status, setStatus] = useState<InvoicePaymentStatus>();
+  const [period, setPeriod] = useState<InvoicePeriod>('day');
   const [range, setRange] = useState<InvoiceRange>(getTodayRange);
   const [page, setPage] = useState(1);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -125,6 +139,16 @@ const MyInvoicesPage = () => {
 
         <FilterCard>
           <ResponsiveFilterRow>
+            <Segmented<InvoicePeriod>
+              aria-label="Kỳ hóa đơn"
+              value={period}
+              options={INVOICE_PERIOD_OPTIONS}
+              onChange={next => {
+                setPeriod(next);
+                if (next !== 'custom') setRange(getInvoicePeriodRange(next));
+                setPage(1);
+              }}
+            />
             <RangePicker
               value={range}
               format="DD/MM/YYYY"
@@ -132,6 +156,7 @@ const MyInvoicesPage = () => {
               presets={getInvoiceRangePresets()}
               onChange={value => {
                 setRange(value);
+                setPeriod('custom');
                 resetPage();
               }}
               aria-label="Khoảng ngày lập"

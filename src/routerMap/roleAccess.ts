@@ -63,3 +63,11 @@ export const getBookingPath = (
   }
   return undefined;
 };
+
+/** Only pet owners may visit the public homepage while signed in. */
+export const canVisitHomepage = (role?: string): boolean =>
+  normalizeRole(role) === 'PetOwner';
+
+/** These readers keep their workspace navigation when browsing the community. */
+export const usesCommunitySidebar = (role?: string): boolean =>
+  ['PetOwner', 'Receptionist'].includes(normalizeRole(role));
