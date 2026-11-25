@@ -326,7 +326,7 @@ const ExamRecordCase = ({
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message="Bệnh án đã khóa sau khi thanh toán (BR-14), chỉ xem được."
+            message="Bệnh án đã khóa sau khi thanh toán, chỉ xem được."
           />
           <MedicalRecordView record={record} />
         </>

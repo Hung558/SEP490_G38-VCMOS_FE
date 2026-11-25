@@ -276,7 +276,7 @@ const ProfilePage: React.FC = () => {
       const res: any = await UserService.updateMyProfile(payload);
       if (res && res.user) {
         setProfile(res.user);
-        toast.success('Cập nhật thông tin tài khoản thành công (MSG17)!');
+        toast.success('Cập nhật thông tin tài khoản thành công!');
         setIsEditModalOpen(false);
 
         const currentInfo = storage.getLocalStorage<any>(STORAGE.USER_INFO);

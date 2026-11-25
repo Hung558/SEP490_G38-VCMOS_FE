@@ -121,10 +121,10 @@ export const getCageBlockReason = (
 ): string | undefined => {
   if (cage.status !== 'Available') return 'Chuồng đang có thú cưng';
   if (cage.isIsolated && !requiresIsolation) {
-    return 'Chuồng cách ly chỉ dành cho thú cưng nghi mắc bệnh lây (BR-11)';
+    return 'Chuồng cách ly chỉ dành cho thú cưng nghi mắc bệnh lây';
   }
   if (!cage.isIsolated && requiresIsolation) {
-    return 'Thú cưng cần cách ly phải vào chuồng cách ly (BR-11)';
+    return 'Thú cưng cần cách ly phải vào chuồng cách ly';
   }
   if (!canCageHoldPet(cage, petWeight, requiresIsolation)) {
     return `Chuồng cỡ ${cage.size} không đủ cho thú cưng ${petWeight} kg`;

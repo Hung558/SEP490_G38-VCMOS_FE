@@ -197,7 +197,7 @@ const SoapForm = ({
       form.setFields(
         missing.map(key => ({
           name: key,
-          errors: ['Bắt buộc nhập khi hoàn tất ca khám (BR-13)'],
+          errors: ['Bắt buộc nhập khi hoàn tất ca khám'],
         }))
       );
       toast.error(MSG_SOAP_REQUIRED);
@@ -241,7 +241,7 @@ const SoapForm = ({
           showIcon
           style={{ marginBottom: 16 }}
           message="Ca khám đã hoàn tất."
-          description="Bệnh án vẫn sửa và lưu được cho tới khi lễ tân thu tiền (BR-14)."
+          description="Bệnh án vẫn sửa và lưu được cho tới khi lễ tân thu tiền."
         />
       )}
 
@@ -547,7 +547,7 @@ const SoapForm = ({
           {canComplete && Boolean(openSubtasks) && (
             <Text type="danger" role="alert">
               Còn {openSubtasks} sub-task chưa hoàn tất. Vui lòng hoàn thiện
-              bệnh án và đóng mọi sub-task trước khi hoàn tất (MSG26).
+              bệnh án và đóng mọi sub-task trước khi hoàn tất.
             </Text>
           )}
           {canComplete && (

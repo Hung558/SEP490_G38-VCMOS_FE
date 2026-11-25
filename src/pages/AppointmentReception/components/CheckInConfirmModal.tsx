@@ -577,9 +577,9 @@ const CheckInForm = ({
               </Button>
             </Space>
           ) : requiresIsolation ? (
-            'Chỉ hiện chuồng cách ly vừa cân nặng thú cưng (BR-11).'
+            'Chỉ hiện chuồng cách ly vừa cân nặng thú cưng.'
           ) : (
-            'Chỉ hiện chuồng trống vừa cân nặng thú cưng (BR-11).'
+            'Chỉ hiện chuồng trống vừa cân nặng thú cưng.'
           ))
         }
       >

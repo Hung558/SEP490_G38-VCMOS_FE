@@ -113,11 +113,11 @@ export const validateAiPhoto = (file: PhotoLike): string | null => {
   const type = (file.type || '').toLowerCase();
   const byName = /\.(jpe?g|png)$/i.test(file.name || '');
   if (type ? !AI_PHOTO_TYPES.includes(type) : !byName) {
-    return 'Chỉ chấp nhận ảnh định dạng JPG hoặc PNG (MSG35)';
+    return 'Chỉ chấp nhận ảnh định dạng JPG hoặc PNG';
   }
   if (!file.size) return 'Tệp ảnh không hợp lệ hoặc bị rỗng';
   if (file.size > AI_MAX_PHOTO_BYTES) {
-    return 'Chỉ chấp nhận ảnh dung lượng tối đa 5MB mỗi ảnh (MSG35)';
+    return 'Chỉ chấp nhận ảnh dung lượng tối đa 5MB mỗi ảnh';
   }
   return null;
 };
@@ -144,7 +144,7 @@ export const validateAiAssessmentInput = (input: {
     errors.symptoms = `Chỉ được nhập tối đa ${AI_MAX_SYMPTOMS} triệu chứng`;
   }
   if (input.photos.length > AI_MAX_PHOTOS) {
-    errors.photos = `Chỉ được tải lên tối đa ${AI_MAX_PHOTOS} ảnh (MSG35)`;
+    errors.photos = `Chỉ được tải lên tối đa ${AI_MAX_PHOTOS} ảnh`;
   } else {
     const photoError = input.photos.map(validateAiPhoto).find(Boolean);
     if (photoError) errors.photos = photoError;

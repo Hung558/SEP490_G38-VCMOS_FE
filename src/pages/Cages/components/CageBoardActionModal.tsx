@@ -143,7 +143,7 @@ const CageBoardActionModal = ({
           </Text>
         ) : selectedOrder && petWeight === undefined ? (
           <Text type="secondary">
-            Chưa có cân nặng của thú cưng, hãy tự kiểm tra cỡ chuồng (BR-11).
+            Chưa có cân nặng của thú cưng, hãy tự kiểm tra cỡ chuồng.
           </Text>
         ) : petWeight !== undefined ? (
           <Text type="secondary">Cân nặng thú cưng: {petWeight} kg</Text>

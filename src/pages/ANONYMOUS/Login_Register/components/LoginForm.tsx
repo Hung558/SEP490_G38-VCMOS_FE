@@ -198,7 +198,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
       email: rawUser.email,
       isEmailVerified: rawUser.isEmailVerified === true,
       systemRole: rawUser.systemRole || rawUser.role || 'user',
-      role: rawUser.role || 'user',
+      role: rawUser.role || rawUser.systemRole || 'user',
       status: rawUser.status,
     };
 
@@ -210,7 +210,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
     setUser(loginInfo);
 
     toast.success('Đăng nhập thành công!');
-    navigate(getPostLoginPath(loginInfo.role));
+    navigate(getPostLoginPath(loginInfo.role), { replace: true });
   };
 
   const onSubmit = async (formData: {

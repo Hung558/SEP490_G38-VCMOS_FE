@@ -949,9 +949,9 @@ const DashboardPage: React.FC = () => {
           activeKey={activeTab}
           onChange={key => setTab(key as DashboardTab)}
           items={[
-            { key: 'pets', label: '🐾 Quản lí thú cưng' },
-            { key: 'appointments', label: '📅 Quản lí lịch đặt' },
-            { key: 'journey', label: '🧭 Hành trình của bé' },
+            { key: 'pets', label: 'Quản lí thú cưng' },
+            { key: 'appointments', label: 'Quản lí lịch đặt' },
+            { key: 'journey', label: 'Hành trình của bé' },
           ]}
         />
       </div>
@@ -961,7 +961,7 @@ const DashboardPage: React.FC = () => {
         <>
           {booking && (
             <SectionCard
-              title={<span>📝 Đặt lịch khám mới</span>}
+              title="Đặt lịch khám mới"
               extra={
                 <Button onClick={() => setBooking(null)}>Đóng form</Button>
               }
@@ -998,7 +998,7 @@ const DashboardPage: React.FC = () => {
           <SectionCard
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span>📅 Danh Sách Lịch Hẹn Khám Trực Tuyến</span>
+                <span>Danh Sách Lịch Hẹn Khám Trực Tuyến</span>
                 <Tag color={appointmentsTotal > 0 ? 'cyan' : 'default'}>
                   {appointmentsTotal} lượt hẹn
                   {appointmentScope === 'today' ? ' hôm nay' : ''}
@@ -1202,7 +1202,7 @@ const DashboardPage: React.FC = () => {
         <SectionCard
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span>🐾 Hồ Sơ Thú Cưng Của Tôi</span>
+              <span>Hồ Sơ Thú Cưng Của Tôi</span>
               <Tag color="cyan">{petsTotal} hồ sơ</Tag>
             </div>
           }
