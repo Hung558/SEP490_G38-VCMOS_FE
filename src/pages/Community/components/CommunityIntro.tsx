@@ -4,9 +4,11 @@ import {
   LoginOutlined,
   ProfileOutlined,
   SafetyCertificateOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import ROUTER from '@/routerMap/ROUTER';
+import { getJourneyLink } from '@/pages/Dashboard/dashboardTabs';
 import { useCommunityViewer } from '@/components/community/useCommunityViewer';
 import { IntroWrapper } from './styles';
 
@@ -25,6 +27,12 @@ const CommunityIntro = () => {
         <div className="intro-actions">
           {viewer.canInteract && (
             <>
+              <Button
+                icon={<ShareAltOutlined />}
+                onClick={() => navigate(getJourneyLink())}
+              >
+                Chia sẻ hành trình của bé
+              </Button>
               <Button
                 type="primary"
                 icon={<EditOutlined />}
@@ -82,7 +90,7 @@ const CommunityIntro = () => {
           type="success"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Muốn chia sẻ hành trình của bé? Mở hồ sơ thú cưng và bấm “Chia sẻ hành trình”. Bệnh án, đơn thuốc và giá tiền không được đăng."
+          message="Chọn bé trong Hành trình của bé rồi bấm “Chia sẻ hành trình”. Bài sẽ xuất hiện ở Hành trình được chia sẻ sau khi được duyệt. Bệnh án, đơn thuốc và giá tiền không được đăng."
         />
       )}
     </>
