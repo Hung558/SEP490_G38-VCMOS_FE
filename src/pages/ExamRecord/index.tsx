@@ -49,7 +49,7 @@ import {
 } from '@/services/AppointmentOrderService';
 import { describeWalkInPet } from '@/services/WalkInService';
 import MedicalRecordView from '@/components/medical/MedicalRecordView';
-import PetMedicalHistory from '@/components/medical/PetMedicalHistory';
+import PetTimeline from '@/pages/PetProfile/components/PetTimeline';
 import ReceptionIntakeDetails from '@/components/appointment/ReceptionIntakeDetails';
 import {
   PageHeader,
@@ -548,16 +548,20 @@ const ExamRecordCase = ({
         />
       )}
       <Drawer
+        aria-label={`Tiền sử bệnh${pet ? ` · ${pet.name}` : ''}`}
         title={`Tiền sử bệnh${pet ? ` · ${pet.name}` : ''}`}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        width={560}
+        width={1000}
         destroyOnHidden
       >
-        {pet && (
-          <PetMedicalHistory
+        {historyOpen && pet && (
+          <PetTimeline
+            key={JSON.stringify([user?._id, role, pet._id])}
             petId={pet._id}
-            currentServiceId={appointmentServiceId}
+            invoiceRole={role}
+            sharedPostsVisible={false}
+            aiAssessmentsVisible={false}
           />
         )}
       </Drawer>

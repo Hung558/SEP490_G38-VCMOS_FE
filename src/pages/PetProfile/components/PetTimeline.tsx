@@ -57,6 +57,15 @@ const { Text, Paragraph } = Typography;
 
 const TimelineWrapper = styled.section`
   color: #0f172a;
+  .timeline-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 0 0 4px;
+  }
   .timeline-milestone {
     border: 1px solid #cbd5e1;
     border-radius: 12px;

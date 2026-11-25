@@ -2,7 +2,9 @@
 import os
 import re
 import unittest
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
+from pathlib import Path
+from verify_pet_timeline_e2e import milestone, page_fixture
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -65,6 +67,10 @@ class SoapFeedbackTests(unittest.TestCase):
         self.order_status = "InProgress"
         self.complete_error = None
         self.save_error = None
+        self.timeline_requests = []
+        self.timeline_failures = 0
+        self.timeline_rows = [milestone(f"{i:024x}", f"APT-{i}", "2026-11-10", category="Grooming" if i == 2 else "Examination", inpatient=(i == 1)) for i in range(1, 22)]
+        self.timeline_rows[0]["services"][0]["medicalRecord"]["subjectiveNote"] = "Ghi chú lần khám cũ"
         self.cage_reads = 0
         self.writes = []
         context.route(f"{BASE_URL}/api/**", self.api)
@@ -124,6 +130,16 @@ class SoapFeedbackTests(unittest.TestCase):
                 **self.record, "_id": "past-record", "subjectiveNote": "Ghi chú lần khám cũ",
                 "appointmentServiceId": "previous-service",
             }]}
+        elif path == f"/api/pets/{PET}/timeline" and method == "GET":
+            query = parse_qs(urlparse(route.request.url).query)
+            self.timeline_requests.append(query)
+            if self.timeline_failures:
+                self.timeline_failures -= 1
+                return route.fulfill(status=503, json={"message": "Kết nối gián đoạn"})
+            body = page_fixture(int(query.get("page", ["1"])[0]), type_filter=query.get("type", ["All"])[0], rows=self.timeline_rows)
+            body["pet"] = self.pet
+        elif path == f"/api/subtask-requests/service/{SERVICE}":
+            body = {"data": []}
         elif path == "/api/cages":
             self.cage_reads += 1
             return route.fulfill(status=503, json={"message": "Danh sách chuồng tạm gián đoạn"})
@@ -219,7 +235,57 @@ class SoapFeedbackTests(unittest.TestCase):
         expect(self.button("Lưu nháp")).to_have_count(0)
         expect(self.button("Hoàn tất ca khám")).to_have_count(0)
         self.button("Tiền sử bệnh").click()
-        expect(self.page.get_by_text("Ghi chú lần khám cũ", exact=True)).to_be_visible()
+        history = self.page.get_by_role("dialog", name="Tiền sử bệnh · Milo", exact=True)
+        history.locator(".timeline-milestone .ant-collapse-header").first.click()
+        history.get_by_text("Hồ sơ chi tiết · 1 thuốc", exact=True).first.click()
+        expect(history.get_by_text("Ghi chú lần khám cũ", exact=False)).to_be_visible()
+
+
+    def test_history_lists_all_pet_timeline_pages_without_financials_or_losing_draft(self):
+        self.open_exam()
+        plan = self.page.get_by_label("P · Phác đồ điều trị")
+        plan.fill("Phác đồ chưa lưu của Milo")
+        self.assertEqual(self.timeline_requests, [], "Do not fetch history before opening drawer")
+        self.button("Tiền sử bệnh").click()
+        history = self.page.get_by_role("dialog", name="Tiền sử bệnh · Milo", exact=True)
+        expect(history.locator(".timeline-milestone")).to_have_count(20)
+        self.assertEqual(self.timeline_requests[-1].get("type"), ["All"])
+        self.assertNotIn("status", self.timeline_requests[-1])
+        expect(history.get_by_text("Chăm sóc / làm đẹp", exact=True)).to_be_visible()
+        Path("tests/screenshots").mkdir(exist_ok=True)
+        self.page.screenshot(path="tests/screenshots/exam-pet-history-timeline.png", animations="disabled")
+        history.locator(".timeline-milestone .ant-collapse-header").first.click()
+        history.get_by_text("Hồ sơ chi tiết · 1 thuốc", exact=True).first.click()
+        expect(history.get_by_text("Ghi chú lần khám cũ", exact=False)).to_be_visible()
+        expect(history.get_by_text("Kết quả xét nghiệm", exact=False)).to_be_visible()
+        expect(history.get_by_text("Chẩn đoán nội trú", exact=False)).to_be_visible()
+        expect(history.get_by_text("Hóa đơn", exact=False)).to_have_count(0)
+        expect(history.get_by_text("INV-63", exact=False)).to_have_count(0)
+        expect(history.get_by_role("button", name="Tải biên lai PDF")).to_have_count(0)
+        history.locator(".ant-pagination-item-2").click()
+        expect(history.locator(".timeline-milestone")).to_have_count(1)
+        expect(history.get_by_text("APT-21", exact=True)).to_be_visible()
+        self.assertEqual(self.timeline_requests[-1].get("page"), ["2"])
+        history.get_by_role("button", name="Close", exact=True).click()
+        expect(plan).to_have_value("Phác đồ chưa lưu của Milo")
+        self.button("Tiền sử bệnh").click()
+        expect(history.locator(".timeline-milestone")).to_have_count(20)
+        self.assertEqual(self.timeline_requests[-1].get("page"), ["1"])
+        self.assertEqual(self.writes, [])
+
+    def test_history_error_retry_and_empty_timeline(self):
+        self.timeline_failures = 1
+        self.open_exam()
+        self.button("Tiền sử bệnh").click()
+        history = self.page.get_by_role("dialog", name="Tiền sử bệnh · Milo", exact=True)
+        expect(history.get_by_role("alert")).to_be_visible()
+        history.get_by_role("button", name="Thử lại").click()
+        expect(history.locator(".timeline-milestone")).to_have_count(20)
+        self.timeline_rows = []
+        history.get_by_role("button", name="Làm mới", exact=False).click()
+        expect(history.locator(".timeline-milestone")).to_have_count(0)
+        expect(history.get_by_text("Không có mốc nào phù hợp bộ lọc.", exact=True)).to_be_visible()
+        self.assertEqual(self.writes, [])
 
 
 if __name__ == "__main__":
