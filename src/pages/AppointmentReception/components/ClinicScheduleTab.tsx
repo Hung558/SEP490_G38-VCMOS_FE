@@ -361,7 +361,7 @@ const ClinicScheduleTab = ({
           type="info"
           showIcon
           message="Chưa có ca làm việc nào được xếp cho ngày này"
-          description="Đang hiện mọi bác sĩ và nhân viên spa đang hoạt động. Khi có màn phân ca (SCR-30), lịch chỉ hiện người có ca."
+          description="Đang hiện mọi bác sĩ và nhân viên spa đang hoạt động. Khi có màn phân ca, lịch chỉ hiện người có ca."
         />
       )}
       {schedule.error && (

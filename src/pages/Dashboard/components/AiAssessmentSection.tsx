@@ -627,10 +627,9 @@ const AiAssessmentSection: React.FC<AiAssessmentSectionProps> = ({
                   .slice(0, batch.indexOf(file))
                   .filter(item => !validateAiPhoto(item)).length;
                 if (photoList.length + validBefore >= AI_MAX_PHOTOS) {
-                  toast.error(
-                    `Chỉ được tải lên tối đa ${AI_MAX_PHOTOS} ảnh (MSG35)`,
-                    { id: 'ai-photo-limit' }
-                  );
+                  toast.error(`Chỉ được tải lên tối đa ${AI_MAX_PHOTOS} ảnh`, {
+                    id: 'ai-photo-limit',
+                  });
                   return Upload.LIST_IGNORE;
                 }
                 // Kept in the form, sent with the check

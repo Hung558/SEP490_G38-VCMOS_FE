@@ -39,20 +39,8 @@ export const getLandingPath = (role?: string): string => getLanding(role).path;
 export const getLandingLabel = (role?: string): string =>
   getLanding(role).label;
 
-// Admin and the clinic staff go straight to their working page after login
-// (24/11: the spa staff too, to "Hàng đợi spa"); pet owners and any other
-// role start on the home page
-const WORK_PAGE_AFTER_LOGIN = new Set([
-  'Admin',
-  'Receptionist',
-  'Veterinarian',
-  'Groomer',
-]);
-
-export const getPostLoginPath = (role?: string): string =>
-  WORK_PAGE_AFTER_LOGIN.has(normalizeRole(role))
-    ? getLandingPath(role)
-    : ROUTER.HOME;
+// Every authenticated role starts in its own workspace, never the guest homepage.
+export const getPostLoginPath = (role?: string): string => getLandingPath(role);
 
 /**
  * Where "Đặt lịch khám" leads a signed-in user: pet owners book online from their

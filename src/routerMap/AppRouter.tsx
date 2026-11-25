@@ -6,6 +6,7 @@ import ROUTER from './ROUTER';
 
 // Common Layout Wrappers
 import PublicRouters from '@/pages/SUPPORTPAGES/PublicRouters';
+import GuestHomeRoute from '@/pages/SUPPORTPAGES/GuestHomeRoute';
 import ProtectedRoute from '@/pages/SUPPORTPAGES/ProtectedRoute';
 import NotFound from '@/pages/SUPPORTPAGES/NotFound';
 import AdminRoute from '@/pages/SUPPORTPAGES/AdminRoute';
@@ -54,7 +55,9 @@ const AppRouter = () => {
           index: true,
           element: (
             <Suspense fallback={<SpinCustom spinning={true} />}>
-              <HomePage />
+              <GuestHomeRoute>
+                <HomePage />
+              </GuestHomeRoute>
             </Suspense>
           ),
         },

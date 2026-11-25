@@ -175,7 +175,7 @@ const CageAssignmentModal = ({
           rules={[{ required: true, message: 'Vui lòng chọn chuồng' }]}
           extra={
             petWeight === undefined && !loading
-              ? 'Chưa có cân nặng của thú cưng, hãy tự kiểm tra cỡ chuồng (BR-11).'
+              ? 'Chưa có cân nặng của thú cưng, hãy tự kiểm tra cỡ chuồng.'
               : undefined
           }
         >
@@ -197,7 +197,7 @@ const CageAssignmentModal = ({
         {!loading && !loadError && fitting.length === 0 && (
           <Alert
             message="Không có chuồng trống phù hợp"
-            description={`Không còn chuồng ${requiresIsolation ? 'cách ly' : 'thường'} trống đủ cỡ cho thú cưng này (MSG24). Giải phóng chuồng ở Sơ đồ chuồng trước.`}
+            description={`Không còn chuồng ${requiresIsolation ? 'cách ly' : 'thường'} trống đủ cỡ cho thú cưng này. Giải phóng chuồng ở Sơ đồ chuồng trước.`}
             type="warning"
             showIcon
           />

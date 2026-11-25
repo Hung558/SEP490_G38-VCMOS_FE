@@ -112,7 +112,7 @@ test('validateAiPhoto: JPG/PNG up to 5 MB only (MSG35)', () => {
   );
   assert.match(
     validateAiPhoto({ name: 'c.webp', type: 'image/webp', size: 10 }),
-    /JPG hoặc PNG \(MSG35\)/
+    /^Chỉ chấp nhận ảnh định dạng JPG hoặc PNG$/
   );
   assert.match(
     validateAiPhoto({ name: 'd.gif', type: 'image/gif', size: 10 }),
@@ -151,7 +151,7 @@ test('validateAiAssessmentInput mirrors the BE validator', () => {
     'Mô tả triệu chứng phải từ 10 đến 1000 ký tự'
   );
   assert.match(errors.symptoms, /tối đa 20/);
-  assert.equal(errors.photos, 'Chỉ được tải lên tối đa 3 ảnh (MSG35)');
+  assert.equal(errors.photos, 'Chỉ được tải lên tối đa 3 ảnh');
   assert.equal(
     validateAiAssessmentInput({
       petId: PET,
@@ -177,7 +177,7 @@ test('validateAiAssessmentInput mirrors the BE validator', () => {
       symptoms: [],
       photos: [png(), { name: 'x.webp', type: 'image/webp', size: 5 }],
     }).photos,
-    /MSG35/
+    /^Chỉ chấp nhận ảnh định dạng JPG hoặc PNG$/
   );
 });
 

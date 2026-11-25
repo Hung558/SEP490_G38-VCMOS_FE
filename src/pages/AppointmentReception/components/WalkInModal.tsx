@@ -584,7 +584,7 @@ const WalkInForm = ({
             }
             description={
               customer.status === 'Inactive'
-                ? 'Tài khoản chưa kích hoạt (khách vãng lai). Khách tự đăng ký online bằng số điện thoại này để kích hoạt (BR-04).'
+                ? 'Tài khoản chưa kích hoạt (khách vãng lai). Khách tự đăng ký online bằng số điện thoại này để kích hoạt.'
                 : undefined
             }
           />
@@ -1093,11 +1093,11 @@ const WalkInForm = ({
           ) : noCageLeft ? (
             `${cages.length === 0 ? MSG24 : 'Không có chuồng trống vừa thú cưng.'} Có thể tiếp nhận trước rồi xếp chuồng sau ở Sơ đồ chuồng.`
           ) : hiddenCages > 0 ? (
-            `Đã ẩn ${hiddenCages} chuồng không vừa cân nặng hoặc yêu cầu cách ly (BR-11).`
+            `Đã ẩn ${hiddenCages} chuồng không vừa cân nặng hoặc yêu cầu cách ly.`
           ) : requiresIsolation ? (
             'Chỉ hiện chuồng cách ly.'
           ) : (
-            'Chỉ hiện chuồng trống vừa cân nặng thú cưng (BR-11).'
+            'Chỉ hiện chuồng trống vừa cân nặng thú cưng.'
           )
         }
       >
