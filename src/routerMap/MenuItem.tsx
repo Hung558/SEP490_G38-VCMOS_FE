@@ -99,7 +99,7 @@ export const MenuItemBreadcrumbs = () => {
 
 // No "Trang chủ" item in any sidebar (24/11): the dashboard header button and
 // "Trở về Trang chủ" under the sidebar already lead home.
-// The journey item opens the existing dashboard tab; no duplicate pet list.
+// 26/11: "Hành trình của bé" is its own page again, no longer a dashboard tab.
 export const MenuItemCommon = (): MenuItem[] => {
   return [
     {
@@ -108,7 +108,7 @@ export const MenuItemCommon = (): MenuItem[] => {
       icon: <DashboardOutlined />,
     },
     {
-      key: `${ROUTER.DASHBOARD}?tab=journey`,
+      key: ROUTER.PET_JOURNEYS,
       label: 'Hành trình của bé',
       icon: <HistoryOutlined />,
     },

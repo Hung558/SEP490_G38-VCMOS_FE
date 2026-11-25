@@ -73,7 +73,6 @@ import { toast } from 'sonner';
 import PageTitle from '@/components/common/PageTitle';
 import { RowActions } from './components/actionButtons';
 import PetVisitsOverview from './components/PetVisitsOverview';
-import PetJourneyTab from './components/PetJourneyTab';
 import PetService from '@/services/PetService';
 import type { Pet, PetStatusFilter } from '@/types';
 import PetFormModal from './components/PetFormModal';
@@ -163,8 +162,6 @@ const DashboardPage: React.FC = () => {
   // The AI page sends its booking note along with the booking link
   const bookingNote = (location.state as { bookingNote?: string } | null)
     ?.bookingNote;
-  // ?pet= is the pet shown in the "Hành trình của bé" tab
-  const journeyPetParam = searchParams.get('pet');
   const [booking, setBooking] = useState<{
     key: number;
     petId?: string;
@@ -214,25 +211,22 @@ const DashboardPage: React.FC = () => {
     if (legacyAiTab) navigate(ROUTER.AI_ASSESSMENT, { replace: true });
   }, [legacyAiTab, navigate]);
 
-  // Opens one pet in the "Hành trình của bé" tab and brings the tabs in view
+  // The pets' journeys were a tab here from 24/11 to 26/11; they have their
+  // own page now, and old ?tab=journey(&pet=) links open it on the same pet
+  const legacyJourneyTab = searchParams.get('tab') === 'journey';
+  const legacyJourneyPet = searchParams.get('pet');
+  useEffect(() => {
+    if (legacyJourneyTab) {
+      navigate(getJourneyLink(legacyJourneyPet || undefined, location.hash), {
+        replace: true,
+      });
+    }
+  }, [legacyJourneyTab, legacyJourneyPet, location.hash, navigate]);
+
+  // "Hành trình" on a pet card opens that pet on the journeys page
   const openJourney = useCallback(
-    (petId: string) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          next.set('tab', 'journey');
-          next.set('pet', petId);
-          next.delete('book');
-          next.delete('service');
-          return next;
-        },
-        { replace: true }
-      );
-      document
-        .getElementById('dashboard-tabs')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    },
-    [setSearchParams]
+    (petId: string) => navigate(getJourneyLink(petId)),
+    [navigate]
   );
 
   // Pets state connected to backend API
@@ -945,8 +939,8 @@ const DashboardPage: React.FC = () => {
         onOpenJourney={openJourney}
       />
 
-      {/* File 2: pets, appointments and (24/11) the pets' journeys are tabs;
-          the AI check has its own page */}
+      {/* File 2: pets and appointments are tabs; the AI check (24/11) and the
+          pets' journeys (26/11) have their own pages */}
       <div id="dashboard-tabs" style={{ scrollMarginTop: 80 }}>
         <Tabs
           activeKey={activeTab}
@@ -954,7 +948,6 @@ const DashboardPage: React.FC = () => {
           items={[
             { key: 'pets', label: 'Quản lí thú cưng' },
             { key: 'appointments', label: 'Quản lí lịch đặt' },
-            { key: 'journey', label: 'Hành trình của bé' },
           ]}
         />
       </div>
@@ -1299,19 +1292,6 @@ const DashboardPage: React.FC = () => {
             }}
           />
         </SectionCard>
-      )}
-
-      {/* Pick a pet, read its journey right below (24/11) */}
-      {activeTab === 'journey' && (
-        <PetJourneyTab
-          petId={journeyPetParam}
-          revision={visitsRevision}
-          onSelectPet={openJourney}
-          onAddPet={() => {
-            setEditingPet(null);
-            setIsPetFormModalOpen(true);
-          }}
-        />
       )}
 
       {/* Pet Create/Edit Modal */}

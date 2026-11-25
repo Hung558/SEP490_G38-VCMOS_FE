@@ -28,8 +28,8 @@ import PageTitle from '@/components/common/PageTitle';
 import type { Pet } from '@/types';
 
 /**
- * One pet's journey. `embedded`: inside the owner dashboard tab, under the
- * page's own title, where the owner picks the pet above it.
+ * One pet's journey. `embedded`: on the owner's "Hành trình của bé" page,
+ * under the page's own title, where the owner picks the pet above it.
  */
 const JourneyDetail = ({
   petId,

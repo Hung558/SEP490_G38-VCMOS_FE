@@ -404,7 +404,8 @@ test('a locked or deactivated account ends the session (BE protect, UC-62)', () 
 
 test('dashboard tabs and the booking link', () => {
   assert.equal(dashboardTabs.parseDashboardTab('appointments'), 'appointments');
-  assert.equal(dashboardTabs.parseDashboardTab('journey'), 'journey');
+  // 26/11: the journeys have their own page; the dashboard opens on its pets
+  assert.equal(dashboardTabs.parseDashboardTab('journey'), 'pets');
   // 24/11: the AI check is a page of its own now
   assert.equal(dashboardTabs.parseDashboardTab('ai'), 'pets');
   assert.equal(dashboardTabs.parseDashboardTab('xyz'), 'pets');
@@ -455,11 +456,12 @@ test('?service= holds one or several service ids', () => {
   );
 });
 
-test('journey tab: link, pet order and the pet shown first', () => {
-  assert.equal(dashboardTabs.getJourneyLink(), '/dashboard?tab=journey');
+test('journeys page: link, pet order and the pet shown first', () => {
+  assert.equal(dashboardTabs.getJourneyLink(), '/pet-journeys');
+  assert.equal(dashboardTabs.getJourneyLink(PET), `/pet-journeys?pet=${PET}`);
   assert.equal(
     dashboardTabs.getJourneyLink(PET, '#inpatient-logs'),
-    `/dashboard?tab=journey&pet=${PET}#inpatient-logs`
+    `/pet-journeys?pet=${PET}#inpatient-logs`
   );
   const pets = [
     { _id: 'a', status: 'Deleted' },

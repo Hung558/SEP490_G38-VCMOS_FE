@@ -4,11 +4,14 @@ import { Alert, Button, Empty, Skeleton } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import PetService from '@/services/PetService';
 import { getSafeTimelineHttpUrl } from '@/services/PetTimelineService';
-import JourneyDetail from '@/pages/PetJourneys/components/JourneyDetail';
 import { PetProfileWrapper } from '@/pages/PetProfile/components/styles';
+import { getSpeciesEmoji } from '@/pages/Dashboard/components/PetDetailModal';
+import {
+  pickJourneyPet,
+  sortJourneyPets,
+} from '@/pages/Dashboard/dashboardTabs';
 import type { Pet } from '@/types';
-import { getSpeciesEmoji } from './PetDetailModal';
-import { pickJourneyPet, sortJourneyPets } from '../dashboardTabs';
+import JourneyDetail from './JourneyDetail';
 
 const Picker = styled.div`
   display: flex;
@@ -107,10 +110,11 @@ const JourneyBody = styled(PetProfileWrapper)`
 `;
 
 /**
- * "Hành trình của bé" tab (24/11): pick a pet, read its journey right below,
- * no page change. Archived pets stay readable after the active ones.
+ * The owner's "Hành trình của bé" page (26/11: its own page again, it was a
+ * dashboard tab from 24/11): pick a pet, read its journey right below.
+ * Archived pets stay readable after the active ones.
  */
-const PetJourneyTab = ({
+const OwnerJourneys = ({
   petId,
   revision,
   onSelectPet,
@@ -200,4 +204,4 @@ const PetJourneyTab = ({
   );
 };
 
-export default PetJourneyTab;
+export default OwnerJourneys;

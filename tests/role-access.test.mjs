@@ -118,13 +118,27 @@ test('community sidebar belongs to owners and receptionists', () => {
   }
 });
 
-test('sidebar selects the journey tab and community detail consistently', async () => {
-  const { getSidebarSelection } = await import('../src/routerMap/sidebarSelection.ts');
-  assert.equal(getSidebarSelection('/dashboard', '?tab=journey'), '/dashboard?tab=journey');
+test('sidebar selects the journeys page and community detail consistently', async () => {
+  const { getSidebarSelection } = await import(
+    '../src/routerMap/sidebarSelection.ts'
+  );
+  // 26/11: the journeys are their own page; old tab links mark that item
+  assert.equal(
+    getSidebarSelection('/pet-journeys', '?pet=p1'),
+    '/pet-journeys'
+  );
+  assert.equal(getSidebarSelection('/pet-journeys/p1'), '/pet-journeys');
+  assert.equal(
+    getSidebarSelection('/dashboard', '?tab=journey&pet=p1'),
+    '/pet-journeys'
+  );
   assert.equal(getSidebarSelection('/dashboard', '?tab=pets'), '/dashboard');
   assert.equal(getSidebarSelection('/dashboard'), '/dashboard');
   assert.equal(getSidebarSelection('/community/posts/post-123'), '/community');
   assert.equal(getSidebarSelection('/community'), '/community');
-  assert.equal(getSidebarSelection('/community/my-posts'), '/community/my-posts');
+  assert.equal(
+    getSidebarSelection('/community/my-posts'),
+    '/community/my-posts'
+  );
   assert.equal(getSidebarSelection('/clinic/dashboard'), '/clinic/dashboard');
 });
