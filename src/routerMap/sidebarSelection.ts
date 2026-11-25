@@ -7,6 +7,7 @@ export const getSidebarSelection = (pathname: string, search = ''): string => {
   ) {
     return `${ROUTER.DASHBOARD}?tab=journey`;
   }
-  if (pathname.startsWith(`${ROUTER.COMMUNITY}/`)) return ROUTER.COMMUNITY;
+  if (pathname.startsWith(`${ROUTER.COMMUNITY}/posts/`))
+    return ROUTER.COMMUNITY;
   return pathname;
 };

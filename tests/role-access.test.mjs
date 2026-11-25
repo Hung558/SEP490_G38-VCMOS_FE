@@ -110,7 +110,8 @@ test('sidebar selects the journey tab and community detail consistently', async 
   assert.equal(getSidebarSelection('/dashboard', '?tab=journey'), '/dashboard?tab=journey');
   assert.equal(getSidebarSelection('/dashboard', '?tab=pets'), '/dashboard');
   assert.equal(getSidebarSelection('/dashboard'), '/dashboard');
-  assert.equal(getSidebarSelection('/community/post-123'), '/community');
+  assert.equal(getSidebarSelection('/community/posts/post-123'), '/community');
   assert.equal(getSidebarSelection('/community'), '/community');
+  assert.equal(getSidebarSelection('/community/my-posts'), '/community/my-posts');
   assert.equal(getSidebarSelection('/clinic/dashboard'), '/clinic/dashboard');
 });
