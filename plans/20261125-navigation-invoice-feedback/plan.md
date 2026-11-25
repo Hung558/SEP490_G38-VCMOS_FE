@@ -30,3 +30,23 @@ All browser fixtures intercept API/XHR/fetch requests. No real customer data or 
 Local artifacts are ignored by Git under `tests/screenshots/`. Navigation screenshots: `feedback-25-owner-journey.png`, `feedback-25-community-PetOwner.png`, `feedback-25-community-Receptionist.png`.
 
 Invoice screenshots: `feedback-25-invoices.png`, `feedback-25-checkout.png`.
+
+## Follow-up: journey sharing and pending checkout filters
+
+- [x] Journey view exposes the existing privacy-safe share modal for owners of active pets, plus a Community entry point.
+- [x] Owners select completed milestones and submit only petId/orderIds/content through the existing service. Success explicitly means pending moderation, not publication; links open personal posts and the TimelineShare feed.
+- [x] Archived pets and staff do not get owner sharing actions; empty previews disable submission; failure preserves the draft. No backend changes or moderation bypass.
+- [x] Pending checkout tab now has day/week/month/custom appointment-date filters, default Vietnam today. Switching dates resets pagination; clearing the range includes old outstanding appointments; refresh preserves filters.
+- [x] Invoice lookup intentionally has no issue-date filter: an unpaid bill issued earlier must still attach to its appointment. Aborted appointment responses cannot overwrite current results.
+
+Verification after follow-up:
+
+- Lint passed; unit tests: 385 passed, 1 existing skip, 0 failures.
+- Production build passed, existing large-bundle warning only.
+- Journey sharing: 6 browser cases passed (locally intercepted preview/share/feed, pending vs published, no completed visits, errors, archived pet and staff).
+- Pending checkout: 4 browser cases passed, 46 intercepted API requests, no writes. Covers calendar ranges and pagination, custom/clear/refresh, admin read-only access, earlier-issued bill matching, empty results and retry.
+- Existing invoice regression: all 11 browser cases passed after scoping date controls to the visible tab, avoiding hidden AntD tab content.
+- Manually inspected screenshots: feedback-25-pending-filters.png and feedback-25-shared-journey.png (fictional fixtures, ignored local artifacts).
+- These checks validate FE behavior and request contracts; they do not validate production BE data or payment connectivity.
+
+Delivery uses the existing PR #58. Repository requires review and disallows auto-merge; do not bypass branch protection.

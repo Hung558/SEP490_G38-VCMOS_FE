@@ -182,7 +182,7 @@ class InvoiceFeedbackTests(unittest.TestCase):
             expect(self.page.get_by_role('heading', name='Hóa đơn của tôi', exact=True)).to_be_visible()
         else:
             self.page.get_by_role('tab', name='Hóa đơn đã lập').click()
-        expect(self.page.locator('.ant-segmented-item-selected')).to_have_text('Ngày')
+        expect(self.page.locator('.ant-segmented-item-selected:visible')).to_have_text('Ngày')
         self.assert_query(*RANGES['Ngày'])
 
     def list_queries(self):
@@ -218,33 +218,33 @@ class InvoiceFeedbackTests(unittest.TestCase):
         # The browser is still Nov 24 in Los Angeles; business dates must use Vietnam's Nov 25.
         self.assertEqual(self.page.evaluate('new Date().getDate()'), 24)
         self.assert_query(*RANGES['Ngày'], page=1, limit=10)
-        self.assertEqual(self.page.get_by_placeholder('Từ ngày').input_value(), '25/11/2026')
-        self.assertEqual(self.page.get_by_placeholder('Đến ngày').input_value(), '25/11/2026')
+        self.assertEqual(self.page.locator('input[placeholder="Từ ngày"]:visible').input_value(), '25/11/2026')
+        self.assertEqual(self.page.locator('input[placeholder="Đến ngày"]:visible').input_value(), '25/11/2026')
         self.page.locator('.ant-pagination-item-2').click()
         self.assert_query(*RANGES['Ngày'], page=2)
         for label in ('Tuần', 'Tháng', 'Ngày'):
-            self.page.get_by_text(label, exact=True).click()
-            expect(self.page.locator('.ant-segmented-item-selected')).to_have_text(label)
+            self.page.locator('.ant-segmented:visible').get_by_text(label, exact=True).click()
+            expect(self.page.locator('.ant-segmented-item-selected:visible')).to_have_text(label)
             self.assert_query(*RANGES[label], page=1)
             start, end = RANGES[label]
-            self.assertEqual(self.page.get_by_placeholder('Từ ngày').input_value(),
+            self.assertEqual(self.page.locator('input[placeholder="Từ ngày"]:visible').input_value(),
                              datetime.fromisoformat(start).strftime('%d/%m/%Y'))
-            self.assertEqual(self.page.get_by_placeholder('Đến ngày').input_value(),
+            self.assertEqual(self.page.locator('input[placeholder="Đến ngày"]:visible').input_value(),
                              datetime.fromisoformat(end).strftime('%d/%m/%Y'))
 
     def custom_and_clear(self, role):
         self.open_page(role)
-        self.page.get_by_text('Tháng', exact=True).click()
+        self.page.locator('.ant-segmented:visible').get_by_text('Tháng', exact=True).click()
         self.assert_query(*RANGES['Tháng'])
-        start, end = self.page.get_by_placeholder('Từ ngày'), self.page.get_by_placeholder('Đến ngày')
+        start, end = self.page.locator('input[placeholder="Từ ngày"]:visible'), self.page.locator('input[placeholder="Đến ngày"]:visible')
         start.fill('10/11/2026')
         start.press('Tab')
         end.fill('12/11/2026')
         end.press('Enter')
-        expect(self.page.locator('.ant-segmented-item-selected')).to_have_text('Tùy chọn')
+        expect(self.page.locator('.ant-segmented-item-selected:visible')).to_have_text('Tùy chọn')
         self.assert_query('2026-11-10', '2026-11-12', page=1)
-        self.page.locator('.ant-picker-range').hover()
-        self.page.locator('.ant-picker-clear').click()
+        self.page.locator('.ant-picker-range:visible').hover()
+        self.page.locator('.ant-picker-clear:visible').click()
         expect(start).to_have_value('')
         expect(end).to_have_value('')
         self.assert_query(page=1)
@@ -292,7 +292,7 @@ class InvoiceFeedbackTests(unittest.TestCase):
 
     def test_04_owner_pet_and_status_filters_keep_date_range(self):
         self.open_page()
-        self.page.get_by_text('Tháng', exact=True).click()
+        self.page.locator('.ant-segmented:visible').get_by_text('Tháng', exact=True).click()
         self.choose('Trạng thái', 'Đã thanh toán')
         self.assert_query(*RANGES['Tháng'], paymentStatus='Paid', page=1)
         self.choose('Thú cưng', 'Mây')
@@ -303,7 +303,7 @@ class InvoiceFeedbackTests(unittest.TestCase):
 
     def test_05_reception_status_method_and_code_query_preserves_legacy_filter(self):
         self.open_page('Receptionist')
-        self.page.get_by_text('Tháng', exact=True).click()
+        self.page.locator('.ant-segmented:visible').get_by_text('Tháng', exact=True).click()
         self.choose('Trạng thái', 'Đã thanh toán')
         self.choose('Phương thức', 'Thanh toán QR')
         self.assert_query(*RANGES['Tháng'], paymentStatus='Paid', paymentMethod='PayOS', page=1)
