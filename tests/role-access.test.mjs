@@ -87,3 +87,30 @@ test('the landing link is named after the page it opens', () => {
   assert.equal(access.getLandingLabel('Veterinarian'), 'Hàng đợi khám');
   assert.equal(access.getLandingLabel('Groomer'), 'Hàng đợi spa');
 });
+
+test('only a signed-in PetOwner can also visit the homepage', () => {
+  assert.equal(access.canVisitHomepage('PetOwner'), true);
+  assert.equal(access.canVisitHomepage('petowner'), true);
+  for (const role of ['Receptionist', 'Veterinarian', 'Groomer', 'Admin', undefined]) {
+    assert.equal(access.canVisitHomepage(role), false, role);
+  }
+});
+
+test('community sidebar belongs to owners and receptionists', () => {
+  for (const role of ['PetOwner', 'Receptionist', 'receptionist']) {
+    assert.equal(access.usesCommunitySidebar(role), true, role);
+  }
+  for (const role of ['Veterinarian', 'Groomer', 'Admin', undefined]) {
+    assert.equal(access.usesCommunitySidebar(role), false, role);
+  }
+});
+
+test('sidebar selects the journey tab and community detail consistently', async () => {
+  const { getSidebarSelection } = await import('../src/routerMap/sidebarSelection.ts');
+  assert.equal(getSidebarSelection('/dashboard', '?tab=journey'), '/dashboard?tab=journey');
+  assert.equal(getSidebarSelection('/dashboard', '?tab=pets'), '/dashboard');
+  assert.equal(getSidebarSelection('/dashboard'), '/dashboard');
+  assert.equal(getSidebarSelection('/community/post-123'), '/community');
+  assert.equal(getSidebarSelection('/community'), '/community');
+  assert.equal(getSidebarSelection('/clinic/dashboard'), '/clinic/dashboard');
+});

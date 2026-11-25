@@ -11,6 +11,7 @@ import styled from 'styled-components';
 import { getRoleGroup, getRoleLabel, normalizeRole } from '@/constants/roles';
 import styles from './mainLayout.module.scss';
 import ROUTER from '@/routerMap/ROUTER';
+import { getSidebarSelection } from '@/routerMap/sidebarSelection';
 import Breadcrumb from '../Breadcrumb/Breadcrumb';
 
 const LayoutLeftMenuStyle = styled(Menu)`
@@ -122,7 +123,9 @@ const MainLayout = ({ ...rest }: any) => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedKey, setSelectedKey] = useState<string[]>([location.pathname]);
+  const [selectedKey, setSelectedKey] = useState<string[]>([
+    getSidebarSelection(location.pathname, location.search),
+  ]);
   const { user } = useAuth();
   const handleLogout = useLogout();
 
@@ -147,7 +150,7 @@ const MainLayout = ({ ...rest }: any) => {
     Boolean(normalizeRole(role)) && getRoleGroup(role) === 'owner';
 
   useEffect(() => {
-    const key = location?.pathname;
+    const key = getSidebarSelection(location.pathname, location.search);
     setSelectedKey([key]);
   }, [location]);
 

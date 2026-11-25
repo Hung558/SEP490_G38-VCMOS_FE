@@ -38,6 +38,8 @@ class RoleLandingTests(unittest.TestCase):
             path = urlsplit(request.url).path
             if path.startswith('/api/') or request.resource_type in ('fetch', 'xhr'):
                 reports = {'/api/reports/revenue': REVENUE, '/api/reports/operations': OPERATIONS, '/api/reports/front-desk': FRONT_DESK}
+                if path == '/api/community-posts/public':
+                    return route.fulfill(json={'posts': [], 'pagination': {'page': 1, 'limit': 12, 'total': 0, 'totalPages': 0}})
                 if path in reports:
                     return route.fulfill(json=reports[path])
                 if path == '/api/auth/login':
@@ -65,6 +67,8 @@ class RoleLandingTests(unittest.TestCase):
 
     def test_signed_in_home_and_reload_redirect_to_workspace(self):
         for role, target in LANDINGS.items():
+            if role == 'PetOwner':
+                continue
             with self.subTest(role=role):
                 page = self.context(role, signed_in=True).new_page()
                 page.goto(BASE + '/')
@@ -72,6 +76,27 @@ class RoleLandingTests(unittest.TestCase):
                 page.reload()
                 expect(page).to_have_url(BASE + target)
                 expect(page.locator('.ant-layout-sider')).to_be_visible()
+
+    def test_owner_can_visit_home_and_return_to_dashboard(self):
+        page = self.context('PetOwner', signed_in=True).new_page()
+        page.goto(BASE + '/')
+        expect(page).to_have_url(BASE + '/')
+        page.reload()
+        expect(page).to_have_url(BASE + '/')
+        page.goto(BASE + '/dashboard')
+        expect(page.locator('.ant-layout-sider')).to_be_visible()
+        expect(page.get_by_role('button', name=re.compile('^.*Trang chủ$'))).to_be_visible()
+
+    def test_journey_sidebar_opens_existing_tab(self):
+        page = self.context('PetOwner', signed_in=True).new_page()
+        page.goto(BASE + '/dashboard')
+        page.get_by_role('menuitem').filter(has_text='Hành trình của bé').click()
+        expect(page).to_have_url(BASE + '/dashboard?tab=journey')
+        expect(page.locator('.ant-menu-item-selected')).to_have_text('Hành trình của bé')
+        expect(page.get_by_role('tab', name='Hành trình của bé', exact=True)).to_have_attribute('aria-selected', 'true')
+        page.reload()
+        expect(page.locator('.ant-menu-item-selected')).to_have_text('Hành trình của bé')
+        page.screenshot(path='tests/screenshots/feedback-25-owner-journey.png', full_page=True)
 
     def test_system_role_login_fallback(self):
         page = self.context('Veterinarian', system_role_only=True).new_page()
@@ -89,9 +114,26 @@ class RoleLandingTests(unittest.TestCase):
         expect(page.get_by_role('banner').get_by_role('button', name='Đăng nhập', exact=True)).to_be_visible()
 
     def test_community_remains_public_for_signed_in_users(self):
-        page = self.context('PetOwner', signed_in=True).new_page()
+        for role in ['PetOwner', 'Receptionist']:
+            with self.subTest(role=role):
+                page = self.context(role, signed_in=True).new_page()
+                page.goto(BASE + LANDINGS[role])
+                page.get_by_role('menuitem').filter(has_text='Cộng đồng').click()
+                expect(page).to_have_url(BASE + '/community')
+                expect(page.locator('.ant-layout-sider')).to_be_visible()
+                expect(page.locator('.ant-menu-item-selected')).to_have_text('Cộng đồng')
+                page.reload()
+                expect(page.locator('.ant-layout-sider')).to_be_visible()
+                expect(page.get_by_role('heading', name=re.compile('Cộng đồng'))).to_be_visible()
+                page.screenshot(path=f'tests/screenshots/feedback-25-community-{role}.png', full_page=True)
+                if role == 'Receptionist':
+                    expect(page.get_by_role('button', name=re.compile('^.*Trang chủ$'))).to_have_count(0)
+
+    def test_guest_community_has_no_workspace_sidebar(self):
+        page = self.context('PetOwner').new_page()
         page.goto(BASE + '/community')
         expect(page).to_have_url(BASE + '/community')
+        expect(page.locator('.ant-layout-sider')).to_have_count(0)
 
 if __name__ == '__main__':
     unittest.main()
