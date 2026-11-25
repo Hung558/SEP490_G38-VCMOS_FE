@@ -26,17 +26,20 @@ const AiAssessmentPage = () => {
   const navigate = useNavigate();
   const [petFormOpen, setPetFormOpen] = useState(false);
   // Bumped after a pet is added here, so the section reloads its pet list
+  // and picks the new pet
   const [petsVersion, setPetsVersion] = useState(0);
+  const [newPetId, setNewPetId] = useState<string>();
 
   return (
     <PageWrapper>
       <PageTitle style={{ marginBottom: 20 }}>Tính năng AI</PageTitle>
       <AiAssessmentSection
         petsVersion={petsVersion}
+        newPetId={newPetId}
         onAddNewPet={() => setPetFormOpen(true)}
-        onBookAppointment={({ petId, note, serviceId }) => {
+        onBookAppointment={({ petId, note, serviceIds }) => {
           toast.info('Đã chuyển kết quả đánh giá AI sang form đặt lịch khám');
-          navigate(getBookingLink(petId, serviceId), {
+          navigate(getBookingLink(petId, serviceIds), {
             state: { bookingNote: note || undefined },
           });
         }}
@@ -45,7 +48,10 @@ const AiAssessmentPage = () => {
         open={petFormOpen}
         editingPet={null}
         onCancel={() => setPetFormOpen(false)}
-        onSuccess={() => setPetsVersion(version => version + 1)}
+        onSuccess={pet => {
+          setNewPetId(pet?._id);
+          setPetsVersion(version => version + 1);
+        }}
       />
     </PageWrapper>
   );

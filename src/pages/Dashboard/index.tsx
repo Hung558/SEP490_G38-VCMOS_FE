@@ -56,6 +56,7 @@ import QuickBookingSection from '@/pages/Home/components/QuickBookingSection';
 import {
   getJourneyLink,
   parseDashboardTab,
+  parseServiceParam,
   type DashboardTab,
 } from './dashboardTabs';
 import { STORAGE, storage } from '@/lib/storage';
@@ -156,7 +157,8 @@ const DashboardPage: React.FC = () => {
   const location = useLocation();
   const activeTab = parseDashboardTab(searchParams.get('tab'));
   const bookParam = searchParams.get('book');
-  // ?service= comes from "Đặt dịch vụ này" on a home service card
+  // ?service= comes from "Đặt dịch vụ này" on a home service card (one id)
+  // or from the AI page (the ticked suggestions, ids joined by commas)
   const serviceParam = searchParams.get('service');
   // The AI page sends its booking note along with the booking link
   const bookingNote = (location.state as { bookingNote?: string } | null)
@@ -167,7 +169,7 @@ const DashboardPage: React.FC = () => {
     key: number;
     petId?: string;
     note?: string;
-    serviceId?: string;
+    serviceIds?: string[];
   } | null>(null);
 
   const setTab = useCallback(
@@ -188,8 +190,8 @@ const DashboardPage: React.FC = () => {
   // The booking wizard is remounted each time, so it starts on the chosen pet
   // (and service)
   const openBooking = useCallback(
-    (petId?: string, note?: string, serviceId?: string) => {
-      setBooking({ key: Date.now(), petId, note, serviceId });
+    (petId?: string, note?: string, serviceIds?: string[]) => {
+      setBooking({ key: Date.now(), petId, note, serviceIds });
       setTab('appointments');
     },
     [setTab]
@@ -197,10 +199,11 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (bookParam) {
+      const serviceIds = parseServiceParam(serviceParam);
       openBooking(
         bookParam === 'new' ? undefined : bookParam,
         bookingNote || undefined,
-        serviceParam || undefined
+        serviceIds.length > 0 ? serviceIds : undefined
       );
     }
   }, [bookParam, serviceParam, bookingNote, openBooking]);
@@ -971,7 +974,7 @@ const DashboardPage: React.FC = () => {
                 embedded
                 initialPetId={booking.petId}
                 initialNote={booking.note}
-                initialServiceId={booking.serviceId}
+                initialServiceIds={booking.serviceIds}
                 onBooked={({ date }) => {
                   refreshVisits();
                   if (

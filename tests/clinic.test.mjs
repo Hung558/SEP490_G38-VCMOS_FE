@@ -421,6 +421,38 @@ test('dashboard tabs and the booking link', () => {
     dashboardTabs.getBookingLink(PET, 'svc1'),
     `/dashboard?tab=appointments&book=${PET}&service=svc1`
   );
+  // 25/11: the AI page books all the suggestions the owner ticked
+  assert.equal(
+    dashboardTabs.getBookingLink(PET, ['svc1', 'svc2']),
+    `/dashboard?tab=appointments&book=${PET}&service=svc1%2Csvc2`
+  );
+  assert.equal(
+    dashboardTabs.getBookingLink(PET, []),
+    `/dashboard?tab=appointments&book=${PET}`
+  );
+});
+
+test('?service= holds one or several service ids', () => {
+  assert.deepEqual(dashboardTabs.parseServiceParam('svc1'), ['svc1']);
+  assert.deepEqual(dashboardTabs.parseServiceParam('svc1,svc2'), [
+    'svc1',
+    'svc2',
+  ]);
+  // Blanks and repeats are dropped, the order is kept
+  assert.deepEqual(dashboardTabs.parseServiceParam(' svc2,,svc1,svc2 '), [
+    'svc2',
+    'svc1',
+  ]);
+  assert.deepEqual(dashboardTabs.parseServiceParam(null), []);
+  assert.deepEqual(dashboardTabs.parseServiceParam(''), []);
+  // The link and the parser agree
+  const link = dashboardTabs.getBookingLink(PET, ['a', 'b']);
+  assert.deepEqual(
+    dashboardTabs.parseServiceParam(
+      new URLSearchParams(link.split('?')[1]).get('service')
+    ),
+    ['a', 'b']
+  );
 });
 
 test('journey tab: link, pet order and the pet shown first', () => {

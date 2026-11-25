@@ -19,16 +19,33 @@ export const parseDashboardTab = (value?: string | null): DashboardTab =>
 
 /**
  * Link that opens the booking form in the "Quản lí lịch đặt" tab, with the pet
- * (and a service) already chosen when given
+ * (and services) already chosen when given. Several services go in one
+ * ?service= as ids joined by commas (the AI page's ticked suggestions).
  */
-export const getBookingLink = (petId?: string, serviceId?: string): string => {
+export const getBookingLink = (
+  petId?: string,
+  serviceIds?: string | string[]
+): string => {
   const params = new URLSearchParams({
     tab: 'appointments',
     book: petId || 'new',
   });
-  if (serviceId) params.set('service', serviceId);
+  const ids = (Array.isArray(serviceIds) ? serviceIds : [serviceIds]).filter(
+    (id): id is string => !!id
+  );
+  if (ids.length > 0) params.set('service', ids.join(','));
   return `${ROUTER.DASHBOARD}?${params.toString()}`;
 };
+
+/** The service ids of a ?service= value, without blanks and repeats */
+export const parseServiceParam = (value?: string | null): string[] => [
+  ...new Set(
+    (value || '')
+      .split(',')
+      .map(id => id.trim())
+      .filter(Boolean)
+  ),
+];
 
 /** Link to the journey tab, on one pet when given; `hash` opens a section */
 export const getJourneyLink = (petId?: string, hash = ''): string => {

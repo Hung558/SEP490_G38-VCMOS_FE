@@ -438,8 +438,11 @@ interface QuickBookingSectionProps {
   initialPetId?: string;
   /** Note filled in when the form opens (symptoms from the AI section) */
   initialNote?: string;
-  /** Service pre-selected when the form opens ("Đặt dịch vụ này" on home) */
-  initialServiceId?: string;
+  /**
+   * Services pre-selected when the form opens: one from "Đặt dịch vụ này" on
+   * home, or the suggestions ticked on the AI page
+   */
+  initialServiceIds?: string[];
   /** A booking was created: the dashboard reloads its appointment list */
   onBooked?: (booking: { date: string }) => void;
   onViewAppointments?: () => void;
@@ -450,7 +453,7 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
   embedded = false,
   initialPetId,
   initialNote,
-  initialServiceId,
+  initialServiceIds,
   onBooked,
   onViewAppointments,
   onAddPet,
@@ -613,13 +616,13 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
     };
   }, [loadActiveServices]);
 
-  // Pre-select the service chosen on the home page once the active list is in.
-  // Only once: the owner may remove it afterwards. The service may have been
-  // stopped since the home page loaded, so it is checked against the list.
+  // Pre-select the services chosen before (home card, AI suggestions) once the
+  // active list is in. Only once: the owner may remove them afterwards. A
+  // service may have been stopped since, so each is checked against the list.
   const initialServiceAppliedRef = useRef(false);
   useEffect(() => {
     if (
-      !initialServiceId ||
+      !initialServiceIds?.length ||
       initialServiceAppliedRef.current ||
       servicesLoading ||
       servicesError
@@ -628,16 +631,26 @@ const QuickBookingSection: React.FC<QuickBookingSectionProps> = ({
     }
     if (activeServices.length === 0) return;
     initialServiceAppliedRef.current = true;
-    if (activeServices.some(s => s._id === initialServiceId)) {
-      setSelectedServices([
-        { serviceId: initialServiceId, sequenceNo: 1, isEmergency: false },
-      ]);
-    } else {
-      toast.warning(
-        'Dịch vụ bạn chọn hiện không còn cung cấp. Vui lòng chọn dịch vụ khác.'
+    const available = initialServiceIds.filter(id =>
+      activeServices.some(s => s._id === id)
+    );
+    if (available.length > 0) {
+      setSelectedServices(
+        available.map((serviceId, index) => ({
+          serviceId,
+          sequenceNo: index + 1,
+          isEmergency: false,
+        }))
       );
     }
-  }, [initialServiceId, activeServices, servicesLoading, servicesError]);
+    if (available.length < initialServiceIds.length) {
+      toast.warning(
+        available.length === 0
+          ? 'Dịch vụ bạn chọn hiện không còn cung cấp. Vui lòng chọn dịch vụ khác.'
+          : 'Một số dịch vụ bạn chọn hiện không còn cung cấp nên chưa được thêm.'
+      );
+    }
+  }, [initialServiceIds, activeServices, servicesLoading, servicesError]);
 
   // Disable past dates according to Vietnam date semantics
   const disabledDate = (current: Dayjs) => {
