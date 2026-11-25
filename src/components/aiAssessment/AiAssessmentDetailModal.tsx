@@ -12,8 +12,8 @@ interface AiAssessmentDetailModalProps {
   /** The check to show; null keeps the modal closed */
   assessmentId: string | null;
   onClose: () => void;
-  /** Booking from the result; read only without it */
-  onBook?: (assessment: AiAssessment, serviceId?: string) => void;
+  /** Booking with the ticked suggested services; read only without it */
+  onBook?: (assessment: AiAssessment, serviceIds: string[]) => void;
 }
 
 /** One saved AI check, read again from GET /ai-assessments/:id */
@@ -78,7 +78,7 @@ const AiAssessmentDetailModal: React.FC<AiAssessmentDetailModalProps> = ({
           assessment={assessment}
           showInput
           onBook={
-            onBook ? serviceId => onBook(assessment, serviceId) : undefined
+            onBook ? serviceIds => onBook(assessment, serviceIds) : undefined
           }
         />
       ) : (

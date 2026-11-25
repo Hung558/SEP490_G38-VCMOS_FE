@@ -56,6 +56,7 @@ import QuickBookingSection from '@/pages/Home/components/QuickBookingSection';
 import {
   getJourneyLink,
   parseDashboardTab,
+  parseServiceParam,
   type DashboardTab,
 } from './dashboardTabs';
 import { STORAGE, storage } from '@/lib/storage';
@@ -72,7 +73,6 @@ import { toast } from 'sonner';
 import PageTitle from '@/components/common/PageTitle';
 import { RowActions } from './components/actionButtons';
 import PetVisitsOverview from './components/PetVisitsOverview';
-import PetJourneyTab from './components/PetJourneyTab';
 import PetService from '@/services/PetService';
 import type { Pet, PetStatusFilter } from '@/types';
 import PetFormModal from './components/PetFormModal';
@@ -156,18 +156,17 @@ const DashboardPage: React.FC = () => {
   const location = useLocation();
   const activeTab = parseDashboardTab(searchParams.get('tab'));
   const bookParam = searchParams.get('book');
-  // ?service= comes from "Đặt dịch vụ này" on a home service card
+  // ?service= comes from "Đặt dịch vụ này" on a home service card (one id)
+  // or from the AI page (the ticked suggestions, ids joined by commas)
   const serviceParam = searchParams.get('service');
   // The AI page sends its booking note along with the booking link
   const bookingNote = (location.state as { bookingNote?: string } | null)
     ?.bookingNote;
-  // ?pet= is the pet shown in the "Hành trình của bé" tab
-  const journeyPetParam = searchParams.get('pet');
   const [booking, setBooking] = useState<{
     key: number;
     petId?: string;
     note?: string;
-    serviceId?: string;
+    serviceIds?: string[];
   } | null>(null);
 
   const setTab = useCallback(
@@ -188,8 +187,8 @@ const DashboardPage: React.FC = () => {
   // The booking wizard is remounted each time, so it starts on the chosen pet
   // (and service)
   const openBooking = useCallback(
-    (petId?: string, note?: string, serviceId?: string) => {
-      setBooking({ key: Date.now(), petId, note, serviceId });
+    (petId?: string, note?: string, serviceIds?: string[]) => {
+      setBooking({ key: Date.now(), petId, note, serviceIds });
       setTab('appointments');
     },
     [setTab]
@@ -197,10 +196,11 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (bookParam) {
+      const serviceIds = parseServiceParam(serviceParam);
       openBooking(
         bookParam === 'new' ? undefined : bookParam,
         bookingNote || undefined,
-        serviceParam || undefined
+        serviceIds.length > 0 ? serviceIds : undefined
       );
     }
   }, [bookParam, serviceParam, bookingNote, openBooking]);
@@ -211,25 +211,22 @@ const DashboardPage: React.FC = () => {
     if (legacyAiTab) navigate(ROUTER.AI_ASSESSMENT, { replace: true });
   }, [legacyAiTab, navigate]);
 
-  // Opens one pet in the "Hành trình của bé" tab and brings the tabs in view
+  // The pets' journeys were a tab here from 24/11 to 26/11; they have their
+  // own page now, and old ?tab=journey(&pet=) links open it on the same pet
+  const legacyJourneyTab = searchParams.get('tab') === 'journey';
+  const legacyJourneyPet = searchParams.get('pet');
+  useEffect(() => {
+    if (legacyJourneyTab) {
+      navigate(getJourneyLink(legacyJourneyPet || undefined, location.hash), {
+        replace: true,
+      });
+    }
+  }, [legacyJourneyTab, legacyJourneyPet, location.hash, navigate]);
+
+  // "Hành trình" on a pet card opens that pet on the journeys page
   const openJourney = useCallback(
-    (petId: string) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          next.set('tab', 'journey');
-          next.set('pet', petId);
-          next.delete('book');
-          next.delete('service');
-          return next;
-        },
-        { replace: true }
-      );
-      document
-        .getElementById('dashboard-tabs')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    },
-    [setSearchParams]
+    (petId: string) => navigate(getJourneyLink(petId)),
+    [navigate]
   );
 
   // Pets state connected to backend API
@@ -942,8 +939,8 @@ const DashboardPage: React.FC = () => {
         onOpenJourney={openJourney}
       />
 
-      {/* File 2: pets, appointments and (24/11) the pets' journeys are tabs;
-          the AI check has its own page */}
+      {/* File 2: pets and appointments are tabs; the AI check (24/11) and the
+          pets' journeys (26/11) have their own pages */}
       <div id="dashboard-tabs" style={{ scrollMarginTop: 80 }}>
         <Tabs
           activeKey={activeTab}
@@ -951,7 +948,6 @@ const DashboardPage: React.FC = () => {
           items={[
             { key: 'pets', label: 'Quản lí thú cưng' },
             { key: 'appointments', label: 'Quản lí lịch đặt' },
-            { key: 'journey', label: 'Hành trình của bé' },
           ]}
         />
       </div>
@@ -971,7 +967,7 @@ const DashboardPage: React.FC = () => {
                 embedded
                 initialPetId={booking.petId}
                 initialNote={booking.note}
-                initialServiceId={booking.serviceId}
+                initialServiceIds={booking.serviceIds}
                 onBooked={({ date }) => {
                   refreshVisits();
                   if (
@@ -1296,19 +1292,6 @@ const DashboardPage: React.FC = () => {
             }}
           />
         </SectionCard>
-      )}
-
-      {/* Pick a pet, read its journey right below (24/11) */}
-      {activeTab === 'journey' && (
-        <PetJourneyTab
-          petId={journeyPetParam}
-          revision={visitsRevision}
-          onSelectPet={openJourney}
-          onAddPet={() => {
-            setEditingPet(null);
-            setIsPetFormModalOpen(true);
-          }}
-        />
       )}
 
       {/* Pet Create/Edit Modal */}

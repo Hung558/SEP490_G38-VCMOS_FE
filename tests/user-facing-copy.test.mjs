@@ -50,9 +50,11 @@ test('clinic header omits account summary and email badge without removing sideb
 
 test('owner dashboard navigation tabs use plain text labels', () => {
   const source = readFileSync(new URL('../src/pages/Dashboard/index.tsx', import.meta.url), 'utf8');
-  for (const [key, label] of [['pets', 'Quản lí thú cưng'], ['appointments', 'Quản lí lịch đặt'], ['journey', 'Hành trình của bé']]) {
+  for (const [key, label] of [['pets', 'Quản lí thú cưng'], ['appointments', 'Quản lí lịch đặt']]) {
     assert.ok(source.includes(`{ key: '${key}', label: '${label}' }`));
   }
+  // 26/11: "Hành trình của bé" is its own sidebar page, not a dashboard tab
+  assert.ok(!source.includes(`{ key: 'journey', label: 'Hành trình của bé' }`));
 });
 
 test('booking card title has no decorative emoji', () => {
