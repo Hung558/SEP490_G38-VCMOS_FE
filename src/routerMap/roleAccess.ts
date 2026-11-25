@@ -39,9 +39,6 @@ export const getLandingPath = (role?: string): string => getLanding(role).path;
 export const getLandingLabel = (role?: string): string =>
   getLanding(role).label;
 
-// Every authenticated role starts in its own workspace, never the guest homepage.
-export const getPostLoginPath = (role?: string): string => getLandingPath(role);
-
 /**
  * Where "Đặt lịch khám" leads a signed-in user: pet owners book online from their
  * dashboard and the receptionist books at the desk (walk-in form). Admin, vets and
@@ -67,6 +64,12 @@ export const getBookingPath = (
 /** Only pet owners may visit the public homepage while signed in. */
 export const canVisitHomepage = (role?: string): boolean =>
   normalizeRole(role) === 'PetOwner';
+
+// 26/11: pet owners start on the homepage after login, as before PR #57;
+// Admin and clinic staff start in their own workspace. Any other role follows
+// the home guard (GuestHomeRoute) and goes to its landing page.
+export const getPostLoginPath = (role?: string): string =>
+  canVisitHomepage(role) ? ROUTER.HOME : getLandingPath(role);
 
 /** These readers keep their workspace navigation when browsing the community. */
 export const usesCommunitySidebar = (role?: string): boolean =>

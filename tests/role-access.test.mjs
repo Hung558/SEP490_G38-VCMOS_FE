@@ -68,15 +68,22 @@ test('"Đặt dịch vụ này" pre-selects the service in the owner booking for
   );
 });
 
-test('all authenticated roles start on their working page after login', () => {
+test('pet owners start on the homepage after login, staff on their working page', () => {
   assert.equal(access.getPostLoginPath('Admin'), '/admin/reports');
   assert.equal(access.getPostLoginPath('receptionist'), '/clinic/dashboard');
   assert.equal(access.getPostLoginPath('Veterinarian'), '/clinic/my-queue');
   // 24/11: the spa staff go straight to "Hàng đợi spa" too
   assert.equal(access.getPostLoginPath('Groomer'), '/clinic/my-queue');
-  // Owner and legacy role fallback both start in the owner dashboard
-  for (const role of ['PetOwner', 'petowner', 'user', undefined]) {
+  // 26/11: pet owners land on the homepage again (any letter case)
+  for (const role of ['PetOwner', 'petowner']) {
+    assert.equal(access.getPostLoginPath(role), '/', role);
+    // The home guard lets them stay there
+    assert.equal(access.canVisitHomepage(role), true, role);
+  }
+  // A legacy role the home guard turns away goes straight to the owner dashboard
+  for (const role of ['user', undefined]) {
     assert.equal(access.getPostLoginPath(role), '/dashboard', String(role));
+    assert.equal(access.canVisitHomepage(role), false, String(role));
   }
 });
 
@@ -91,7 +98,13 @@ test('the landing link is named after the page it opens', () => {
 test('only a signed-in PetOwner can also visit the homepage', () => {
   assert.equal(access.canVisitHomepage('PetOwner'), true);
   assert.equal(access.canVisitHomepage('petowner'), true);
-  for (const role of ['Receptionist', 'Veterinarian', 'Groomer', 'Admin', undefined]) {
+  for (const role of [
+    'Receptionist',
+    'Veterinarian',
+    'Groomer',
+    'Admin',
+    undefined,
+  ]) {
     assert.equal(access.canVisitHomepage(role), false, role);
   }
 });
