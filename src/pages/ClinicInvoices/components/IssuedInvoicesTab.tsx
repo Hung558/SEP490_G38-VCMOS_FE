@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, DatePicker, Input, Select, Tooltip } from 'antd';
+import {
+  Alert,
+  Button,
+  DatePicker,
+  Input,
+  Select,
+  Tooltip,
+  Segmented,
+} from 'antd';
 import {
   DollarOutlined,
   EyeOutlined,
@@ -28,10 +36,15 @@ import InvoiceService, {
 import InvoiceTable from '@/components/invoice/InvoiceTable';
 import {
   getInvoiceRangePresets,
+  getInvoicePeriodRange,
+  INVOICE_PERIOD_OPTIONS,
   getTodayRange,
   isTodayRange,
 } from '@/components/invoice/invoiceRange';
-import type { InvoiceRange } from '@/components/invoice/invoiceRange';
+import type {
+  InvoiceRange,
+  InvoicePeriod,
+} from '@/components/invoice/invoiceRange';
 import {
   FilterCard,
   ResponsiveFilterRow,
@@ -62,6 +75,7 @@ const IssuedInvoicesTab = ({
   const [code, setCode] = useState<string>();
   const [status, setStatus] = useState<InvoicePaymentStatus>();
   const [method, setMethod] = useState<InvoicePaymentMethod>();
+  const [period, setPeriod] = useState<InvoicePeriod>('day');
   const [range, setRange] = useState<InvoiceRange>(getTodayRange);
   const [page, setPage] = useState(1);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -84,7 +98,7 @@ const IssuedInvoicesTab = ({
       toast.error(
         readPayosError(
           err,
-          'Không kiểm tra được thanh toán PayOS',
+          'Không kiểm tra được thanh toán QR',
           PAYOS_CHECK_UNREACHABLE
         ).message
       );
@@ -134,6 +148,16 @@ const IssuedInvoicesTab = ({
     <>
       <FilterCard>
         <ResponsiveFilterRow>
+          <Segmented<InvoicePeriod>
+            aria-label="Kỳ hóa đơn"
+            value={period}
+            options={INVOICE_PERIOD_OPTIONS}
+            onChange={next => {
+              setPeriod(next);
+              if (next !== 'custom') setRange(getInvoicePeriodRange(next));
+              setPage(1);
+            }}
+          />
           <RangePicker
             value={range}
             format="DD/MM/YYYY"
@@ -141,6 +165,7 @@ const IssuedInvoicesTab = ({
             presets={getInvoiceRangePresets()}
             onChange={value => {
               setRange(value);
+              setPeriod('custom');
               setPage(1);
             }}
             aria-label="Khoảng ngày lập"
@@ -238,7 +263,7 @@ const IssuedInvoicesTab = ({
               </Button>
             )}
             {hasPendingPayosCode(invoice) && (
-              <Tooltip title="Hỏi PayOS xem khách đã chuyển khoản bằng mã VietQR chưa">
+              <Tooltip title="Kiểm tra xem khách đã chuyển khoản bằng mã QR chưa">
                 <Button
                   size="small"
                   icon={<QrcodeOutlined />}
@@ -246,7 +271,7 @@ const IssuedInvoicesTab = ({
                   disabled={Boolean(checkingId) && checkingId !== invoice._id}
                   onClick={() => checkPayos(invoice)}
                 >
-                  Kiểm tra PayOS
+                  Kiểm tra thanh toán QR
                 </Button>
               </Tooltip>
             )}

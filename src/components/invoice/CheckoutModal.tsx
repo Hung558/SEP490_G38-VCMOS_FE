@@ -30,13 +30,12 @@ import InvoiceDetailView from './InvoiceDetailView';
 import InvoicePdfButton from './InvoicePdfButton';
 import ProductPicker from './ProductPicker';
 import CashPaymentPanel from './CashPaymentPanel';
-import VnpayPaymentPanel from './VnpayPaymentPanel';
 import PayosPaymentPanel from './PayosPaymentPanel';
 
 const { Title, Text } = Typography;
 
 type Phase = 'loading' | 'create' | 'invoice' | 'none' | 'error';
-type Method = 'cash' | 'vnpay' | 'payos';
+type Method = 'cash' | 'payos';
 
 interface CheckoutModalProps {
   open: boolean;
@@ -53,8 +52,8 @@ interface CheckoutModalProps {
 
 /**
  * SCR-20 thu ngân (nghiệp vụ 4.6, UC-45..47): lập hóa đơn cho đơn "Chờ chủ
- * đón", thêm bớt hàng bán lẻ, thu tiền mặt, VNPay QR hoặc chuyển khoản VietQR
- * (PayOS), in biên lai. Các khung thanh toán luôn được giữ lại khi đổi phương
+ * đón", thêm bớt hàng bán lẻ, thu tiền mặt hoặc thanh toán QR, in biên lai.
+ * Các khung thanh toán luôn được giữ lại khi đổi phương
  * thức, để mã QR đã đưa khách vẫn còn trên màn và vẫn được kiểm tra.
  */
 const CheckoutModal = ({
@@ -69,8 +68,6 @@ const CheckoutModal = ({
   const [invoice, setInvoice] = useState<Invoice>();
   const [loadError, setLoadError] = useState<string>();
   const [method, setMethod] = useState<Method>('cash');
-  const [vnpayLive, setVnpayLive] = useState(false);
-  const [payosLive, setPayosLive] = useState(false);
   const [cashResult, setCashResult] = useState<PayCashResponse>();
   const [itemsBusy, setItemsBusy] = useState(false);
   const [removingId, setRemovingId] = useState<string>();
@@ -99,7 +96,7 @@ const CheckoutModal = ({
       }
       if (signal.aborted) return;
       setInvoice(found);
-      // Back to the VietQR the customer may be scanning, when this browser has it
+      // Back to the QR the customer may be scanning, when this browser has it
       if (found && canPay && readPayosPayment(found)) setMethod('payos');
       setPhase(found ? 'invoice' : canPay && orderId ? 'create' : 'none');
     } catch (err) {
@@ -112,8 +109,6 @@ const CheckoutModal = ({
   useEffect(() => {
     if (!open) return;
     setMethod('cash');
-    setVnpayLive(false);
-    setPayosLive(false);
     setCashResult(undefined);
     setItemsError(undefined);
     void load();
@@ -183,7 +178,7 @@ const CheckoutModal = ({
     onChanged?.();
   };
 
-  // VNPay or PayOS confirmed the payment
+  // The QR transfer was confirmed
   const handleQrPaid = useCallback(
     (paid: Invoice) => {
       setInvoice(paid);
@@ -238,7 +233,7 @@ const CheckoutModal = ({
           >
             Chỉ bỏ được dòng thuốc và sản phẩm. Muốn đổi số lượng thuốc kê đơn
             thì bỏ dòng đó rồi thêm lại với số lượng mới. Đổi hàng sau khi đã
-            tạo mã VNPay hoặc VietQR thì phải tạo mã mới.
+            tạo mã QR thì phải tạo mã mới.
           </Text>
           {itemsError && (
             <Alert
@@ -261,8 +256,7 @@ const CheckoutModal = ({
             onChange={setMethod}
             options={[
               { label: 'Tiền mặt', value: 'cash' },
-              { label: 'VNPay QR', value: 'vnpay' },
-              { label: 'VietQR (PayOS)', value: 'payos' },
+              { label: 'Thanh toán QR', value: 'payos' },
             ]}
           />
           {/* Hidden, not unmounted: a QR shown to the customer keeps its
@@ -277,16 +271,6 @@ const CheckoutModal = ({
                 onStale={reloadInvoice}
               />
             </div>
-            <div hidden={method !== 'vnpay'}>
-              <VnpayPaymentPanel
-                key={`vnpay-${bill._id}-${bill.totalAmount}`}
-                invoice={bill}
-                onPaid={handleQrPaid}
-                onSwitchToCash={() => setMethod('cash')}
-                onLiveChange={setVnpayLive}
-                otherLiveQr={payosLive ? 'VietQR (PayOS)' : undefined}
-              />
-            </div>
             <div hidden={method !== 'payos'}>
               <PayosPaymentPanel
                 key={`payos-${bill._id}-${bill.totalAmount}`}
@@ -294,8 +278,6 @@ const CheckoutModal = ({
                 active={method === 'payos'}
                 onPaid={handleQrPaid}
                 onSwitchToCash={() => setMethod('cash')}
-                onLiveChange={setPayosLive}
-                otherLiveQr={vnpayLive ? 'VNPay' : undefined}
               />
             </div>
           </div>

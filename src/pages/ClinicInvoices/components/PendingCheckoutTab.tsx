@@ -198,7 +198,7 @@ const PendingCheckoutTab = ({
         message="Các bé đã xong mọi dịch vụ và đang chờ trong chuồng (Chờ chủ đón)."
         description={
           canPay
-            ? 'Khi khách đến đón, bấm Thanh toán để lập hóa đơn và thu tiền mặt, VNPay QR hoặc chuyển khoản VietQR (PayOS). Thanh toán xong đơn chuyển Hoàn tất. Danh sách gồm mọi ngày hẹn vì khách có thể đến sớm hoặc muộn.'
+            ? 'Khi khách đến đón, bấm Thanh toán để lập hóa đơn và thu tiền mặt hoặc thanh toán QR. Thanh toán xong đơn chuyển Hoàn tất. Danh sách gồm mọi ngày hẹn vì khách có thể đến sớm hoặc muộn.'
             : 'Lễ tân lập hóa đơn và thu tiền khi khách đến đón. Danh sách gồm mọi ngày hẹn.'
         }
       />

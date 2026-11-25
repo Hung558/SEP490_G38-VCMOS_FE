@@ -33,8 +33,10 @@ import {
 // Wednesday 18/11/2026, 15:30 local time
 const WED = new Date(2026, 10, 18, 15, 30);
 
-test('P1: PayOS is a payment method with the label of the BE receipt', () => {
-  assert.equal(getInvoiceMethodLabel('PayOS'), 'PayOS (VietQR)');
+test('P1: PayOS uses the QR payment label while legacy methods remain available', () => {
+  assert.equal(getInvoiceMethodLabel('PayOS'), 'Thanh toán QR');
+  assert.equal(getInvoiceMethodLabel('Cash'), 'Tiền mặt');
+  assert.equal(getInvoiceMethodLabel('VNPay'), 'VNPay');
   assert.deepEqual(INVOICE_METHODS, ['Cash', 'VNPay', 'PayOS']);
 });
 
@@ -45,6 +47,10 @@ test('P2: PayOS URLs match the BE routes', () => {
 
 test('P2: PayOS statuses read in Vietnamese; unknown ones stay as sent', () => {
   assert.equal(getPayosStatusLabel('PENDING'), 'Đang chờ khách chuyển khoản');
+  assert.equal(
+    getPayosStatusLabel('PROCESSING'),
+    'Đang xử lý giao dịch thanh toán QR'
+  );
   assert.equal(getPayosStatusLabel('CANCELLED'), 'Giao dịch đã bị hủy');
   assert.equal(getPayosStatusLabel('SOMETHING_NEW'), 'SOMETHING_NEW');
   assert.equal(getPayosStatusLabel(undefined), '-');

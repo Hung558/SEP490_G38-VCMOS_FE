@@ -74,7 +74,7 @@ interface PayosPaymentPanelProps {
 }
 
 /**
- * Chuyển khoản VietQR qua PayOS (BE 39a55d6), đặt cạnh VNPay QR: mã VietQR thật,
+ * Thanh toán QR qua PayOS (BE 39a55d6): mã QR thật,
  * tên và số tài khoản nhận, số tiền, đếm ngược 15 phút. BE hỏi PayOS ở
  * `payos-status` và chốt Paid ngay khi PayOS báo đã nhận tiền, nên chạy được ở
  * localhost.
@@ -176,7 +176,7 @@ const PayosPaymentPanel = ({
           setError(
             readPayosError(
               err,
-              'Không kiểm tra được thanh toán PayOS',
+              'Không kiểm tra được thanh toán QR',
               PAYOS_CHECK_UNREACHABLE
             ).message
           );
@@ -203,7 +203,7 @@ const PayosPaymentPanel = ({
       setSecondsLeft(getSecondsLeft(res.data.expiresAt));
     } catch (err) {
       setError(
-        readPayosError(err, 'Không tạo được mã PayOS', PAYOS_CREATE_UNREACHABLE)
+        readPayosError(err, 'Không tạo được mã QR', PAYOS_CREATE_UNREACHABLE)
           .message
       );
     } finally {
@@ -245,7 +245,7 @@ const PayosPaymentPanel = ({
       <Alert
         type="info"
         showIcon
-        message="Hóa đơn 0 đ không chuyển khoản qua PayOS. Hãy xác nhận ở mục Tiền mặt."
+        message="Hóa đơn 0 đ không thanh toán bằng mã QR. Hãy xác nhận ở mục Tiền mặt."
       />
     );
   }
@@ -285,8 +285,8 @@ const PayosPaymentPanel = ({
   const priorStatusText = priorStatus
     ? getPayosStatusLabel(priorStatus)
     : priorChecked
-      ? 'chưa hỏi được PayOS'
-      : 'đang hỏi PayOS';
+      ? 'chưa kiểm tra được thanh toán QR'
+      : 'đang kiểm tra thanh toán QR';
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -301,7 +301,7 @@ const PayosPaymentPanel = ({
 
       {restored && payment === restored && (
         <Text type="secondary">
-          Đang hiện lại mã VietQR đã tạo lúc trước cho hóa đơn này.
+          Đang hiện lại mã QR đã tạo lúc trước cho hóa đơn này.
         </Text>
       )}
 
@@ -311,19 +311,20 @@ const PayosPaymentPanel = ({
           showIcon
           message={
             priorOpen
-              ? 'Hóa đơn đã có một mã PayOS tạo trước đó'
-              : 'Mã PayOS tạo trước đó đã đóng'
+              ? 'Hóa đơn đã có một mã QR tạo trước đó'
+              : 'Mã QR tạo trước đó đã đóng'
           }
           description={
             priorOpen ? (
               <Space direction="vertical" size={4}>
                 <span>
                   Trạng thái: {priorStatusText}. Mã này được tạo ở máy hoặc
-                  trình duyệt khác nên không hiện lại được QR ở đây.
+                  trình duyệt khác nên không hiện lại được mã QR ở đây.
                 </span>
                 {priorLink && (
                   <a href={priorLink} target="_blank" rel="noreferrer">
-                    <LinkOutlined /> Mở trang PayOS của mã này để khách quét
+                    <LinkOutlined /> Mở trang thanh toán QR của mã này để khách
+                    quét
                   </a>
                 )}
                 <span>
@@ -340,7 +341,7 @@ const PayosPaymentPanel = ({
 
       {!payment ? (
         <Space wrap>
-          {createButton('Tạo mã VietQR (PayOS)', true)}
+          {createButton('Tạo mã QR', true)}
           {priorCode && (
             <Button
               icon={<ReloadOutlined />}
@@ -390,7 +391,7 @@ const PayosPaymentPanel = ({
               )}
             </div>
             <a href={payment.checkoutUrl} target="_blank" rel="noreferrer">
-              <LinkOutlined /> Mở trang PayOS (mã QR lớn)
+              <LinkOutlined /> Mở trang thanh toán QR (mã QR lớn)
             </a>
           </div>
         </QrBox>
@@ -399,16 +400,16 @@ const PayosPaymentPanel = ({
       {payment && (
         <Text type="secondary" style={{ fontSize: 12 }}>
           Khách quét mã bằng ứng dụng ngân hàng bất kỳ và kiểm tra tên người
-          nhận trước khi chuyển. Hóa đơn tự chuyển “Đã thanh toán” khi PayOS báo
-          đã nhận tiền. Đóng cửa sổ này thì mã vẫn được giữ tới khi hết hạn. Chỉ
-          đưa khách một mã. Nếu khách báo lỗi hoặc hủy giao dịch:{' '}
+          nhận trước khi chuyển. Hóa đơn tự chuyển “Đã thanh toán” khi hệ thống
+          xác nhận đã nhận tiền. Đóng cửa sổ này thì mã vẫn được giữ tới khi hết
+          hạn. Chỉ đưa khách một mã. Nếu khách báo lỗi hoặc hủy giao dịch:{' '}
           {MSG_PAYMENT_FAILED}
         </Text>
       )}
 
       {checkedAt && (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          Đã hỏi PayOS lúc {checkedAt}:{' '}
+          Đã kiểm tra thanh toán QR lúc {checkedAt}:{' '}
           {getPayosStatusLabel(payment ? status : priorStatus)}.
         </Text>
       )}
