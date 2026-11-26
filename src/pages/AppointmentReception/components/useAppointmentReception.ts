@@ -44,9 +44,20 @@ export const useAppointmentReception = () => {
 
   // Tabs: appointments, shared calendar (SCR-17), customer lookup. Cage work lives on
   // the cage board (/cages); rows here only offer a shortcut to place or view a cage.
-  const [activeTab, setActiveTab] = useState<
-    'appointments' | 'schedule' | 'lookup'
-  >('appointments');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const activeTab =
+    requestedTab === 'schedule' || requestedTab === 'lookup'
+      ? requestedTab
+      : 'appointments';
+  const setActiveTab = (tab: 'appointments' | 'schedule' | 'lookup') => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'appointments') next.delete('tab');
+      else next.set('tab', tab);
+      return next;
+    });
+  };
   // Bumped after every change the shared calendar (SCR-17) shows
   const [scheduleRevision, setScheduleRevision] = useState(0);
   // "Lịch hẹn hôm nay" counters: the receptionist's, and since 24/11 the Admin's
@@ -77,7 +88,6 @@ export const useAppointmentReception = () => {
 
   // "Đặt lịch khám" on the home page links here with ?walkin=new. Open the form
   // once and drop the param, so a reload or back does not reopen it.
-  const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     if (!isReceptionist || !searchParams.has('walkin')) return;
     setWalkInPhone(undefined);

@@ -45,16 +45,18 @@ test('each clinic role has its own work content; others have none', () => {
   assert.equal(content.getStaffRoleContent('Admin'), null);
 });
 
-test('screens that exist link to their page; the rest are still in development', () => {
+test('all staff work shortcuts link to existing role-appropriate routes', () => {
   const linked = screens =>
     Object.fromEntries(screens.filter(s => s.path).map(s => [s.code, s.path]));
   assert.deepEqual(
     linked(content.getStaffRoleContent('Receptionist').screens),
     {
-      'SCR-16': '/clinic/appointments',
-      'SCR-18': '/clinic/appointments',
+      'SCR-16': '/clinic/dashboard',
+      'SCR-17': '/clinic/appointments?tab=schedule',
+      'SCR-18': '/clinic/appointments?walkin=new',
       'SCR-19': '/cages',
-      'SCR-21': '/clinic/appointments',
+      'SCR-20': '/clinic/invoices',
+      'SCR-21': '/clinic/appointments?tab=lookup',
     }
   );
   // A SOAP record (SCR-23) is opened from a case in the work queue
@@ -63,9 +65,22 @@ test('screens that exist link to their page; the rest are still in development',
     {
       'SCR-22': '/clinic/my-queue',
       'SCR-23': '/clinic/my-queue',
+      'SCR-24': '/clinic/my-queue',
+      'SCR-25': '/clinic/inpatient',
     }
   );
   assert.deepEqual(linked(content.getStaffRoleContent('Groomer').screens), {
     'SCR-26': '/clinic/my-queue',
+    'SCR-27': '/clinic/my-queue',
+    'SCR-24': '/clinic/my-queue',
   });
+});
+
+test('no staff shortcut is missing a path or links to an unresolved case ID', () => {
+  for (const role of ['Receptionist', 'Veterinarian', 'Groomer']) {
+    for (const screen of content.getStaffRoleContent(role).screens) {
+      assert.ok(screen.path?.startsWith('/'), `${role}: ${screen.name}`);
+      assert.ok(!screen.path.includes(':'), `${role}: unresolved case route`);
+    }
+  }
 });
