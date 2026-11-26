@@ -618,7 +618,7 @@ test('buildCreateOnlineBookingPayload supports optional slotStart in whitelist',
   assert.equal(payload.slotStart, '09:00');
 });
 
-test('validateSlotStart validates format HH:mm and operating hours 08:00 - 18:00', () => {
+test('validateSlotStart validates format HH:mm and operating hours 08:00 - 21:00', () => {
   // Optional if empty or undefined
   assert.equal(helpers.validateSlotStart(undefined), undefined);
   assert.equal(helpers.validateSlotStart(''), undefined);
@@ -629,14 +629,15 @@ test('validateSlotStart validates format HH:mm and operating hours 08:00 - 18:00
   assert.match(helpers.validateSlotStart('09:0'), /định dạng/);
   assert.match(helpers.validateSlotStart('invalid'), /định dạng/);
 
-  // Out of clinic hours (< 08:00 or >= 18:00)
+  // Out of clinic hours (< 08:00 or >= 21:00, BE 0ac184d)
   assert.match(helpers.validateSlotStart('07:30'), /khung giờ làm việc/);
-  assert.match(helpers.validateSlotStart('18:00'), /khung giờ làm việc/);
-  assert.match(helpers.validateSlotStart('19:30'), /khung giờ làm việc/);
+  assert.match(helpers.validateSlotStart('21:00'), /khung giờ làm việc/);
+  assert.match(helpers.validateSlotStart('21:30'), /khung giờ làm việc/);
 
-  // Future valid time
+  // Future valid time, evening shift included
   assert.equal(helpers.validateSlotStart('09:00', '2099-12-31'), undefined);
   assert.equal(helpers.validateSlotStart('17:30', '2099-12-31'), undefined);
+  assert.equal(helpers.validateSlotStart('19:30', '2099-12-31'), undefined);
 });
 
 test('validateCancelReason requires non-empty string and caps length at 200', () => {
@@ -672,7 +673,7 @@ test('validateOnlineBookingForm validates the required slotStart', () => {
   assert.match(invalidSlotRes.errors.slotStart, /khung giờ làm việc/);
 });
 
-test('booking slots use Vietnam time and allow an exact 18:00 end', () => {
+test('booking slots use Vietnam time and allow an exact 21:00 end', () => {
   const now = new Date('2026-11-11T19:00:00Z'); // Nov 12 02:00 in Vietnam
   assert.equal(helpers.getVietnamTodayString(now), '2026-11-12');
   const morning = new Date('2026-11-12T02:30:00Z'); // 09:30 in Vietnam
@@ -690,28 +691,31 @@ test('booking slots use Vietnam time and allow an exact 18:00 end', () => {
     duration,
     morning
   );
-  assert.equal(todaySlots.length, 20);
+  assert.equal(todaySlots.length, 26);
   assert.equal(todaySlots[0].value, '08:00');
-  assert.equal(todaySlots.at(-1).value, '17:30');
+  assert.equal(todaySlots.at(-1).value, '20:30');
   assert.equal(todaySlots.find(slot => slot.value === '09:30').disabled, true);
   assert.equal(todaySlots.find(slot => slot.value === '10:00').disabled, false);
   assert.equal(todaySlots.find(slot => slot.value === '16:30').disabled, false);
-  assert.equal(todaySlots.find(slot => slot.value === '17:00').disabled, true);
+  assert.equal(todaySlots.find(slot => slot.value === '17:00').disabled, false);
+  assert.equal(todaySlots.find(slot => slot.value === '19:30').disabled, false);
+  assert.equal(todaySlots.find(slot => slot.value === '20:00').disabled, true);
   assert.equal(
     tomorrowSlots.find(slot => slot.value === '09:30').disabled,
     false
   );
   assert.equal(helpers.getEstimatedBookingEnd('16:30', duration), '18:00');
-  assert.equal(helpers.getEstimatedBookingEnd('17:00', duration), undefined);
+  assert.equal(helpers.getEstimatedBookingEnd('19:30', duration), '21:00');
+  assert.equal(helpers.getEstimatedBookingEnd('20:00', duration), undefined);
   assert.equal(helpers.getEstimatedBookingEnd('08:00', 0), undefined);
   assert.ok(
     helpers
-      .getClinicBookingSlots('2026-11-12', 601, morning)
+      .getClinicBookingSlots('2026-11-12', 781, morning)
       .every(slot => slot.disabled)
   );
   assert.ok(
     helpers
-      .getClinicBookingSlots('2026-11-12', 30, new Date('2026-11-12T10:30:00Z'))
+      .getClinicBookingSlots('2026-11-12', 30, new Date('2026-11-12T13:30:00Z'))
       .every(slot => slot.disabled)
   );
 });
@@ -745,7 +749,7 @@ test('booking form revalidates the required slot using current time and duration
     /quá khứ/
   );
   assert.match(
-    helpers.validateOnlineBookingForm({ ...form, slotStart: '17:00' }, options)
+    helpers.validateOnlineBookingForm({ ...form, slotStart: '20:00' }, options)
       .errors.slotStart,
     /đóng cửa/
   );

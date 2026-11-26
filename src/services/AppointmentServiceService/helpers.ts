@@ -370,13 +370,17 @@ export const getVietnamCurrentTime = (now = new Date()): string => {
   }
 };
 
+// Same window as the BE booking validators (BE 0ac184d: 08:00–21:00, so the
+// evening shift 17:00–21:00 can be booked)
+export const CLINIC_OPEN_TIME = '08:00';
+export const CLINIC_CLOSE_TIME = '21:00';
 const CLINIC_OPEN_MINUTES = 8 * 60;
-const CLINIC_CLOSE_MINUTES = 18 * 60;
+const CLINIC_CLOSE_MINUTES = 21 * 60;
 const BOOKING_SLOT_STEP = 30;
 const DEFAULT_SERVICE_DURATION = 30;
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const PAST_SLOT_ERROR = 'Giờ hẹn không được ở trong quá khứ';
-const LATE_END_ERROR = 'Tổng thời lượng dịch vụ vượt quá giờ đóng cửa (18:00)';
+const LATE_END_ERROR = `Tổng thời lượng dịch vụ vượt quá giờ đóng cửa (${CLINIC_CLOSE_TIME})`;
 
 const toMinutes = (time: string): number => {
   const [hours, minutes] = time.split(':').map(Number);
@@ -422,7 +426,7 @@ export const validateSlotStart = (
   if (!TIME_PATTERN.test(start)) return 'Khung giờ phải đúng định dạng HH:mm';
   const minutes = toMinutes(start);
   if (minutes < CLINIC_OPEN_MINUTES || minutes >= CLINIC_CLOSE_MINUTES) {
-    return 'Giờ hẹn phải nằm trong khung giờ làm việc (08:00 - 18:00)';
+    return `Giờ hẹn phải nằm trong khung giờ làm việc (${CLINIC_OPEN_TIME} - ${CLINIC_CLOSE_TIME})`;
   }
   return getSlotAvailabilityError(
     start,
@@ -443,7 +447,9 @@ export const getClinicBookingSlots = (
     const value = toHHmm(CLINIC_OPEN_MINUTES + index * BOOKING_SLOT_STEP);
     const error = getSlotAvailabilityError(value, totalDuration, cutoff);
     const reason =
-      error === PAST_SLOT_ERROR ? 'Đã qua giờ này' : 'Kết thúc sau 18:00';
+      error === PAST_SLOT_ERROR
+        ? 'Đã qua giờ này'
+        : `Kết thúc sau ${CLINIC_CLOSE_TIME}`;
     return {
       value,
       label: error ? `${value} (${reason})` : value,
