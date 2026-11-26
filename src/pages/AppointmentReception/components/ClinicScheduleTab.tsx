@@ -6,6 +6,7 @@ import {
   DatePicker,
   Empty,
   Popover,
+  Segmented,
   Space,
   Spin,
   Tag,
@@ -21,7 +22,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import styled from 'styled-components';
-import type { CageAssignment, StaffAppointment } from '@/types';
+import type { CageAssignment, StaffAppointment, StaffShift } from '@/types';
 import {
   getAppointmentOwnerName,
   getAppointmentOwnerPhone,
@@ -38,38 +39,52 @@ import {
   getServiceRefCategory,
 } from '@/services/AppointmentServiceService';
 import { getAssignmentCageLabel } from '@/services/CageAssignmentService';
+import { getShiftInfo } from '@/services/StaffScheduleService';
 import {
-  SCHEDULE_DAY_END,
-  SCHEDULE_DAY_START,
   SCHEDULE_STATUS_STYLES,
-  SCHEDULE_STEP,
+  SCHEDULE_VIEWS,
+  type PlacedBlock,
   type ScheduleBlock,
+  type ScheduleViewKey,
   buildScheduleEntries,
   buildScheduleRows,
   formatMinutes,
+  getScheduleView,
+  hourTicksInView,
+  indexBusyShifts,
+  layoutBlocksInView,
+  offBandsInView,
+  shiftBandsInView,
 } from './clinicScheduleHelpers';
 import { useClinicSchedule } from './useClinicSchedule';
 
 const { Text } = Typography;
 
-const COL = 26; // px per 15 minutes
 const LANE = 46; // px per stacked block
-const LABEL_W = 210;
-const COLUMNS = (SCHEDULE_DAY_END - SCHEDULE_DAY_START) / SCHEDULE_STEP;
-const HOURS = Array.from(
-  { length: (SCHEDULE_DAY_END - SCHEDULE_DAY_START) / 60 },
-  (_, i) => SCHEDULE_DAY_START / 60 + i
-);
+const LABEL_W = 200;
 const AT_CLINIC = ['CheckedIn', 'InProgress', 'WaitOwner'];
 
-const Scroller = styled.div`
+/** A light tint per shift, so the evening stands apart from the day */
+const SHIFT_TINT: Record<
+  StaffShift,
+  { band: string; text: string; track: string }
+> = {
+  MORNING: { band: '#fefce8', text: '#854d0e', track: '#fffef6' },
+  AFTERNOON: { band: '#f0f9ff', text: '#075985', track: '#fbfdff' },
+  EVENING: { band: '#f5f3ff', text: '#5b21b6', track: '#f9f7ff' },
+};
+
+const hh = (minutes: number) => formatMinutes(minutes).slice(0, 2);
+
+const Frame = styled.div`
   overflow-x: auto;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
 `;
 
 const GridTable = styled.div`
-  width: ${LABEL_W + COLUMNS * COL}px;
+  /* Percent positions: the grid fits its box; it only scrolls below this width */
+  min-width: 720px;
 
   .row {
     display: flex;
@@ -81,7 +96,7 @@ const GridTable = styled.div`
   .label {
     position: sticky;
     left: 0;
-    z-index: 2;
+    z-index: 4;
     flex: 0 0 ${LABEL_W}px;
     padding: 8px 10px;
     background: #fff;
@@ -92,40 +107,111 @@ const GridTable = styled.div`
     gap: 2px;
     min-width: 0;
   }
-  .head .label,
-  .head .hours {
+  .head .label {
     background: #f8fafc;
     font-weight: 600;
   }
-  .hours {
+  .scale {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: #f8fafc;
+  }
+  .bands {
+    position: relative;
+    height: 30px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .band {
+    position: absolute;
+    top: 0;
+    bottom: 0;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 6px;
+    border: none;
+    border-left: 2px solid #cbd5e1;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .band.first {
+    border-left: none;
+  }
+  button.band {
+    cursor: pointer;
+  }
+  button.band:hover,
+  button.band:focus-visible {
+    text-decoration: underline;
+  }
+  .band .time {
+    font-weight: 400;
+    opacity: 0.8;
+  }
+  .hours {
+    position: relative;
+    height: 28px;
   }
   .hour {
-    flex: 0 0 ${COL * 4}px;
+    position: absolute;
+    top: 0;
+    bottom: 0;
     padding: 6px 4px;
     border-left: 1px solid #e2e8f0;
     font-size: 12px;
+    font-weight: 600;
+    color: #334155;
   }
   .track {
     position: relative;
-    flex: 0 0 ${COLUMNS * COL}px;
-    /* quarter-hour lines, darker on the hour */
-    background-image:
-      repeating-linear-gradient(
-        to right,
-        #e2e8f0 0 1px,
-        transparent 1px ${COL * 4}px
-      ),
-      repeating-linear-gradient(
-        to right,
-        #f1f5f9 0 1px,
-        transparent 1px ${COL}px
-      );
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .tint {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 2px solid #cbd5e1;
+  }
+  .tint.first {
+    border-left: none;
+  }
+  .lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px);
+  }
+  .lines.fine {
+    background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px);
+  }
+  .off {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      135deg,
+      rgba(148, 163, 184, 0.16) 0 6px,
+      rgba(148, 163, 184, 0.3) 6px 8px
+    );
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
   }
 `;
 
 const Block = styled.button<{ $color: string; $bg: string }>`
   position: absolute;
+  z-index: 2;
   height: ${LANE - 8}px;
   padding: 2px 6px;
   border: 1px solid ${p => p.$color};
@@ -138,7 +224,18 @@ const Block = styled.button<{ $color: string; $bg: string }>`
   line-height: 1.3;
   overflow: hidden;
   cursor: pointer;
+  /* Narrow blocks drop the end time and the pet line (see @container below) */
+  container-type: inline-size;
 
+  &.cut-start {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  &.cut-end {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-style: dashed;
+  }
   &:focus-visible {
     outline: 2px solid #1677ff;
     outline-offset: 1px;
@@ -148,6 +245,16 @@ const Block = styled.button<{ $color: string; $bg: string }>`
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  @container (max-width: 80px) {
+    .end {
+      display: none;
+    }
+  }
+  @container (max-width: 48px) {
+    .pet {
+      display: none;
+    }
   }
 `;
 
@@ -205,6 +312,32 @@ const ClinicScheduleTab = ({
   );
   const visibleUnscheduled = unscheduled.filter(
     o => showCancelled || o.derivedStatus !== 'Cancelled'
+  );
+
+  // The whole day 08:00–21:00, or one shift for a closer look
+  const [viewKey, setViewKey] = useState<ScheduleViewKey>('day');
+  const view = getScheduleView(viewKey);
+  const bands = useMemo(() => shiftBandsInView(view), [view]);
+  const ticks = useMemo(() => hourTicksInView(view), [view]);
+  const hours = (view.end - view.start) / 60;
+  const offByStaff = useMemo(
+    () => indexBusyShifts(schedule.busy),
+    [schedule.busy]
+  );
+  const laidOut = useMemo(
+    () =>
+      rows.map(row => {
+        const { blocks, lanes } = layoutBlocksInView(row.blocks, view);
+        const offShifts = offByStaff.get(row.key);
+        return {
+          row,
+          blocks,
+          lanes,
+          offShifts,
+          offBands: offBandsInView(offShifts, view),
+        };
+      }),
+    [rows, view, offByStaff]
   );
 
   const act = (fn: () => void) => () => {
@@ -335,6 +468,18 @@ const ClinicScheduleTab = ({
           >
             Hôm nay
           </Button>
+          <Segmented
+            aria-label="Khung giờ xem"
+            value={viewKey}
+            onChange={value => setViewKey(value as ScheduleViewKey)}
+            options={SCHEDULE_VIEWS.map(v => ({
+              value: v.key,
+              label:
+                v.key === 'day'
+                  ? `${v.label} ${hh(v.start)}–${hh(v.end)}h`
+                  : `${v.label} ${hh(v.start)}–${hh(v.end)}`,
+            }))}
+          />
           <Checkbox
             checked={showCancelled}
             onChange={e => setShowCancelled(e.target.checked)}
@@ -404,7 +549,7 @@ const ClinicScheduleTab = ({
         ) : rows.length === 0 ? (
           <Empty description="Không có nhân viên hay lịch hẹn nào trong ngày" />
         ) : (
-          <Scroller>
+          <Frame>
             <GridTable
               role="table"
               aria-label={`Lịch chung ngày ${dayjs(schedule.date).format('DD/MM/YYYY')}`}
@@ -413,15 +558,60 @@ const ClinicScheduleTab = ({
                 <div className="label" role="columnheader">
                   Nhân viên
                 </div>
-                <div className="hours">
-                  {HOURS.map(h => (
-                    <div className="hour" key={h} role="columnheader">
-                      {String(h).padStart(2, '0')}:00
-                    </div>
-                  ))}
+                <div className="scale">
+                  <div className="bands">
+                    {bands.map((band, i) => {
+                      const tint = SHIFT_TINT[band.key];
+                      const style = {
+                        left: `${band.leftPct}%`,
+                        width: `${band.widthPct}%`,
+                        background: tint.band,
+                        color: tint.text,
+                      };
+                      const content = (
+                        <>
+                          {band.label}
+                          <span className="time">{band.time}</span>
+                        </>
+                      );
+                      // In the whole-day view a band opens that shift alone
+                      return viewKey === 'day' ? (
+                        <button
+                          key={band.key}
+                          type="button"
+                          className={`band${i === 0 ? ' first' : ''}`}
+                          style={style}
+                          title={`Xem riêng ${band.label.toLowerCase()}`}
+                          onClick={() => setViewKey(band.key)}
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <div
+                          key={band.key}
+                          className={`band${i === 0 ? ' first' : ''}`}
+                          style={style}
+                        >
+                          {content}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="hours">
+                    {ticks.map(tick => (
+                      <div
+                        className="hour"
+                        key={tick.label}
+                        role="columnheader"
+                        style={{ left: `${tick.leftPct}%` }}
+                      >
+                        {tick.label}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              {rows.map(row => (
+              {laidOut.map(({ row, blocks, lanes, offShifts, offBands }) => (
                 <div className="row" role="row" key={row.key}>
                   <div className="label" role="rowheader">
                     <Text strong ellipsis>
@@ -441,19 +631,67 @@ const ClinicScheduleTab = ({
                       {!row.onShift && (
                         <Tag style={{ marginInlineEnd: 0 }}>Không có ca</Tag>
                       )}
-                      {row.blocks.length === 0 && (
+                      {offShifts && offShifts.length > 0 && (
+                        <Tag style={{ marginInlineEnd: 0 }}>
+                          Nghỉ{' '}
+                          {offShifts
+                            .map(s => getShiftInfo(s)?.label.toLowerCase())
+                            .join(', ')}
+                        </Tag>
+                      )}
+                      {blocks.length === 0 && (
                         <Text type="secondary" style={{ fontSize: 12 }}>
                           Trống
                         </Text>
                       )}
                     </Space>
                   </div>
-                  <div className="track" style={{ height: row.lanes * LANE }}>
-                    {row.blocks.map(block => {
+                  <div className="track" style={{ minHeight: lanes * LANE }}>
+                    {bands.map((band, i) => (
+                      <div
+                        key={band.key}
+                        className={`tint${i === 0 ? ' first' : ''}`}
+                        style={{
+                          left: `${band.leftPct}%`,
+                          width: `${band.widthPct}%`,
+                          background: SHIFT_TINT[band.key].track,
+                        }}
+                      />
+                    ))}
+                    {viewKey !== 'day' && (
+                      <div
+                        className="lines fine"
+                        style={{
+                          backgroundSize: `calc(100% / ${hours * 4}) 100%`,
+                        }}
+                      />
+                    )}
+                    <div
+                      className="lines"
+                      style={{ backgroundSize: `calc(100% / ${hours}) 100%` }}
+                    />
+                    {offBands.map(band => (
+                      <div
+                        key={band.key}
+                        className="off"
+                        role="note"
+                        aria-label={`${row.name} nghỉ ${band.label.toLowerCase()}`}
+                        style={{
+                          left: `${band.leftPct}%`,
+                          width: `${band.widthPct}%`,
+                        }}
+                      >
+                        Nghỉ
+                      </div>
+                    ))}
+                    {blocks.map((block: PlacedBlock) => {
                       const style =
                         SCHEDULE_STATUS_STYLES[block.service.status];
-                      const time = `${formatMinutes(block.start)}–${formatMinutes(block.end)}`;
-                      const label = `${getAppointmentPetName(block.order.petId)} · ${getAppointmentServiceName(block.service.serviceId)}`;
+                      const start = formatMinutes(block.start);
+                      const end = formatMinutes(block.end);
+                      const time = `${start}–${end}`;
+                      const pet = getAppointmentPetName(block.order.petId);
+                      const label = `${pet} · ${getAppointmentServiceName(block.service.serviceId)}`;
                       return (
                         <Popover
                           key={block.key}
@@ -467,19 +705,22 @@ const ClinicScheduleTab = ({
                         >
                           <Block
                             type="button"
+                            className={`${block.cutStart ? 'cut-start' : ''} ${block.cutEnd ? 'cut-end' : ''}`}
                             $color={style.color}
                             $bg={style.background}
                             aria-label={`${time}, ${label}, ${style.label}`}
+                            title={`${time} · ${label}`}
                             style={{
-                              left: block.column * COL + 1,
-                              width: block.span * COL - 3,
+                              left: `calc(${block.leftPct}% + 1px)`,
+                              width: `calc(${block.widthPct}% - 3px)`,
                               top: block.lane * LANE + 4,
                             }}
                           >
                             <span className="line" style={{ fontWeight: 600 }}>
-                              {time}
+                              {start}
+                              <span className="end">–{end}</span>
                             </span>
-                            <span className="line">{label}</span>
+                            <span className="line pet">{label}</span>
                           </Block>
                         </Popover>
                       );
@@ -488,7 +729,7 @@ const ClinicScheduleTab = ({
                 </div>
               ))}
             </GridTable>
-          </Scroller>
+          </Frame>
         )}
       </Spin>
 

@@ -6,7 +6,9 @@ import AppointmentOrderService, {
 } from '@/services/AppointmentOrderService';
 import AppointmentServiceService from '@/services/AppointmentServiceService';
 import StaffService from '@/services/StaffService';
+import StaffScheduleService from '@/services/StaffScheduleService';
 import type {
+  BusySchedule,
   OnlineAppointmentService,
   StaffAppointment,
   StaffMember,
@@ -59,6 +61,8 @@ export const useClinicSchedule = ({
     Map<string, OnlineAppointmentService[]>
   >(() => new Map());
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  // Shifts people are off this day; only shades the grid, so a failure is ignored
+  const [busy, setBusy] = useState<BusySchedule[]>([]);
   // False when nobody has a shift on record for the day (no roster API yet)
   const [shiftKnown, setShiftKnown] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -75,6 +79,12 @@ export const useClinicSchedule = ({
     setError(null);
     try {
       const staffPromise = StaffService.listStaffForDate(day, { signal });
+      const busyPromise = StaffScheduleService.list({ date: day }, { signal })
+        .then(res => res.data || [])
+        .catch((err: unknown) => {
+          if (isAbort(err)) throw err;
+          return [] as BusySchedule[];
+        });
 
       const dayOrders: StaffAppointment[] = [];
       for (let page = 1; page <= MAX_PAGES; page += 1) {
@@ -109,6 +119,7 @@ export const useClinicSchedule = ({
       );
 
       const { onDuty, all } = await staffPromise;
+      const busyList = await busyPromise;
       if (signal.aborted) return;
       const map = new Map<string, OnlineAppointmentService[]>();
       dayOrders.forEach((order, i) => map.set(order._id, serviceLists[i]));
@@ -116,6 +127,7 @@ export const useClinicSchedule = ({
       setServicesByOrder(map);
       setShiftKnown(onDuty.length > 0);
       setStaff(onDuty.length > 0 ? onDuty : all);
+      setBusy(busyList);
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
       setError(extractApiError(err, 'Không tải được lịch chung').message);
@@ -137,6 +149,7 @@ export const useClinicSchedule = ({
     orders,
     servicesByOrder,
     staff,
+    busy,
     shiftKnown,
     loading,
     error,
