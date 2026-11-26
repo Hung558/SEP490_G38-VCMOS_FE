@@ -5,15 +5,23 @@ import type {
   AppointmentServiceStatus,
   OnlineAppointmentService,
 } from '../../../types/api/appointment-service.api.ts';
-import type { StaffMember } from '../../../types/api/staff.api.ts';
+import type { StaffMember, StaffShift } from '../../../types/api/staff.api.ts';
+import type { BusySchedule } from '../../../types/api/staff-schedule.api.ts';
 import {
   getBookingServiceDuration,
   getStaffRefId,
 } from '../../../services/AppointmentServiceService/helpers.ts';
+import {
+  SHIFT_INFO,
+  getShiftOfTime,
+} from '../../../services/StaffScheduleService/helpers.ts';
 
-/** SRS SCR-17: columns are working hours 08:00–18:00 in 15-minute steps */
+/**
+ * SRS SCR-17: columns are the working hours in 15-minute steps. The SRS said
+ * 08:00–18:00; BE 0ac184d books until 21:00 (evening shift), so the grid does too.
+ */
 export const SCHEDULE_DAY_START = 8 * 60;
-export const SCHEDULE_DAY_END = 18 * 60;
+export const SCHEDULE_DAY_END = 21 * 60;
 export const SCHEDULE_STEP = 15;
 export const UNASSIGNED_ROW_KEY = 'unassigned';
 
@@ -255,3 +263,171 @@ export const buildScheduleRows = (
     return role || a.name.localeCompare(b.name, 'vi');
   });
 };
+
+// ---------------------------------------------------------------------------
+// Views of the grid (26/11 redesign): the whole working day 08:00–21:00, or one
+// of the three shifts of the staff schedule. Positions are percentages of the
+// view, so the grid fits its box without a sideways scroll.
+
+export type ScheduleViewKey = 'day' | StaffShift;
+
+export interface ScheduleView {
+  key: ScheduleViewKey;
+  /** Short name for the view switch */
+  label: string;
+  /** Minutes since midnight */
+  start: number;
+  end: number;
+}
+
+const shiftMinutes = (time: string) => toMinutes(time);
+
+export const SCHEDULE_VIEWS: readonly ScheduleView[] = [
+  {
+    key: 'day',
+    label: 'Cả ngày',
+    start: SCHEDULE_DAY_START,
+    end: SCHEDULE_DAY_END,
+  },
+  ...SHIFT_INFO.map(s => ({
+    key: s.key,
+    label: s.label,
+    start: shiftMinutes(s.start),
+    end: shiftMinutes(s.end),
+  })),
+];
+
+export const getScheduleView = (key: ScheduleViewKey): ScheduleView =>
+  SCHEDULE_VIEWS.find(v => v.key === key) || SCHEDULE_VIEWS[0];
+
+const pct = (minutes: number, view: ScheduleView) =>
+  ((minutes - view.start) / (view.end - view.start)) * 100;
+
+export interface ShiftBand {
+  key: StaffShift;
+  /** "Ca sáng" */
+  label: string;
+  /** "08:00–12:00" */
+  time: string;
+  leftPct: number;
+  widthPct: number;
+}
+
+/** The shifts (or the part of them) inside a view, for the band above the hours */
+export const shiftBandsInView = (view: ScheduleView): ShiftBand[] =>
+  SHIFT_INFO.flatMap(s => {
+    const start = Math.max(shiftMinutes(s.start), view.start);
+    const end = Math.min(shiftMinutes(s.end), view.end);
+    if (end <= start) return [];
+    return [
+      {
+        key: s.key,
+        label: `Ca ${s.label.toLowerCase()}`,
+        time: s.time,
+        leftPct: pct(start, view),
+        widthPct: pct(end, view) - pct(start, view),
+      },
+    ];
+  });
+
+/** "08:00", "09:00"… at their place in the view (the closing hour is left out) */
+export const hourTicksInView = (
+  view: ScheduleView
+): { label: string; leftPct: number }[] => {
+  const ticks: { label: string; leftPct: number }[] = [];
+  for (let m = Math.ceil(view.start / 60) * 60; m < view.end; m += 60) {
+    ticks.push({ label: formatMinutes(m), leftPct: pct(m, view) });
+  }
+  return ticks;
+};
+
+export interface PlacedBlock extends ScheduleBlock {
+  leftPct: number;
+  widthPct: number;
+  /** The service started before the view or goes on after it */
+  cutStart: boolean;
+  cutEnd: boolean;
+}
+
+/**
+ * Blocks of one row inside a view, with their lane. A shift view keeps the
+ * services that overlap it, plus those that start in that shift by the BE rule
+ * (before 12:00 morning, before 17:00 afternoon, else evening), so a service
+ * outside 08:00–21:00 still shows in the first or last shift. Pieces outside
+ * the view are cut at its edge, and nothing gets thinner than 2% of the view.
+ */
+export const layoutBlocksInView = (
+  blocks: readonly ScheduleBlock[],
+  view: ScheduleView
+): { blocks: PlacedBlock[]; lanes: number } => {
+  const span = view.end - view.start;
+  const minWidth = Math.max(5, span * 0.02);
+  const placed = blocks
+    .filter(
+      b =>
+        view.key === 'day' ||
+        (b.start < view.end && b.end > view.start) ||
+        getShiftOfTime(formatMinutes(Math.min(b.start, 23 * 60 + 59))) ===
+          view.key
+    )
+    .map(b => {
+      let from = Math.min(Math.max(b.start, view.start), view.end);
+      let to = Math.min(Math.max(b.end, view.start), view.end);
+      if (to - from < minWidth) {
+        if (from + minWidth <= view.end) to = from + minWidth;
+        else {
+          to = view.end;
+          from = view.end - minWidth;
+        }
+      }
+      return {
+        block: b,
+        from,
+        to,
+      };
+    })
+    .sort((a, b) => a.from - b.from || b.to - a.to);
+
+  const laneEnds: number[] = [];
+  const result: PlacedBlock[] = placed.map(({ block, from, to }) => {
+    let lane = laneEnds.findIndex(end => end <= from);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(to);
+    } else {
+      laneEnds[lane] = to;
+    }
+    return {
+      ...block,
+      lane,
+      leftPct: pct(from, view),
+      widthPct: pct(to, view) - pct(from, view),
+      cutStart: block.start < view.start,
+      cutEnd: block.end > view.end,
+    };
+  });
+  return { blocks: result, lanes: Math.max(1, laneEnds.length) };
+};
+
+/** Shifts each person is off (busy record of the staff schedule), by staff _id */
+export const indexBusyShifts = (
+  busy: readonly BusySchedule[] | null | undefined
+): Map<string, StaffShift[]> => {
+  const map = new Map<string, StaffShift[]>();
+  for (const record of busy || []) {
+    const ref = record.staffId;
+    const staffId = typeof ref === 'string' ? ref : ref?._id;
+    if (!staffId) continue;
+    const list = map.get(staffId) || [];
+    if (!list.includes(record.shift)) list.push(record.shift);
+    map.set(staffId, list);
+  }
+  return map;
+};
+
+/** The off shifts of one row, as bands inside the view */
+export const offBandsInView = (
+  shifts: readonly StaffShift[] | undefined,
+  view: ScheduleView
+): ShiftBand[] =>
+  shiftBandsInView(view).filter(band => shifts?.includes(band.key));
