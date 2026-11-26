@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Tag } from 'antd';
 import { CalendarOutlined } from '@ant-design/icons';
+import ROUTER from '@/routerMap/ROUTER';
 import { getStaffRoleContent } from './profileContent';
 import { SectionCard } from './styles';
 
@@ -20,23 +20,19 @@ const StaffWorkSection: React.FC<{ role?: string }> = ({ role }) => {
         {content.screens.map(screen => (
           <div className="screen-item" key={screen.code}>
             <span className="screen-name">{screen.name}</span>
-            {screen.path ? (
-              <Link to={screen.path}>Mở trang</Link>
-            ) : (
-              <Tag style={{ margin: 0 }}>Đang phát triển</Tag>
-            )}
+            <Link to={screen.path} aria-label={`Mở ${screen.name}`}>
+              Mở trang
+            </Link>
           </div>
         ))}
       </div>
 
-      {/* No shift API yet (SCR-30), so there is nothing to show but the state */}
       <div className="schedule-box">
         <CalendarOutlined className="schedule-icon" />
         <div>
           <strong>Lịch làm việc</strong>
           <span className="schedule-desc">
-            Chưa có dữ liệu ca làm việc. Lịch của bạn sẽ hiện ở đây khi chức
-            năng phân ca hoàn thành.
+            <Link to={ROUTER.STAFF_SCHEDULES}>Xem lịch làm việc</Link>
           </span>
         </div>
       </div>

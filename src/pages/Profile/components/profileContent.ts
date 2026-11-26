@@ -27,11 +27,11 @@ export const getAccountStatus = (status?: string) =>
   };
 
 // The screens each clinic role works in (SRS actors).
-// `path` is set once a screen exists; the others show as in development.
+// Case-specific work opens the queue first so staff choose an authorized case.
 export interface StaffScreen {
   code: string;
   name: string;
-  path?: string;
+  path: string;
 }
 
 export const STAFF_ROLE_CONTENT: Record<string, { screens: StaffScreen[] }> = {
@@ -40,20 +40,28 @@ export const STAFF_ROLE_CONTENT: Record<string, { screens: StaffScreen[] }> = {
       {
         code: 'SCR-16',
         name: 'Bảng điều khiển lễ tân',
-        path: ROUTER.CLINIC_APPOINTMENTS,
+        path: ROUTER.FRONT_DESK_DASHBOARD,
       },
-      { code: 'SCR-17', name: 'Lịch chung của phòng khám' },
+      {
+        code: 'SCR-17',
+        name: 'Lịch chung của phòng khám',
+        path: `${ROUTER.CLINIC_APPOINTMENTS}?tab=schedule`,
+      },
       {
         code: 'SCR-18',
         name: 'Tiếp nhận khách vãng lai',
-        path: ROUTER.CLINIC_APPOINTMENTS,
+        path: `${ROUTER.CLINIC_APPOINTMENTS}?walkin=new`,
       },
       { code: 'SCR-19', name: 'Sơ đồ chuồng', path: ROUTER.CAGES },
-      { code: 'SCR-20', name: 'Thu ngân và thanh toán' },
+      {
+        code: 'SCR-20',
+        name: 'Thu ngân và thanh toán',
+        path: ROUTER.CLINIC_INVOICES,
+      },
       {
         code: 'SCR-21',
         name: 'Danh bạ khách hàng và thú cưng',
-        path: ROUTER.CLINIC_APPOINTMENTS,
+        path: `${ROUTER.CLINIC_APPOINTMENTS}?tab=lookup`,
       },
     ],
   },
@@ -66,8 +74,16 @@ export const STAFF_ROLE_CONTENT: Record<string, { screens: StaffScreen[] }> = {
       },
       // A SOAP record is opened from a case in the queue
       { code: 'SCR-23', name: 'Bệnh án SOAP', path: ROUTER.STAFF_QUEUE },
-      { code: 'SCR-24', name: 'Chỉ định và kết quả cận lâm sàng' },
-      { code: 'SCR-25', name: 'Khu nội trú và nhật ký hằng ngày' },
+      {
+        code: 'SCR-24',
+        name: 'Chỉ định và kết quả cận lâm sàng',
+        path: ROUTER.STAFF_QUEUE,
+      },
+      {
+        code: 'SCR-25',
+        name: 'Khu nội trú và nhật ký hằng ngày',
+        path: ROUTER.INPATIENT_CARE,
+      },
     ],
   },
   Groomer: {
@@ -77,8 +93,16 @@ export const STAFF_ROLE_CONTENT: Record<string, { screens: StaffScreen[] }> = {
         name: 'Lịch làm việc và hàng đợi spa',
         path: ROUTER.STAFF_QUEUE,
       },
-      { code: 'SCR-27', name: 'Thực hiện grooming và ghi chú chăm sóc' },
-      { code: 'SCR-24', name: 'Dịch vụ phụ được giao (ví dụ tắm thuốc)' },
+      {
+        code: 'SCR-27',
+        name: 'Thực hiện grooming và ghi chú chăm sóc',
+        path: ROUTER.STAFF_QUEUE,
+      },
+      {
+        code: 'SCR-24',
+        name: 'Dịch vụ phụ được giao (ví dụ tắm thuốc)',
+        path: ROUTER.STAFF_QUEUE,
+      },
     ],
   },
 };
