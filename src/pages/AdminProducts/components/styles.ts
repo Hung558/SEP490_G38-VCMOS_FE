@@ -15,7 +15,7 @@ export const Toolbar = styled.div`
 
 export const SearchControl = styled.div`
   flex: 1 1 280px;
-  min-width: 240px;
+  min-width: min(100%, 240px);
 `;
 
 export const FilterControl = styled.div`

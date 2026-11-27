@@ -4,6 +4,14 @@ export const PageWrapper = styled.div`
   padding: 32px;
   max-width: 1400px;
   margin: 0 auto;
+  min-width: 0;
+
+  @media (max-width: 575px) {
+    padding: 12px;
+    .ant-card-body {
+      padding: 16px;
+    }
+  }
 `;
 
 export const Toolbar = styled.div`

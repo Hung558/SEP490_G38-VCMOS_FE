@@ -32,6 +32,7 @@ import {
   type AccountSummary,
 } from './components/accountSummary';
 import PageTitle from '@/components/common/PageTitle';
+import { PageWrapper } from './components/styles';
 
 const { Text } = Typography;
 const staffRoles: AdminRole[] = ['Receptionist', 'Veterinarian', 'Groomer'];
@@ -252,7 +253,7 @@ const AdminUsersPage = () => {
   );
 
   return (
-    <div style={{ padding: 32, maxWidth: 1400, margin: '0 auto' }}>
+    <PageWrapper>
       <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Space
@@ -278,7 +279,7 @@ const AdminUsersPage = () => {
             failed={summaryFailed}
             onRetry={fetchSummary}
           />
-          <Space wrap>
+          <Space wrap className="account-filters">
             <Input.Search
               allowClear
               placeholder="Tìm mã, tên, SĐT hoặc email"
@@ -320,6 +321,7 @@ const AdminUsersPage = () => {
             </Button>
           </Space>
           <Table
+            scroll={{ x: 1100 }}
             rowKey="_id"
             loading={loading}
             columns={columns}
@@ -350,7 +352,7 @@ const AdminUsersPage = () => {
         loading={detailLoading}
         onCancel={() => setDetailUser(null)}
       />
-    </div>
+    </PageWrapper>
   );
 };
 

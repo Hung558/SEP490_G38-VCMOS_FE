@@ -129,6 +129,7 @@ const InpatientCare = () => {
           />
         ) : (
           <Table<InpatientRecord>
+            scroll={{ x: 1000 }}
             rowKey="_id"
             loading={loading}
             dataSource={result?.items || []}
