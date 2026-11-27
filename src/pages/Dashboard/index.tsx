@@ -89,6 +89,12 @@ const DashboardWrapper = styled.div`
   max-width: 1240px;
   margin: 0 auto;
 
+  min-width: 0;
+
+  @media (max-width: 640px) {
+    padding: 20px 12px;
+  }
+
   .dashboard-header {
     display: flex;
     justify-content: space-between;
@@ -119,6 +125,34 @@ const SectionCard = styled(Card)`
 
   .ant-card-body {
     padding: 20px 24px;
+  }
+
+  @media (max-width: 991px) {
+    .ant-card-head {
+      padding: 12px 16px;
+    }
+    .ant-card-head-wrapper {
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .ant-card-head-title {
+      white-space: normal;
+      overflow: visible;
+    }
+    .ant-card-head-title > div {
+      flex-wrap: wrap;
+    }
+    .ant-card-extra {
+      margin-inline-start: 0;
+      max-width: 100%;
+    }
+    .ant-card-extra > .ant-space {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .ant-card-body {
+      padding: 16px;
+    }
   }
 `;
 
@@ -1211,9 +1245,9 @@ const DashboardPage: React.FC = () => {
                   setPage(1);
                 }}
                 options={[
-                  { label: 'Đang nuôi (Active)', value: 'Active' },
-                  { label: 'Đã xóa (Deleted)', value: 'Deleted' },
-                  { label: 'Tất cả (All)', value: 'All' },
+                  { label: 'Đang nuôi', value: 'Active' },
+                  { label: 'Đã xóa', value: 'Deleted' },
+                  { label: 'Tất cả', value: 'All' },
                 ]}
               />
               <Button
@@ -1236,6 +1270,7 @@ const DashboardPage: React.FC = () => {
           }
         >
           <Table
+            scroll={{ x: 1000 }}
             columns={petsColumns}
             dataSource={pets}
             rowKey="_id"

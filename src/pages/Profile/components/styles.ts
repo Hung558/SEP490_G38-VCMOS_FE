@@ -32,7 +32,7 @@ export const SectionCard = styled.section`
   /* Pet owner: one card per pet */
   .pet-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
     gap: 14px;
   }
 
@@ -115,6 +115,7 @@ export const SectionCard = styled.section`
   }
 
   .screen-item {
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     justify-content: space-between;

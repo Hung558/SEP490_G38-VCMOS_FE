@@ -97,6 +97,18 @@ export const FilterCard = styled.div`
   }
 
   @media (max-width: 576px) {
+    .filters {
+      min-width: 0;
+    }
+    .ant-segmented {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .ant-segmented-group {
+      width: max-content;
+      min-width: 100%;
+    }
+
     .ant-picker {
       width: 100%;
     }

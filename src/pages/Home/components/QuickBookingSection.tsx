@@ -62,12 +62,12 @@ const BookingCard = styled.div`
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
   padding: 44px;
   display: grid;
-  grid-template-columns: 1fr 1.35fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
   gap: 48px;
   align-items: flex-start;
 
   @media (max-width: 960px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 28px 18px;
     gap: 32px;
   }
@@ -77,7 +77,7 @@ const BookingCard = styled.div`
 const EmbeddedWrapper = styled.div``;
 
 const EmbeddedBookingCard = styled(BookingCard)`
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   padding: 0;
   border: none;
   box-shadow: none;
@@ -226,6 +226,23 @@ const LeftInfo = styled.div`
 `;
 
 const FormWrap = styled.div`
+  min-width: 0;
+
+  .ant-select,
+  .ant-picker,
+  .grid-two-cols > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  @media (max-width: 480px) {
+    .form-submit-row .btn-submit {
+      max-width: 100%;
+      padding: 0 12px;
+      font-size: 14px;
+    }
+  }
+
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
@@ -267,11 +284,11 @@ const FormWrap = styled.div`
 
   .grid-two-cols {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px;
 
     @media (max-width: 768px) {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 16px;
     }
   }
@@ -380,7 +397,9 @@ const SuccessCard = styled.div`
     align-items: center;
     gap: 6px;
     margin-bottom: 24px;
-    min-width: 280px;
+    min-width: min(100%, 280px);
+    max-width: 100%;
+    overflow-wrap: anywhere;
 
     .code-label {
       font-size: 12px;

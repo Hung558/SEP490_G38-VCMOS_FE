@@ -3,6 +3,26 @@ import styled from 'styled-components';
 export const PageWrapper = styled.div`
   padding: 24px;
   min-height: 100%;
+  min-width: 0;
+
+  @media (max-width: 767px) {
+    .ant-space,
+    .ant-space-item {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    /* Preserve every filter option; scroll the control, not the page. */
+    .ant-segmented {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .ant-segmented-group {
+      width: max-content;
+      min-width: 100%;
+    }
+  }
 
   @media (max-width: 576px) {
     padding: 12px;

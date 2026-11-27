@@ -147,6 +147,7 @@ export const FilterBar = styled.form`
   margin-bottom: 20px;
 
   .field {
+    min-width: 0;
     display: grid;
     gap: 4px;
   }
@@ -166,6 +167,15 @@ export const FilterBar = styled.form`
   }
 
   @media (max-width: 576px) {
+    .ant-segmented {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .ant-segmented-group {
+      width: max-content;
+      min-width: 100%;
+    }
+
     .field,
     .ant-input,
     .apply {
