@@ -1,6 +1,5 @@
 'use client';
 
-import LayoutCommon from '@/components/common/LayoutCommon';
 import { capitalizeWords } from '@/lib/stringsUtils';
 import { cn } from '@/lib/utils';
 import { breadcrumbMap } from '@/routerMap/breadcrumbMap';
@@ -44,53 +43,54 @@ const Breadcrumb = ({ className }: BreadcrumbProps) => {
         display: breadcrumbs?.length ? 'block' : 'none',
       }}
     >
-      <LayoutCommon>
-        <nav
-          className={cn('d-flex-center text-sm space-x-1', className)}
-          aria-label="breadcrumb"
+      {/* Left-aligned: the header wrapper stretches this trail to full width
+          (flex: 1), so a centered nav / 1300px centered box pushed the back
+          arrow + title into the middle of the top bar. */}
+      <nav
+        className={cn('d-flex-start text-sm space-x-1', className)}
+        aria-label="breadcrumb"
+      >
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          title="Quay lại trang trước"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'oklch(.552 .016 285.938)',
+            padding: '2px 6px',
+            borderRadius: 6,
+          }}
         >
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            title="Quay lại trang trước"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'oklch(.552 .016 285.938)',
-              padding: '2px 6px',
-              borderRadius: 6,
-            }}
-          >
-            <ArrowLeft size={16} />
-          </button>
+          <ArrowLeft size={16} />
+        </button>
 
-          {breadcrumbs.map((label, index) => (
-            <div key={`${label}-${index}`} className="d-flex-center p-2 g-2">
-              {!!index && (
-                <ChevronRight size={14} color="oklch(.552 .016 285.938)" />
-              )}
-              <span
-                className={
-                  index === breadcrumbs.length - 1
-                    ? 'text-gray-800'
-                    : 'text-gray-500'
-                }
-                style={
-                  index === breadcrumbs.length - 1
-                    ? { fontWeight: 600 }
-                    : undefined
-                }
-              >
-                {label}
-              </span>
-            </div>
-          ))}
-        </nav>
-      </LayoutCommon>
+        {breadcrumbs.map((label, index) => (
+          <div key={`${label}-${index}`} className="d-flex-center p-2 g-2">
+            {!!index && (
+              <ChevronRight size={14} color="oklch(.552 .016 285.938)" />
+            )}
+            <span
+              className={
+                index === breadcrumbs.length - 1
+                  ? 'text-gray-800'
+                  : 'text-gray-500'
+              }
+              style={
+                index === breadcrumbs.length - 1
+                  ? { fontWeight: 600 }
+                  : undefined
+              }
+            >
+              {label}
+            </span>
+          </div>
+        ))}
+      </nav>
     </div>
   );
 };
