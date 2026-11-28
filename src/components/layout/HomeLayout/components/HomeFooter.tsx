@@ -240,7 +240,7 @@ const HomeFooter = () => {
             <div className="item">
               <ClockCircleOutlined className="icon" />
               <div>
-                <strong>Giờ mở cửa:</strong> 08:00 - 20:00 (Tất cả các ngày
+                <strong>Giờ mở cửa:</strong> 08:00 - 21:00 (Tất cả các ngày
                 trong tuần)
               </div>
             </div>

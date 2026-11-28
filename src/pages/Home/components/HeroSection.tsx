@@ -338,7 +338,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onScrollToBooking }) => {
           <div className="subnav-hours">
             <ClockCircleOutlined className="icon" />
             <span>
-              Giờ tiếp nhận: <strong>08:00 - 20:00</strong> (Tất cả các ngày
+              Giờ tiếp nhận: <strong>08:00 - 21:00</strong> (Tất cả các ngày
               trong tuần)
             </span>
           </div>
